@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Knowledge Guardian AI - Secure Local KT Assistant</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="glowing-bg"></div>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="logo-area">
+                <span class="pulse-ring"></span>
+                <h1>KNOWLEDGE GUARDIAN</h1>
+                <span class="badge">SECURE INTRANET ONLY</span>
+            </div>
+            <div class="connection-status" id="connection-status">
+                <div class="status-indicator online"></div>
+                <span class="status-text">Local Ollama: Connected</span>
+            </div>
+        </header>
+
+        <!-- Main Content Grid -->
+        <main class="app-grid">
+            <!-- Left Panel: Configurations & File Management -->
+            <section class="left-panel">
+                <div class="card glass">
+                    <h2>System Control Center</h2>
+                    <p class="description">Select a local directory containing documents (PDFs, Markdown, text files) and videos. All processing occurs locally on your hardware.</p>
+                    
+                    <div class="input-group">
+                        <label for="folder-path">Absolute Folder Path</label>
+                        <input type="text" id="folder-path" placeholder="/Users/username/documents-to-index" autocomplete="off">
+                        <button id="btn-index" class="btn btn-primary">Index Directory</button>
+                    </div>
+
+                    <!-- Indexing Progress Bar -->
+                    <div id="progress-container" class="progress-container hidden">
+                        <div class="progress-header">
+                            <span id="progress-filename">Processing file.pdf...</span>
+                            <span id="progress-percentage">45%</span>
+                        </div>
+                        <div class="progress-bar-track">
+                            <div id="progress-bar-fill" class="progress-bar-fill" style="width: 45%;"></div>
+                        </div>
+                        <div id="progress-timer" style="margin-top: 8px; font-size: 12px; color: #a0aec0; text-align: center;">Elapsed Time: 0s</div>
+                        <button id="btn-cancel-indexing" class="btn btn-danger btn-block" style="margin-top: 12px; padding: 8px; font-size: 12px;">Cancel Ingestion</button>
+                    </div>
+                </div>
+
+                <div class="card glass">
+                    <h2>Indexed Knowledge Store</h2>
+                    <div class="stats-row">
+                        <div class="stat-box">
+                            <span class="stat-num" id="stat-files">0</span>
+                            <span class="stat-label">Source Files</span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-num" id="stat-chunks">0</span>
+                            <span class="stat-label">Vector Chunks</span>
+                        </div>
+                    </div>
+                    
+                    <div class="files-list-container">
+                        <h3>Active File Index</h3>
+                        <ul id="files-list" class="files-list">
+                            <li class="empty-list">No files indexed. Enter a path above.</li>
+                        </ul>
+                    </div>
+
+                    <button id="btn-clear" class="btn btn-danger btn-block">Clear Knowledge Index</button>
+                </div>
+            </section>
+
+            <!-- Right Panel: Conversation Hub -->
+            <section class="right-panel card glass chat-card">
+                <div class="chat-header">
+                    <h2>Grounded Chat Room</h2>
+                    <span class="subtitle">AI answers verified against indexed sources to eliminate hallucinations.</span>
+                </div>
+                
+                <div class="chat-history" id="chat-history">
+                    <div class="message system">
+                        <div class="message-content">
+                            <p><strong>System initialized.</strong> Ready to answer questions on your indexed documents and video transcripts. Connect your local directory to begin.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chat-input-area">
+                    <textarea id="query-input" placeholder="Ask a question about your indexed codebase, designs, or video guides..." rows="2"></textarea>
+                    <button id="btn-send" class="btn btn-send" disabled>
+                        <svg viewBox="0 0 24 24" width="24" height="24">
+                            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" fill="currentColor"></path>
+                        </svg>
+                    </button>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Citation Overlay / Modal (Lazy Loaded or hover trigger) -->
+    <div id="citation-tooltip" class="citation-tooltip hidden"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>

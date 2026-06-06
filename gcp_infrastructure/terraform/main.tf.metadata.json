@@ -1,0 +1,6 @@
+{
+  "summary": "Terraform configuration to deploy a private VPC, a GKE cluster with a CPU pool and an NVIDIA L4 GPU pool, and a private Cloud SQL PostgreSQL database for vector indexing.",
+  "updatedAt": "2026-06-05T03:47:09.014940Z",
+  "requestFeedback": true,
+  "userFacing": true
+}

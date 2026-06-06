@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ollama-gpu
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ollama-gpu
+  template:
+    metadata:
+      labels:
+        app: ollama-gpu
+    spec:
+      tolerations:
+      - key: "nvidia.com/gpu"
+        operator: "Equal"
+        value: "present"
+        effect: "NoSchedule"
+      containers:
+      - name: ollama
+        image: ollama/ollama:latest
+        ports:
+        - containerPort: 11434
+          name: api
+        resources:
+          limits:
+            nvidia.com/gpu: 1  # Request 1 GPU (NVIDIA L4)
+            memory: 16Gi
+            cpu: "4"
+          requests:
+            nvidia.com/gpu: 1
+            memory: 8Gi
+            cpu: "2"
+        volumeMounts:
+        - name: ollama-storage
+          mountPath: /root/.ollama
+        # Post-start hook pulls the required model instantly upon boot
+        lifecycle:
+          postStart:
+            exec:
+              command: ["/bin/sh", "-c", "ollama pull qwen2.5-coder:7b && ollama pull nomic-embed-text"]
+      volumes:
+      - name: ollama-storage
+        persistentVolumeClaim:
+          claimName: ollama-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ollama-pvc
+  namespace: default
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ollama-gpu-service
+  namespace: default
+spec:
+  ports:
+  - port: 11434
+    targetPort: 11434
+  selector:
+    app: ollama-gpu
+  type: ClusterIP  # Kept internal to GKE network (secure)

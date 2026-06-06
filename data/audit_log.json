@@ -1,0 +1,204 @@
+[
+  {
+    "timestamp": "2026-06-05T08:23:46.925765",
+    "user_email": "local_developer@company.com",
+    "query": "What is the file size limit warning for git tracked files and what is the exemption for security-bench-haiku-responses.json?",
+    "accessed_files": [
+      "bin/gstack-memory-ingest.ts",
+      "CLAUDE.md",
+      "BROWSER.md",
+      "TODOS.md",
+      "test/skill-validation.test.ts"
+    ]
+  },
+  {
+    "timestamp": "2026-06-05T08:51:00.635810",
+    "user_email": "local_developer@company.com",
+    "query": "explain about this project?",
+    "accessed_files": [
+      "office-hours/SKILL.md",
+      "design-consultation/SKILL.md",
+      "openclaw/gstack-plan-CLAUDE.md",
+      "openclaw/skills/gstack-openclaw-office-hours/SKILL.md",
+      "document-generate/SKILL.md"
+    ]
+  },
+  {
+    "timestamp": "2026-06-05T08:51:54.191225",
+    "user_email": "local_developer@company.com",
+    "query": "explain about this project",
+    "accessed_files": [
+      "office-hours/SKILL.md",
+      "design-consultation/SKILL.md",
+      "openclaw/gstack-plan-CLAUDE.md",
+      "docs/images/github-2026.png",
+      "document-generate/SKILL.md"
+    ]
+  },
+  {
+    "timestamp": "2026-06-05T09:14:03.031124",
+    "user_email": "local_developer@company.com",
+    "query": "what is this folder about",
+    "accessed_files": [
+      "imaging.pdf",
+      "2025-261-4-SBC.pdf",
+      "hospitals.pdf",
+      "primarycare groups.pdf"
+    ]
+  },
+  {
+    "timestamp": "2026-06-05T11:04:44.747842",
+    "user_email": "local_developer@company.com",
+    "query": "what is this folder about",
+    "accessed_files": [
+      "primarycare groups.pdf",
+      "2025-261-4-SBC.pdf",
+      "hospitals.pdf",
+      "imaging.pdf"
+    ]
+  },
+  {
+    "timestamp": "2026-06-05T11:06:59.177303",
+    "user_email": "local_developer@company.com",
+    "query": "Are there any gastroenterology or dermatology doctors listed?",
+    "accessed_files": [
+      "labs.pdf",
+      "gastro docs.pdf",
+      "primarycare groups.pdf",
+      "Urgent care.pdf",
+      "ent docs.pdf"
+    ]
+  },
+  {
+    "timestamp": "2026-06-05T11:11:35.614350",
+    "user_email": "local_developer@company.com",
+    "query": "Are there any gastroenterology or dermatology doctors listed?",
+    "accessed_files": [
+      "derm doctors.pdf",
+      "primarycare groups.pdf",
+      "ent docs.pdf",
+      "hospitals.pdf",
+      "Urgent care.pdf"
+    ]
+  },
+  {
+    "timestamp": "2026-06-05T11:16:14.013951",
+    "user_email": "local_developer@company.com",
+    "query": "Are there any gastroenterology or dermatology doctors listed?",
+    "accessed_files": [
+      "primarycare groups.pdf",
+      "ent docs.pdf",
+      "derm doctors.pdf",
+      "Urgent care.pdf",
+      "gastro docs.pdf",
+      "physical doctors.pdf"
+    ]
+  },
+  {
+    "timestamp": "2026-06-05T11:31:31.027921",
+    "user_email": "local_developer@company.com",
+    "query": "Are there any gastroenterology or dermatology doctors listed?",
+    "accessed_files": [
+      "ent docs.pdf",
+      "physical doctors.pdf",
+      "primarycare groups.pdf",
+      "gastro docs.pdf",
+      "Urgent care.pdf",
+      "derm doctors.pdf"
+    ]
+  },
+  {
+    "timestamp": "2026-06-05T11:36:25.566555",
+    "user_email": "local_developer@company.com",
+    "query": "Gastroenterologists",
+    "accessed_files": [
+      "ent docs.pdf",
+      "primarycare groups.pdf",
+      "gastro docs.pdf",
+      "Urgent care.pdf",
+      "imaging.pdf"
+    ]
+  },
+  {
+    "timestamp": "2026-06-05T11:48:47.063618",
+    "user_email": "local_developer@company.com",
+    "query": "Are there any gastroenterology or dermatology doctors listed?",
+    "accessed_files": [
+      "ent docs.pdf",
+      "physical doctors.pdf",
+      "derm doctors.pdf",
+      "Urgent care.pdf",
+      "primarycare groups.pdf",
+      "gastro docs.pdf"
+    ]
+  },
+  {
+    "timestamp": "2026-06-05T11:53:18.219156",
+    "user_email": "local_developer@company.com",
+    "query": "Are there any gastroenterology or dermatology doctors listed?",
+    "accessed_files": [
+      "primarycare groups.pdf",
+      "ent docs.pdf",
+      "Urgent care.pdf",
+      "physical doctors.pdf",
+      "gastro docs.pdf",
+      "derm doctors.pdf"
+    ]
+  },
+  {
+    "timestamp": "2026-06-05T11:55:35.081371",
+    "user_email": "local_developer@company.com",
+    "query": "Are there any gastroenterology or dermatology doctors listed?",
+    "accessed_files": [
+      "gastro docs.pdf",
+      "primarycare groups.pdf",
+      "Urgent care.pdf",
+      "derm doctors.pdf",
+      "ent docs.pdf"
+    ]
+  },
+  {
+    "timestamp": "2026-06-05T11:56:45.924933",
+    "user_email": "local_developer@company.com",
+    "query": "Are there any gastroenterology or dermatology doctors listed?",
+    "accessed_files": [
+      "gastro docs.pdf",
+      "derm doctors.pdf",
+      "Urgent care.pdf",
+      "primarycare groups.pdf",
+      "ent docs.pdf"
+    ]
+  },
+  {
+    "timestamp": "2026-06-05T11:57:51.126833",
+    "user_email": "local_developer@company.com",
+    "query": "Are there any gastroenterology or dermatology doctors listed?",
+    "accessed_files": [
+      "derm doctors.pdf",
+      "primarycare groups.pdf",
+      "Urgent care.pdf",
+      "gastro docs.pdf",
+      "ent docs.pdf"
+    ]
+  },
+  {
+    "timestamp": "2026-06-05T12:02:31.246757",
+    "user_email": "local_developer@company.com",
+    "query": "Are there any gastroenterology or dermatology doctors listed?",
+    "accessed_files": [
+      "Urgent care.pdf",
+      "derm doctors.pdf",
+      "gastro docs.pdf"
+    ]
+  },
+  {
+    "timestamp": "2026-06-05T22:13:47.991237",
+    "user_email": "local_developer@company.com",
+    "query": "Are there any gastroenterology or dermatology doctors listed?",
+    "accessed_files": [
+      "Urgent care.pdf",
+      "derm doctors.pdf",
+      "gastro docs.pdf"
+    ]
+  }
+]
