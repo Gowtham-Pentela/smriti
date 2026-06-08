@@ -315,6 +315,11 @@ input[type="text"]::placeholder { color: var(--text-muted); }
 .btn-connect { font-size: 11px; font-weight: 600; color: var(--emerald); background: var(--emerald-dim); border: 1px solid var(--border-accent); border-radius: 5px; padding: 4px 10px; text-decoration: none; transition: background 0.15s; white-space: nowrap; }
 .btn-connect:hover { background: rgba(16,185,129,0.2); }
 .btn-connect.connected-btn { pointer-events: none; }
+.connector-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.btn-disconnect { font-size: 11px; font-weight: 600; color: #f87171; background: rgba(239,68,68,0.07); border: 1px solid rgba(239,68,68,0.2); border-radius: 5px; padding: 4px 10px; cursor: pointer; transition: background 0.15s; white-space: nowrap; }
+.btn-disconnect:hover { background: rgba(239,68,68,0.15); }
+.btn-disconnect:disabled { opacity: 0.5; cursor: not-allowed; }
+.hidden { display: none !important; }
 
 /* OAuth toast */
 .oauth-toast { margin-top: 7px; padding: 7px 9px; border-radius: 7px; font-size: 11px; animation: fadeUp 0.3s ease; }

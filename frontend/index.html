@@ -109,7 +109,10 @@
                         <div class="source-status" id="slack-status-text">Checking...</div>
                     </div>
                 </div>
-                <a href="/slack/oauth/start" id="btn-connect-slack" class="btn-connect">Connect</a>
+                <div class="connector-actions">
+                    <a href="/slack/oauth/start" id="btn-connect-slack" class="btn-connect">Connect</a>
+                    <button id="btn-disconnect-slack" class="btn-disconnect hidden" title="Disconnect Slack">✕ Disconnect</button>
+                </div>
             </div>
             <div id="oauth-banner" class="oauth-toast hidden"></div>
         </div>

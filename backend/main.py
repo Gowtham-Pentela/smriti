@@ -712,6 +712,31 @@ async def slack_oauth_callback(
         raise HTTPException(status_code=502, detail=f"Slack token exchange failed: {e}")
 
 
+@app.delete("/slack/disconnect")
+async def slack_disconnect(
+    request: Request,
+    user: UserIdentity = Depends(get_current_user),
+):
+    """
+    Disconnect Slack: delete the stored OAuth token for this tenant.
+    The user will need to go through OAuth again to reconnect.
+    No Slack data is deleted from the vector store — only the credential is removed.
+    """
+    tenant_id = getattr(request.state, "tenant_id", TENANT_NAMESPACE_UUID)
+    from backend.db import delete_tenant_credentials
+    async with app.state.db_pool.acquire() as conn:
+        deleted = await delete_tenant_credentials(conn, tenant_id, "slack")
+    if deleted:
+        print(f"✅ Slack disconnected for tenant={tenant_id} by {user.email}")
+        return {"status": "disconnected", "source": "slack"}
+    else:
+        raise HTTPException(
+            status_code=404,
+            detail="No Slack connection found for this tenant.",
+        )
+
+
+
 # ─── Sync Status ─────────────────────────────────────────────────────────────
 
 @app.get("/sync-status")

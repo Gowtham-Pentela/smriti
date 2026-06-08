@@ -116,21 +116,71 @@ async function checkSlackConnection() {
         const connections = await resp.json();
         const slackConn   = connections.find(c => c.source === "slack");
         if (slackConn) _setSlackConnected(slackConn.connected_at);
-        else { statusEl.textContent = "Not connected"; statusEl.className = "source-status"; }
+        else _setSlackDisconnected();
     } catch { statusEl.textContent = "Backend offline"; }
 }
 
 function _setSlackConnected(connectedAt) {
-    const statusEl = document.getElementById("slack-status-text");
-    const btnEl    = document.getElementById("btn-connect-slack");
-    if (!statusEl || !btnEl) return;
+    const statusEl   = document.getElementById("slack-status-text");
+    const btnConnect = document.getElementById("btn-connect-slack");
+    const btnDisc    = document.getElementById("btn-disconnect-slack");
+    if (!statusEl || !btnConnect) return;
+
     const dateStr = connectedAt ? ` since ${new Date(connectedAt).toLocaleDateString()}` : "";
     statusEl.textContent = `Connected${dateStr}`;
     statusEl.className   = "source-status connected";
-    btnEl.textContent    = "Connected ✓";
-    btnEl.className      = "btn-connect connected-btn";
-    btnEl.removeAttribute("href");
+
+    // Hide connect, show disconnect
+    btnConnect.style.display = "none";
+    if (btnDisc) {
+        btnDisc.classList.remove("hidden");
+        btnDisc.onclick = disconnectSlack;
+    }
 }
+
+function _setSlackDisconnected() {
+    const statusEl   = document.getElementById("slack-status-text");
+    const btnConnect = document.getElementById("btn-connect-slack");
+    const btnDisc    = document.getElementById("btn-disconnect-slack");
+
+    if (statusEl) { statusEl.textContent = "Not connected"; statusEl.className = "source-status"; }
+    if (btnConnect) { btnConnect.style.display = ""; }
+    if (btnDisc)    { btnDisc.classList.add("hidden"); }
+}
+
+async function disconnectSlack() {
+    const confirmed = window.confirm(
+        "Disconnect Slack?\n\n" +
+        "Your stored Slack credentials will be removed and automatic syncing will stop. " +
+        "Already-indexed Slack data stays in your knowledge base — you can clear it separately with the Clear Index button."
+    );
+    if (!confirmed) return;
+
+    const btnDisc = document.getElementById("btn-disconnect-slack");
+    if (btnDisc) { btnDisc.disabled = true; btnDisc.textContent = "Disconnecting..."; }
+
+    try {
+        const resp = await fetch(`${API_BASE}/slack/disconnect`, { method: "DELETE" });
+        if (resp.ok) {
+            _setSlackDisconnected();
+            const banner = document.getElementById("oauth-banner");
+            if (banner) {
+                banner.className = "oauth-toast success";
+                banner.innerHTML = "Slack disconnected. You can reconnect at any time.";
+                banner.classList.remove("hidden");
+                setTimeout(() => banner.classList.add("hidden"), 6000);
+            }
+        } else {
+            const err = await resp.json().catch(() => ({ detail: "Unknown error" }));
+            alert(`Could not disconnect: ${err.detail || resp.statusText}`);
+            if (btnDisc) { btnDisc.disabled = false; btnDisc.textContent = "✕ Disconnect"; }
+        }
+    } catch (e) {
+        alert("Network error while disconnecting. Is the backend running?");
+        if (btnDisc) { btnDisc.disabled = false; btnDisc.textContent = "✕ Disconnect"; }
+    }
+}
+
 
 // ── Backend connection ────────────────────────────────────────────────
 async function checkBackendConnection() {

@@ -111,3 +111,26 @@ async def load_tenant_credentials(
     if row is None:
         return None
     return decrypt_token(bytes(row["token_encrypted"]))
+
+
+async def delete_tenant_credentials(
+    conn: asyncpg.Connection,
+    tenant_id: str,
+    source: str,
+) -> bool:
+    """
+    Delete stored OAuth credentials for a tenant+source pair.
+    Returns True if a row was deleted, False if nothing was found.
+    Used when a user clicks 'Disconnect' in the UI.
+    """
+    result = await conn.execute(
+        f"""
+        DELETE FROM {SCHEMA}.tenant_credentials
+        WHERE tenant_id = $1 AND source = $2
+        """,
+        tenant_id, source,
+    )
+    # asyncpg returns "DELETE N" where N is rows affected
+    rows_deleted = int(result.split()[-1])
+    return rows_deleted > 0
+

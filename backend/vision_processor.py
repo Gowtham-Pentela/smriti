@@ -3,7 +3,7 @@ backend/vision_processor.py
 ───────────────────────────
 Routes extracted PDF images to the right processing pipeline:
   1. Text-dense images (scanned pages, tables, code screenshots) → pytesseract OCR
-  2. Diagram-heavy images (architecture, flowcharts, network maps) → LLaVA 7B via Ollama
+  2. Diagram-heavy images (architecture, flowcharts, network maps) → Moondream 1.8B via Ollama
 
 Both paths output text chunks that flow directly into the existing chunking and
 embedding pipeline — nomic-embed-text does not know or care whether a chunk came
@@ -12,8 +12,8 @@ from PDF text, OCR, or a vision description.
 Model stack (local only — no external API calls):
   - OCR primary:   pytesseract (Tesseract 5)
   - OCR fallback:  EasyOCR (better for stylized / non-Latin text)
-  - Vision:        LLaVA 7B via Ollama  (pull: ollama pull llava:7b)
-  - Fast fallback: Moondream 2B          (pull: ollama pull moondream)
+  - Vision:        Moondream 1.8B via Ollama (already installed, fits in 8 GB RAM)
+                   To upgrade later on a machine with 16+ GB: set KGF_VISION_MODEL=llava:7b
 
 Routing heuristic:
   - pytesseract quick scan → "text density" = (text char area / image area)
@@ -49,8 +49,10 @@ except ImportError:
 from backend.parser import sanitize_secrets_and_pii
 
 OLLAMA_GEN_URL    = os.getenv("OLLAMA_GEN_URL", "http://localhost:11434/api/generate")
-VISION_MODEL      = os.getenv("KGF_VISION_MODEL", "llava:7b")
-VISION_FALLBACK   = "moondream"
+# Default to Moondream (1.8B, 1.7 GB) — fits in 8 GB RAM alongside nomic-embed-text.
+# On machines with 16+ GB, override with: KGF_VISION_MODEL=llava:7b
+VISION_MODEL      = os.getenv("KGF_VISION_MODEL", "moondream")
+VISION_FALLBACK   = "moondream"  # same model; fallback path is a no-op safety net
 
 # Minimum meaningful words in a vision description before we discard the chunk.
 # Decorative patterns / watermarks produce <10 meaningful words.
