@@ -67,6 +67,17 @@ resource "google_sql_database_instance" "postgres" {
       name  = "cloudsql.enable_pgvector"
       value = "on"
     }
+    # ── Automatic daily backups (14-day retention) ───────────────────────────
+    backup_configuration {
+      enabled                        = true
+      start_time                     = "03:00" # 3am UTC — low traffic window
+      point_in_time_recovery_enabled = true
+      transaction_log_retention_days = 7
+      backup_retention_settings {
+        retained_backups = 14
+        retention_unit   = "COUNT"
+      }
+    }
   }
 }
 
@@ -113,13 +124,24 @@ resource "google_container_node_pool" "cpu_nodes" {
 
 # 7. GPU Node Pool (Dedicated to running vLLM or Ollama for local model inference)
 resource "google_container_node_pool" "gpu_nodes" {
-  name       = "gpu-node-pool"
-  location   = var.zone
-  cluster    = google_container_cluster.primary.name
-  node_count = 1
+  name     = "gpu-node-pool"
+  location = var.zone
+  cluster  = google_container_cluster.primary.name
+
+  # ── Autoscaling: scales to 0 at night, up to 1 during active hours ───────────
+  # Saves ~70% GPU cost vs always-on. Cold-start adds ~90s for first query after idle.
+  autoscaling {
+    min_node_count = 0
+    max_node_count = 1
+  }
+
+  management {
+    auto_repair  = true
+    auto_upgrade = true
+  }
 
   node_config {
-    preemptible  = true # Spot/Preemptible L4 GPU cuts cost to ~$0.22/hour!
+    preemptible  = true
     machine_type = "g2-standard-4" # 4 vCPUs, 16GB RAM, 1x NVIDIA L4 GPU (24GB VRAM)
 
     guest_accelerator {
@@ -136,5 +158,66 @@ resource "google_container_node_pool" "gpu_nodes" {
       value  = "present"
       effect = "NO_SCHEDULE"
     }
+  }
+}
+
+# ── 8. Cloud Monitoring: Uptime check + alert on backend /status endpoint ────────
+
+# Notification channel: send alert to a Slack webhook
+resource "google_monitoring_notification_channel" "slack_ops" {
+  display_name = "KGF Ops Slack Webhook"
+  type         = "webhook_tokenauth"
+  labels = {
+    url = var.monitoring_slack_webhook
+  }
+}
+
+# Uptime check: ping /status every 60 seconds from multiple GCP regions
+resource "google_monitoring_uptime_check_config" "kgf_api_health" {
+  display_name = "KGF Backend /status"
+  timeout      = "10s"
+  period       = "60s"
+
+  http_check {
+    path         = "/status"
+    port         = "80"
+    use_ssl      = false
+    validate_ssl = false
+  }
+
+  monitored_resource {
+    type   = "uptime_url"
+    labels = {
+      host      = "REPLACE_WITH_INGRESS_IP" # deploy.sh patches this post-apply
+      project_id = var.project_id
+    }
+  }
+}
+
+# Alert policy: fire if uptime check fails for 2 consecutive minutes
+resource "google_monitoring_alert_policy" "kgf_backend_down" {
+  display_name = "KGF Backend Down"
+  combiner     = "OR"
+
+  conditions {
+    display_name = "Uptime check failed"
+    condition_threshold {
+      filter          = "resource.type = \"uptime_url\" AND metric.type = \"monitoring.googleapis.com/uptime_check/check_passed\""
+      comparison      = "COMPARISON_LT"
+      threshold_value = 1
+      duration        = "120s"
+      aggregations {
+        alignment_period   = "60s"
+        per_series_aligner = "ALIGN_NEXT_OLDER"
+        cross_series_reducer = "REDUCE_COUNT_FALSE"
+        group_by_fields    = ["resource.label.host"]
+      }
+    }
+  }
+
+  notification_channels = [google_monitoring_notification_channel.slack_ops.name]
+
+  alert_strategy {
+    auto_close = "1800s" # Auto-resolve after 30min if service recovers
   }
 }

@@ -1,112 +1,311 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Knowledge Guardian AI - Secure Local KT Assistant</title>
+    <title>Knowledge Guardian Foundry: AI Workspace</title>
+    <meta name="description" content="Knowledge Guardian Foundry (KGF): Private AI workspace grounded in your organization's knowledge. Every answer cited.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="glowing-bg"></div>
-    <div class="app-container">
-        <!-- Header -->
-        <header class="app-header">
-            <div class="logo-area">
-                <span class="pulse-ring"></span>
-                <h1>KNOWLEDGE GUARDIAN</h1>
-                <span class="badge">SECURE INTRANET ONLY</span>
-            </div>
-            <div class="connection-status" id="connection-status">
+
+<div class="shell">
+
+    <!-- ═══════════════════════════════════════════
+         LEFT SIDEBAR - Knowledge Controls
+    ═══════════════════════════════════════════ -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-brand">
+            <a href="landing.html" class="brand-logo">
+                <svg class="brand-shield" viewBox="0 0 24 24" fill="none" width="20" height="20">
+                    <path d="M12 2L3 6v6c0 5.25 3.75 10.15 9 11.25C17.25 22.15 21 17.25 21 12V6L12 2z" fill="rgba(99,102,241,0.35)" stroke="rgba(99,102,241,0.6)" stroke-width="1"/>
+                    <defs><linearGradient id="bi-grad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#6366f1"/><stop offset="100%" stop-color="#8b5cf6" stop-opacity="0.6"/></linearGradient></defs>
+                    <path d="M9 12l2 2 4-4" stroke="#a5f3fc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <div class="brand-text">
+                    <span class="brand-name">KGF</span>
+                    <span class="brand-tagline">Organizational AI</span>
+                </div>
+            </a>
+        </div>
+
+        <!-- System Status -->
+        <div class="sidebar-section">
+            <div class="system-status" id="connection-status">
                 <div class="status-indicator online"></div>
-                <span class="status-text">Local Ollama: Connected</span>
+                <span class="status-text">Connecting...</span>
             </div>
-        </header>
+        </div>
 
-        <!-- Main Content Grid -->
-        <main class="app-grid">
-            <!-- Left Panel: Configurations & File Management -->
-            <section class="left-panel">
-                <div class="card glass">
-                    <h2>System Control Center</h2>
-                    <p class="description">Select a local directory containing documents (PDFs, Markdown, text files) and videos. All processing occurs locally on your hardware.</p>
-                    
-                    <div class="input-group">
-                        <label for="folder-path">Absolute Folder Path</label>
-                        <input type="text" id="folder-path" placeholder="/Users/username/documents-to-index" autocomplete="off">
-                        <button id="btn-index" class="btn btn-primary">Index Directory</button>
+        <!-- Knowledge Stats -->
+        <div class="sidebar-section">
+            <div class="section-label">Knowledge Base</div>
+            <div class="kbase-stats">
+                <div class="kstat">
+                    <div class="kstat-num" id="stat-chunks">0</div>
+                    <div class="kstat-label">Chunks</div>
+                </div>
+                <div class="kstat-divider"></div>
+                <div class="kstat">
+                    <div class="kstat-num" id="stat-files">0</div>
+                    <div class="kstat-label">Sources</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Index Documents -->
+        <div class="sidebar-section">
+            <div class="section-label">Add Knowledge</div>
+            <div class="index-form">
+                <div class="path-input-wrap">
+                    <svg class="path-icon" viewBox="0 0 24 24" fill="none" width="13" height="13"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+                    <input type="text" id="folder-path" placeholder="/path/to/documents" autocomplete="off" spellcheck="false">
+                </div>
+                <button id="btn-index" class="btn-primary-sm">
+                    <svg viewBox="0 0 24 24" fill="none" width="12" height="12"><path d="M12 5v14M5 12l7-7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    Index Directory
+                </button>
+            </div>
+
+            <div id="progress-container" class="progress-box hidden">
+                <div class="progress-meta">
+                    <span id="progress-filename" class="progress-fname">Scanning...</span>
+                    <span id="progress-percentage">0%</span>
+                </div>
+                <div class="progress-track">
+                    <div id="progress-bar-fill" class="progress-fill" style="width:0%"></div>
+                </div>
+                <div class="progress-footer">
+                    <span id="progress-timer">0s</span>
+                    <button id="btn-cancel-indexing" class="btn-danger-xs">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Indexed Files -->
+        <div class="sidebar-section files-section">
+            <div class="section-label-row">
+                <div class="section-label">Indexed Files</div>
+                <button id="btn-clear" class="btn-ghost-xs">Clear</button>
+            </div>
+            <ul id="files-list" class="files-list">
+                <li class="files-empty">No files indexed yet</li>
+            </ul>
+        </div>
+
+        <!-- Data Sources -->
+        <div class="sidebar-section" id="connectors">
+            <div class="section-label">Data Sources</div>
+            <div class="source-row" id="slack-connector-row">
+                <div class="source-info">
+                    <div class="source-icon-wrap">
+                        <svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
                     </div>
-
-                    <!-- Indexing Progress Bar -->
-                    <div id="progress-container" class="progress-container hidden">
-                        <div class="progress-header">
-                            <span id="progress-filename">Processing file.pdf...</span>
-                            <span id="progress-percentage">45%</span>
-                        </div>
-                        <div class="progress-bar-track">
-                            <div id="progress-bar-fill" class="progress-bar-fill" style="width: 45%;"></div>
-                        </div>
-                        <div id="progress-timer" style="margin-top: 8px; font-size: 12px; color: #a0aec0; text-align: center;">Elapsed Time: 0s</div>
-                        <button id="btn-cancel-indexing" class="btn btn-danger btn-block" style="margin-top: 12px; padding: 8px; font-size: 12px;">Cancel Ingestion</button>
+                    <div>
+                        <div class="source-name">Slack</div>
+                        <div class="source-status" id="slack-status-text">Checking...</div>
                     </div>
                 </div>
+                <a href="/slack/oauth/start" id="btn-connect-slack" class="btn-connect">Connect</a>
+            </div>
+            <div id="oauth-banner" class="oauth-toast hidden"></div>
+        </div>
 
-                <div class="card glass">
-                    <h2>Indexed Knowledge Store</h2>
-                    <div class="stats-row">
-                        <div class="stat-box">
-                            <span class="stat-num" id="stat-files">0</span>
-                            <span class="stat-label">Source Files</span>
-                        </div>
-                        <div class="stat-box">
-                            <span class="stat-num" id="stat-chunks">0</span>
-                            <span class="stat-label">Vector Chunks</span>
-                        </div>
-                    </div>
-                    
-                    <div class="files-list-container">
-                        <h3>Active File Index</h3>
-                        <ul id="files-list" class="files-list">
-                            <li class="empty-list">No files indexed. Enter a path above.</li>
-                        </ul>
-                    </div>
+        <div class="sidebar-footer">
+            <a href="landing.html" class="footer-link">← Home</a>
+            <a href="privacy.html" class="footer-link">Privacy</a>
+        </div>
+    </aside>
 
-                    <button id="btn-clear" class="btn btn-danger btn-block">Clear Knowledge Index</button>
-                </div>
-            </section>
+    <!-- ═══════════════════════════════════════════
+         WORKSPACE - Chat Column + Canvas Column
+    ═══════════════════════════════════════════ -->
+    <div class="workspace">
 
-            <!-- Right Panel: Conversation Hub -->
-            <section class="right-panel card glass chat-card">
-                <div class="chat-header">
-                    <h2>Grounded Chat Room</h2>
-                    <span class="subtitle">AI answers verified against indexed sources to eliminate hallucinations.</span>
-                </div>
-                
-                <div class="chat-history" id="chat-history">
-                    <div class="message system">
-                        <div class="message-content">
-                            <p><strong>System initialized.</strong> Ready to answer questions on your indexed documents and video transcripts. Connect your local directory to begin.</p>
-                        </div>
+        <!-- ── CHAT COLUMN ──────────────────────── -->
+        <div class="chat-column">
+
+            <!-- Topbar -->
+            <header class="topbar">
+                <div class="topbar-left">
+                    <div class="assistant-dot"></div>
+                    <div>
+                        <div class="topbar-title">Knowledge Guardian Foundry</div>
+                        <div class="topbar-sub" id="model-status">Ready · Private inference · On-premise</div>
                     </div>
                 </div>
-
-                <div class="chat-input-area">
-                    <textarea id="query-input" placeholder="Ask a question about your indexed codebase, designs, or video guides..." rows="2"></textarea>
-                    <button id="btn-send" class="btn btn-send" disabled>
-                        <svg viewBox="0 0 24 24" width="24" height="24">
-                            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" fill="currentColor"></path>
+                <div class="topbar-right">
+                    <!-- Theme Toggle -->
+                    <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme" title="Toggle light/dark theme">
+                        <svg class="icon-sun" viewBox="0 0 24 24" fill="none" width="16" height="16">
+                            <circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.7"/>
+                            <path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+                        </svg>
+                        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" width="16" height="16">
+                            <path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
                         </svg>
                     </button>
+                    <div class="privacy-badge">
+                        <svg viewBox="0 0 24 24" fill="none" width="11" height="11"><path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.25C17.25 22.15 21 17.25 21 12V7l-9-5z" stroke="currentColor" stroke-width="1.5"/></svg>
+                        Private
+                    </div>
                 </div>
-            </section>
-        </main>
-    </div>
+            </header>
 
-    <!-- Citation Overlay / Modal (Lazy Loaded or hover trigger) -->
-    <div id="citation-tooltip" class="citation-tooltip hidden"></div>
+            <!-- Messages feed -->
+            <div class="messages-feed" id="chat-history">
 
-    <script src="app.js"></script>
+                <!-- Welcome state -->
+                <div class="welcome-state" id="welcome-state">
+                    <div class="welcome-icon">
+                        <svg viewBox="0 0 24 24" fill="none" width="48" height="48">
+                            <path d="M12 2L3 6v6c0 5.25 3.75 10.15 9 11.25C17.25 22.15 21 17.25 21 12V6L12 2z" fill="rgba(99,102,241,0.2)" stroke="rgba(99,102,241,0.7)" stroke-width="1"/>
+                            <defs><linearGradient id="wi-grad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#6366f1" stop-opacity="0.5"/><stop offset="100%" stop-color="#8b5cf6" stop-opacity="0.2"/></linearGradient></defs>
+                            <path d="M9 12l2 2 4-4" stroke="#a5f3fc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <h1 class="welcome-title">Ask your organization anything</h1>
+                    <p class="welcome-sub">Every answer is grounded in your indexed knowledge with numbered citations. Click any citation to view the source in the panel.</p>
+                    <div class="example-grid">
+                        <button class="example-card" onclick="setQuery('What is our deployment process for the payments service?')">
+                            <svg class="example-icon" viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M12 19V5M5 12l7-7 7 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            <span>What is our deployment process for the payments service?</span>
+                        </button>
+                        <button class="example-card" onclick="setQuery('Who are the domain experts on authentication?')">
+                            <svg class="example-icon" viewBox="0 0 24 24" fill="none" width="18" height="18"><circle cx="9" cy="8" r="3" stroke="currentColor" stroke-width="1.5"/><circle cx="15" cy="8" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M1 20c0-3.3 3.6-6 8-6M23 20c0-3.3-3.6-6-8-6M9 20c0-2.8 2.7-5 6-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                            <span>Who are the domain experts on authentication?</span>
+                        </button>
+                        <button class="example-card" onclick="setQuery('What were the requirements for the Q1 release?')">
+                            <svg class="example-icon" viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            <span>What were the requirements for the Q1 release?</span>
+                        </button>
+                        <button class="example-card" onclick="setQuery('Why did we choose PostgreSQL over MySQL?')">
+                            <svg class="example-icon" viewBox="0 0 24 24" fill="none" width="18" height="18"><ellipse cx="12" cy="6" rx="8" ry="3" stroke="currentColor" stroke-width="1.5"/><path d="M4 6v6c0 1.66 3.58 3 8 3s8-1.34 8-3V6" stroke="currentColor" stroke-width="1.5"/><path d="M4 12v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6" stroke="currentColor" stroke-width="1.5"/></svg>
+                            <span>Why did we choose PostgreSQL over MySQL?</span>
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Input area -->
+            <div class="input-zone">
+                <div class="input-shell" id="input-shell">
+                    <textarea
+                        id="query-input"
+                        placeholder="Ask anything about your organization..."
+                        rows="1"
+                        disabled
+                        spellcheck="false"
+                    ></textarea>
+                    <div class="input-controls">
+                        <button id="btn-send" class="btn-send" disabled aria-label="Send">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none">
+                                <path d="M12 19V5M5 12l7-7 7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="input-meta">
+                    <span class="input-hint"><kbd>↵</kbd> send · <kbd>Shift+↵</kbd> newline</span>
+                    <span class="input-privacy">
+                        <svg viewBox="0 0 24 24" fill="none" width="10" height="10"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5"/><path d="M12 8v5M12 16v.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                        All inference is local. Data never leaves this network
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── CANVAS COLUMN ─────────────────────── -->
+        <div class="canvas-column" id="canvas-column">
+
+            <!-- Canvas header -->
+            <div class="canvas-header">
+                <div class="canvas-title-row">
+                    <div class="canvas-title">
+                        <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        Source Citations
+                    </div>
+                    <div class="canvas-pill" id="source-count-pill">0 sources</div>
+                </div>
+                <p class="canvas-sub">Click a numbered badge <span class="cite-badge-demo">1</span> in the response to highlight its source below.</p>
+            </div>
+
+            <!-- Sources canvas -->
+            <div class="canvas-body" id="sources-list">
+                <div class="canvas-empty">
+                    <div class="canvas-empty-icon">
+                        <svg viewBox="0 0 24 24" fill="none" width="36" height="36"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </div>
+                    <p>Sources referenced in the last response will appear here as expandable cards.</p>
+                </div>
+            </div>
+
+            <!-- Domain experts -->
+            <div class="experts-section">
+                <div class="canvas-title-row" style="padding: 14px 16px 10px;">
+                    <div class="canvas-title">
+                        <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.5"/><path d="M4 20c0-4 3.58-7 8-7s8 3 8 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                        Domain Experts
+                    </div>
+                    <div class="canvas-pill">Graph</div>
+                </div>
+                <div id="expert-list" class="expert-list">
+                    <div class="canvas-empty">
+                        <div class="canvas-empty-icon">🔍</div>
+                        <p>Experts surface from the knowledge graph after each query.</p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div><!-- end .workspace -->
+</div><!-- end .shell -->
+
+<!-- Citation tooltip -->
+<div id="citation-tooltip" class="citation-tooltip hidden" role="tooltip"></div>
+
+<script>
+    function setQuery(text) {
+        const input = document.getElementById('query-input');
+        const btn   = document.getElementById('btn-send');
+        if (!input) return;
+        input.value = text;
+        input.disabled = false;
+        btn.disabled   = false;
+        document.getElementById('welcome-state').style.display = 'none';
+        input.focus();
+        _resizeTextarea(input);
+    }
+
+    function _resizeTextarea(el) {
+        el.style.height = 'auto';
+        el.style.height = Math.min(el.scrollHeight, 180) + 'px';
+    }
+
+    // ── Theme toggle ──────────────────────────────────────
+    const THEME_KEY = 'kgf-theme';
+    const html      = document.documentElement;
+
+    function applyTheme(theme) {
+        html.setAttribute('data-theme', theme);
+        localStorage.setItem(THEME_KEY, theme);
+    }
+
+    // Load saved theme on boot
+    const savedTheme = localStorage.getItem(THEME_KEY) || 'dark';
+    applyTheme(savedTheme);
+
+    document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('theme-toggle').addEventListener('click', () => {
+            const current = html.getAttribute('data-theme');
+            applyTheme(current === 'dark' ? 'light' : 'dark');
+        });
+    });
+</script>
+<script src="app.js"></script>
 </body>
 </html>

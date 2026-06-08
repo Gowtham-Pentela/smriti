@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Privacy Policy: Knowledge Guardian Foundry</title>
+  <meta name="description" content="Knowledge Guardian Foundry Privacy Policy. Your organizational data stays in your cloud. We never access, share, or train on it." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="landing.css" />
+  <script>
+    (function() {
+      var t = localStorage.getItem('kgf-theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
+  <style>
+    .legal-page { max-width: 760px; margin: 0 auto; padding: 140px 24px 100px; }
+    .legal-header { margin-bottom: 48px; }
+    .legal-header h1 { font-size: clamp(2rem, 4vw, 3rem); font-weight: 800; margin-bottom: 12px; }
+    .legal-header .effective { font-size: 14px; color: var(--text-muted); }
+    .legal-section { margin-bottom: 48px; }
+    .legal-section h2 { font-size: 20px; font-weight: 700; margin-bottom: 16px; color: var(--text); border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+    .legal-section p, .legal-section li { font-size: 15px; color: var(--text-muted); line-height: 1.8; margin-bottom: 12px; }
+    .legal-section ul { padding-left: 20px; }
+    .legal-section li { margin-bottom: 8px; }
+    .highlight-box { background: rgba(99,102,241,0.07); border: 1px solid rgba(99,102,241,0.2); border-radius: 12px; padding: 24px 28px; margin-bottom: 24px; }
+    .highlight-box p { color: var(--text); font-weight: 500; margin: 0; }
+    .contact-box { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 24px 28px; margin-top: 48px; }
+    .contact-box h3 { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
+    .contact-box a { color: var(--accent); }
+    #particle-canvas { opacity: 0.15; }
+  </style>
+</head>
+<body>
+<canvas id="particle-canvas"></canvas>
+
+<nav class="nav scrolled" id="nav">
+  <div class="nav-inner">
+    <a href="landing.html" class="nav-logo">
+      <svg viewBox="0 0 24 24" fill="none" width="22" height="22">
+        <path d="M12 2L3 6v6c0 5.25 3.75 10.15 9 11.25C17.25 22.15 21 17.25 21 12V6L12 2z" fill="rgba(99,102,241,0.35)" stroke="rgba(99,102,241,0.6)" stroke-width="1"/>
+        <defs><linearGradient id="sp-grad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#6366f1"/><stop offset="100%" stop-color="#8b5cf6" stop-opacity="0.6"/></linearGradient></defs>
+        <path d="M9 12l2 2 4-4" stroke="#a5f3fc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span class="logo-text">Knowledge Guardian Foundry</span>
+    </a>
+    <div class="nav-links">
+      <a href="landing.html#privacy">Privacy Architecture</a>
+      <a href="terms.html">Terms of Service</a>
+    </div>
+    <div class="nav-right">
+      <button class="theme-toggle-btn" id="theme-toggle" aria-label="Toggle theme">
+        <svg class="icon-sun" viewBox="0 0 24 24" fill="none" width="16" height="16"><circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.8"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" width="16" height="16"><path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <a href="index.html" class="btn-nav-cta">Open Assistant &rarr;</a>
+    </div>
+  </div>
+</nav>
+
+<main class="legal-page" style="position:relative;z-index:1;">
+  <div class="legal-header">
+    <div class="section-label">Legal</div>
+    <h1>Privacy Policy</h1>
+    <p class="effective">Effective date: June 1, 2026 &nbsp;·&nbsp; Last updated: June 6, 2026</p>
+  </div>
+
+  <div class="highlight-box">
+    <p>The short version: Your organizational data is indexed and stored in <strong>your own GCP infrastructure</strong>. Knowledge Guardian Foundry operators never have access to it. No data is ever sent to external AI APIs for inference. Ever.</p>
+  </div>
+
+  <div class="legal-section">
+    <h2>1. Who We Are</h2>
+    <p>Knowledge Guardian Foundry ("KGF", "we", "us") is an organizational AI knowledge assistant. The product is deployed into the customer's own Google Cloud Platform (GCP) project. Gowtham Pentela, operating from Springfield, IL, USA, is the controller of this Privacy Policy for the software itself. Customers who deploy KGF are independent controllers of their own organizational data.</p>
+  </div>
+
+  <div class="legal-section">
+    <h2>2. Data We Collect and Process</h2>
+    <p>KGF collects two categories of data:</p>
+    <ul>
+      <li><strong>Organizational knowledge data:</strong> Messages, documents, meeting transcripts, and other content you authorize KGF to index via OAuth or file upload. This data is stored in your Postgres database (pgvector) inside your GCP project. We have no direct access to it.</li>
+      <li><strong>Product usage data:</strong> If you contact us for support, we may collect your name and email. We do not embed analytics trackers in the application.</li>
+    </ul>
+  </div>
+
+  <div class="legal-section">
+    <h2>3. Data Residency</h2>
+    <p>All organizational data is stored exclusively in the GCP region you choose during deployment (default: <code>us-central1</code>). Data does not leave that GCP region or project boundary during normal operation. The GCP project is owned and billed to your organization, not to Knowledge Guardian Foundry.</p>
+  </div>
+
+  <div class="legal-section">
+    <h2>4. How We Use Your Data</h2>
+    <p>Organizational data is used solely to provide the AI query service. Specifically:</p>
+    <ul>
+      <li>Text is chunked and embedded using local models (Ollama / nomic-embed-text) running inside your cluster.</li>
+      <li>Embeddings and source text are stored in your pgvector database.</li>
+      <li>At query time, relevant chunks are retrieved and passed to a local LLM (running in your GKE cluster) to generate an answer. No external API call is made for inference.</li>
+    </ul>
+    <p><strong>We do not use your data to train any machine learning model.</strong></p>
+  </div>
+
+  <div class="legal-section">
+    <h2>5. Third-Party Data Processors</h2>
+    <p>KGF uses the following third-party services during normal operation:</p>
+    <ul>
+      <li><strong>Google Cloud Platform:</strong> Compute (GKE), database (Cloud SQL), and storage. Your GCP project is the controller. GCP's DPA applies. <a href="https://cloud.google.com/terms/data-processing-addendum" target="_blank" rel="noopener">GCP DPA &rarr;</a></li>
+      <li><strong>Slack:</strong> If you connect Slack, KGF uses the Slack API to read authorized channel history. Slack's API terms apply. Only channels explicitly authorized during OAuth setup are read.</li>
+    </ul>
+    <p>KGF does not use OpenAI, Anthropic, Cohere, or any other external LLM API. Inference runs entirely on hardware inside your GCP project.</p>
+  </div>
+
+  <div class="legal-section">
+    <h2>6. Access Controls and Security</h2>
+    <ul>
+      <li><strong>Authentication:</strong> Google Identity-Aware Proxy (IAP) enforces Google SSO before any request reaches the application. No unauthenticated requests reach the backend.</li>
+      <li><strong>Permission-aware retrieval:</strong> Users only receive answers grounded in content they already have access to in the source system (e.g., Slack channel membership). Private channels are indexed with restricted visibility flags.</li>
+      <li><strong>Encryption at rest:</strong> All Cloud SQL data is encrypted using GCP-managed keys (CMEK option available). OAuth tokens stored in the database are additionally encrypted with AES-256 via Fernet.</li>
+      <li><strong>Encryption in transit:</strong> TLS 1.3 enforced on all external traffic. Internal service-to-service traffic uses GKE Workload Identity.</li>
+      <li><strong>Audit trail:</strong> Every query is logged with user identity, timestamp, and sources accessed. Audit logs are stored locally in your deployment.</li>
+    </ul>
+  </div>
+
+  <div class="legal-section">
+    <h2>7. Data Retention</h2>
+    <p>Organizational data is retained until you explicitly delete it. You can clear the vector index at any time via the application UI (Clear Knowledge Index) or via direct database access. Cloud SQL automatic backups are retained for 14 days by default and can be configured in your Terraform deployment.</p>
+  </div>
+
+  <div class="legal-section">
+    <h2>8. Your Rights</h2>
+    <p>Depending on your jurisdiction, you may have rights to access, correct, or delete personal data we process about you. For all data rights requests:</p>
+    <ul>
+      <li>For data stored in your KGF deployment (organizational data): contact your company's IT administrator, who controls your KGF deployment.</li>
+      <li>For any personal data KGF holds (e.g., support email): contact us at <a href="mailto:privacy@kgf.qd.je">privacy@kgf.qd.je</a>. We will respond within 30 days.</li>
+    </ul>
+  </div>
+
+  <div class="legal-section">
+    <h2>9. Children's Privacy</h2>
+    <p>KGF is a B2B enterprise product not directed at individuals under 18. We do not knowingly collect personal data from children.</p>
+  </div>
+
+  <div class="legal-section">
+    <h2>10. Changes to This Policy</h2>
+    <p>We may update this Privacy Policy from time to time. We will update the "Last updated" date at the top of this page. For material changes, we will notify customers via the primary contact email on record at least 14 days before the change takes effect.</p>
+  </div>
+
+  <div class="contact-box">
+    <h3>Privacy Contact</h3>
+    <p>Knowledge Guardian Foundry<br/>Springfield, IL, USA<br/>Email: <a href="mailto:privacy@kgf.qd.je">privacy@kgf.qd.je</a></p>
+  </div>
+</main>
+
+<footer class="footer" style="position:relative;z-index:1;">
+  <div class="container">
+    <div class="footer-bottom">
+      <span>© 2026 Knowledge Guardian Foundry. Springfield, IL.</span>
+      <span><a href="terms.html" style="color:var(--text-muted)">Terms of Service</a> &nbsp;·&nbsp; Privacy Policy</span>
+    </div>
+  </div>
+</footer>
+<script src="landing.js"></script>
+</body>
+</html>

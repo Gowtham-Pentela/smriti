@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Knowledge Guardian Foundry: Organizational AI Memory, Built for Privacy</title>
+  <meta name="description" content="Knowledge Guardian Foundry (KGF) turns your organization's Slack, docs, meetings, and project history into a private AI assistant that answers like a senior employee. Your data never leaves your cloud." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="landing.css" />
+  <script>
+    // Apply saved theme before first paint to avoid flash
+    (function() {
+      var t = localStorage.getItem('kgf-theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
+</head>
+<body>
+
+<!-- ── Particle canvas ── -->
+<canvas id="particle-canvas"></canvas>
+
+<!-- ── Navigation ─────────────────────────────────────────────────── -->
+<nav class="nav" id="nav">
+  <div class="nav-inner">
+    <a href="#" class="nav-logo">
+      <svg class="logo-shield-svg" viewBox="0 0 24 24" fill="none" width="22" height="22">
+        <path d="M12 2L3 6v6c0 5.25 3.75 10.15 9 11.25C17.25 22.15 21 17.25 21 12V6L12 2z" fill="rgba(99,102,241,0.35)" stroke="rgba(99,102,241,0.6)" stroke-width="1"/>
+        <defs><linearGradient id="shield-grad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#6366f1"/><stop offset="100%" stop-color="#8b5cf6" stop-opacity="0.6"/></linearGradient></defs>
+        <path d="M9 12l2 2 4-4" stroke="#a5f3fc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span class="logo-text">Knowledge Guardian Foundry</span>
+    </a>
+    <div class="nav-links">
+      <a href="#how-it-works">How It Works</a>
+      <a href="#sources">Sources</a>
+      <a href="#privacy">Privacy</a>
+      <a href="#onboarding">Onboarding</a>
+    </div>
+    <div class="nav-right">
+      <!-- Theme toggle -->
+      <button class="theme-toggle-btn" id="theme-toggle" aria-label="Toggle theme" title="Toggle light / dark theme">
+        <svg class="icon-sun" viewBox="0 0 24 24" fill="none" width="16" height="16">
+          <circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.8"/>
+          <path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" width="16" height="16">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <a href="index.html" class="btn-nav-cta">Open Assistant &rarr;</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ── Hero ──────────────────────────────────────────────────────── -->
+<section class="hero" id="hero">
+  <div class="hero-glow glow-1"></div>
+  <div class="hero-glow glow-2"></div>
+  <div class="hero-glow glow-3"></div>
+
+  <div class="hero-content reveal">
+    <div class="hero-badge">
+      <span class="badge-dot"></span>
+      AI-Powered Organizational Memory
+    </div>
+
+    <h1 class="hero-headline">
+      Your organization's<br />
+      <span class="gradient-text">memory. Instant.<br />Private. Yours.</span>
+    </h1>
+
+    <p class="hero-sub">
+      Stop losing knowledge when people leave. Stop wasting hours onboarding new hires.
+      Knowledge Guardian Foundry connects every Slack thread, meeting, doc, and decision into
+      a private AI assistant that answers like your most experienced employee
+      <strong>without a single byte leaving your cloud.</strong>
+    </p>
+
+    <div class="hero-actions">
+      <a href="index.html" class="btn-primary">
+        Open the Assistant
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </a>
+      <a href="#how-it-works" class="btn-ghost">See how it works</a>
+    </div>
+
+    <div class="hero-social-proof">
+      <div class="sp-item">
+        <span class="sp-num">86%</span>
+        <span class="sp-label">Recall accuracy<br/>on org knowledge</span>
+      </div>
+      <div class="sp-divider"></div>
+      <div class="sp-item">
+        <span class="sp-num">&lt;130ms</span>
+        <span class="sp-label">Median query<br/>response time</span>
+      </div>
+      <div class="sp-divider"></div>
+      <div class="sp-item">
+        <span class="sp-num">100%</span>
+        <span class="sp-label">Private: your<br/>cloud only</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Floating query preview card -->
+  <div class="hero-demo reveal reveal-delay-1">
+    <div class="demo-card">
+      <div class="demo-header">
+        <div class="demo-dots">
+          <span></span><span></span><span></span>
+        </div>
+        <span class="demo-title">Knowledge Guardian Foundry</span>
+      </div>
+      <div class="demo-query">
+        <svg class="demo-user-icon" viewBox="0 0 24 24" fill="none" width="20" height="20"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.5"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <span class="demo-query-text">"What's our deployment process for the payments service?"</span>
+      </div>
+      <div class="demo-answer">
+        <svg class="demo-kgf-icon" viewBox="0 0 24 24" fill="none" width="20" height="20"><path d="M12 2L3 6v6c0 5.25 3.75 10.15 9 11.25C17.25 22.15 21 17.25 21 12V6L12 2z" fill="rgba(99,102,241,0.3)" stroke="rgba(99,102,241,0.8)" stroke-width="1.5"/><path d="M9 12l2 2 4-4" stroke="#a5f3fc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <div class="demo-answer-body">
+          <p>The payments service uses a blue-green deployment strategy via GitHub Actions.
+          The release manager creates a tag on <code>main</code>, which triggers the pipeline
+          defined in <code>.github/workflows/deploy-payments.yml</code>...</p>
+          <div class="demo-citations">
+            <span class="cite">deploy-payments.yml</span>
+            <span class="cite">#devops &middot; Alex M.</span>
+            <span class="cite">Release Runbook v4</span>
+          </div>
+          <div class="demo-confidence">
+            <span class="conf-dot high"></span> High confidence &middot; 3 sources &middot; 118ms
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Problem ────────────────────────────────────────────────────── -->
+<section class="section-problem" id="problem">
+  <div class="container">
+    <div class="section-label reveal">The Problem</div>
+    <h2 class="section-title reveal">Knowledge disappears.<br/>Every single day.</h2>
+
+    <div class="problem-grid">
+      <div class="problem-card reveal reveal-delay-1">
+        <div class="problem-img-wrap">
+          <img src="images/img_01_knowledge_silos.png" alt="Knowledge silos illustration" />
+        </div>
+        <div class="problem-card-body">
+          <h3>Knowledge Silos</h3>
+          <p>The answer lives in a Slack thread from 8 months ago, a Confluence page that was never updated, and the head of an engineer who left last quarter. Nobody can find it.</p>
+        </div>
+      </div>
+      <div class="problem-card reveal reveal-delay-2">
+        <div class="problem-img-wrap">
+          <img src="images/img_02_onboarding_friction.png" alt="Onboarding friction illustration" />
+        </div>
+        <div class="problem-card-body">
+          <h3>Onboarding Friction</h3>
+          <p>A new engineer spends their first 3 weeks asking the same questions that were already answered somewhere. Every senior teammate loses hours explaining context that already exists.</p>
+        </div>
+      </div>
+      <div class="problem-card reveal reveal-delay-3">
+        <div class="problem-img-wrap">
+          <img src="images/img_03_brain_drain.png" alt="Brain drain illustration" />
+        </div>
+        <div class="problem-card-body">
+          <h3>Brain Drain</h3>
+          <p>When a senior engineer leaves, they take 3 years of architectural decisions, deployment gotchas, and process knowledge with them. It's irretrievable.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── How It Works ──────────────────────────────────────────────── -->
+<section class="section-how" id="how-it-works">
+  <div class="container">
+    <div class="section-label reveal">How It Works</div>
+    <h2 class="section-title reveal">Three steps from <span class="gradient-text">connection to insight.</span></h2>
+
+    <div class="steps-timeline">
+      <div class="step reveal reveal-delay-1">
+        <div class="step-number">01</div>
+        <div class="step-content">
+          <h3>Connect your sources</h3>
+          <p>Authorize once with your Slack workspace, Google Drive, Confluence, or simply upload your project docs. Knowledge Guardian Foundry reads what you give it and nothing more.</p>
+          <div class="step-tags">
+            <span>Slack</span><span>Google Drive</span><span>Confluence</span><span>PDF / Markdown</span><span>Zoom</span>
+          </div>
+        </div>
+        <div class="step-visual step-visual-1">
+          <img src="images/img_04_connect_sources.png" alt="Connect your sources" class="step-img" />
+        </div>
+      </div>
+
+      <div class="step step-reverse reveal reveal-delay-2">
+        <div class="step-number">02</div>
+        <div class="step-content">
+          <h3>Index privately, inside your cloud</h3>
+          <p>Every document, message, and transcript is chunked, embedded, and stored in a vector database that runs inside your GCP project. Your encryption keys. Your network. Zero third-party access.</p>
+          <div class="step-tags">
+            <span>Local LLM (Ollama)</span><span>pgvector</span><span>Your GCP</span><span>Fernet encryption</span>
+          </div>
+        </div>
+        <div class="step-visual step-visual-2">
+          <img src="images/img_05_index_privately.png" alt="Index privately inside your cloud" class="step-img" />
+        </div>
+      </div>
+
+      <div class="step reveal reveal-delay-3">
+        <div class="step-number">03</div>
+        <div class="step-content">
+          <h3>Ask anything. Get cited answers.</h3>
+          <p>Ask in plain English. Every answer is grounded in real sources from your organization, with citations to the exact Slack message, doc, or meeting where the information came from.</p>
+          <div class="step-tags">
+            <span>Hybrid semantic + keyword search</span><span>Hallucination firewall</span><span>Source citations</span>
+          </div>
+        </div>
+        <div class="step-visual step-visual-3">
+          <img src="images/img_06_ask_anything.png" alt="Ask anything and get cited answers" class="step-img" />
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Sources ────────────────────────────────────────────────────── -->
+<section class="section-sources" id="sources">
+  <div class="container">
+    <div class="section-label reveal">What It Understands</div>
+    <h2 class="section-title reveal">Every stream of knowledge<br/>your organization creates.</h2>
+
+    <div class="sources-grid">
+      <div class="source-card reveal reveal-delay-1">
+        <div class="source-img-wrap">
+          <img src="images/img_07_slack_teams.png" alt="Slack and Teams" />
+        </div>
+        <div class="source-card-body">
+          <h4>Slack &amp; Teams</h4>
+          <p>Channel history, threads, decisions buried in conversations. Filtered by your permissions.</p>
+          <span class="source-badge live">Live sync</span>
+        </div>
+      </div>
+      <div class="source-card reveal reveal-delay-2">
+        <div class="source-img-wrap">
+          <img src="images/img_08_requirements_specs.png" alt="Requirements and Specs" />
+        </div>
+        <div class="source-card-body">
+          <h4>Requirements &amp; Specs</h4>
+          <p>PRDs, technical specs, RFCs, architecture decision records. The "why" behind every feature.</p>
+          <span class="source-badge">Indexed</span>
+        </div>
+      </div>
+      <div class="source-card reveal reveal-delay-3">
+        <div class="source-img-wrap">
+          <img src="images/img_09_release_notes.png" alt="Release Notes and Runbooks" />
+        </div>
+        <div class="source-card-body">
+          <h4>Release Notes &amp; Runbooks</h4>
+          <p>Deployment guides, release notes, on-call runbooks, incident postmortems.</p>
+          <span class="source-badge">Indexed</span>
+        </div>
+      </div>
+      <div class="source-card reveal reveal-delay-4">
+        <div class="source-img-wrap">
+          <img src="images/img_10_meeting_transcripts.png" alt="Meeting Transcripts" />
+        </div>
+        <div class="source-card-body">
+          <h4>Meeting Transcripts</h4>
+          <p>Zoom, Google Meet, Teams recordings. Whisper transcription runs locally. Audio never uploaded.</p>
+          <span class="source-badge soon">Coming soon</span>
+        </div>
+      </div>
+      <div class="source-card reveal reveal-delay-5">
+        <div class="source-img-wrap">
+          <img src="images/img_11_google_drive.png" alt="Google Drive and Confluence" />
+        </div>
+        <div class="source-card-body">
+          <h4>Google Drive &amp; Confluence</h4>
+          <p>Wikis, shared docs, design files (text exported). Auto-refreshed every 30 minutes.</p>
+          <span class="source-badge soon">Coming soon</span>
+        </div>
+      </div>
+      <div class="source-card reveal reveal-delay-6">
+        <div class="source-img-wrap">
+          <img src="images/img_12_email_threads.png" alt="Email Threads" />
+        </div>
+        <div class="source-card-body">
+          <h4>Email Threads</h4>
+          <p>Gmail and Outlook decision threads. Reconstructed by conversation, not individual messages.</p>
+          <span class="source-badge soon">Coming soon</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Privacy ────────────────────────────────────────────────────── -->
+<section class="section-privacy" id="privacy">
+  <div class="privacy-glow"></div>
+  <div class="container">
+    <div class="privacy-inner">
+      <div class="privacy-text reveal">
+        <div class="section-label">Privacy Architecture</div>
+        <h2>Your data never leaves<br/><span class="gradient-text">your cloud. Ever.</span></h2>
+        <p class="privacy-lead">
+          We built Knowledge Guardian Foundry with a hard constraint: zero external API calls for inference.
+          Every LLM call, every embedding, every retrieval happens inside your GCP project
+          on infrastructure that you own, with keys that only you control.
+        </p>
+        <ul class="privacy-list">
+          <li>
+            <span class="check">&#10003;</span>
+            <div>
+              <strong>Local LLM inference</strong>
+              <span>Ollama / vLLM runs inside your GKE cluster. No OpenAI. No Anthropic. No data in transit to external models.</span>
+            </div>
+          </li>
+          <li>
+            <span class="check">&#10003;</span>
+            <div>
+              <strong>No model training on your data</strong>
+              <span>RAG-only architecture. Your data never enters model weights. Not ours, not anyone else's.</span>
+            </div>
+          </li>
+          <li>
+            <span class="check">&#10003;</span>
+            <div>
+              <strong>Permission-aware retrieval</strong>
+              <span>Users only see answers grounded in content they already had access to in the source system. Private channels stay private.</span>
+            </div>
+          </li>
+          <li>
+            <span class="check">&#10003;</span>
+            <div>
+              <strong>Encrypted at rest &amp; in transit</strong>
+              <span>AES-256 encryption via GCP CMEK. TLS 1.3 in transit. OAuth tokens encrypted with Fernet in your database.</span>
+            </div>
+          </li>
+          <li>
+            <span class="check">&#10003;</span>
+            <div>
+              <strong>Full audit trail</strong>
+              <span>Every query logged with user identity, timestamp, and sources accessed. Exportable for compliance.</span>
+            </div>
+          </li>
+        </ul>
+        <a href="privacy.html" class="btn-ghost-sm">Read full Privacy Policy &rarr;</a>
+      </div>
+
+      <div class="privacy-diagram reveal reveal-delay-2">
+        <div class="pd-outer">
+          <div class="pd-label-top">Your GCP Project</div>
+          <div class="pd-inner">
+            <div class="pd-node pd-user">
+              <svg viewBox="0 0 24 24" fill="none" width="28" height="28"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.5"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              <small>Your team</small>
+            </div>
+            <div class="pd-arrow">&#8594;</div>
+            <div class="pd-node pd-app">
+              <svg viewBox="0 0 24 24" fill="none" width="28" height="28"><path d="M12 2L3 6v6c0 5.25 3.75 10.15 9 11.25C17.25 22.15 21 17.25 21 12V6L12 2z" stroke="currentColor" stroke-width="1.5"/><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <small>KGF Assistant</small>
+            </div>
+            <div class="pd-arrow">&#8597;</div>
+            <div class="pd-node pd-db">
+              <svg viewBox="0 0 24 24" fill="none" width="28" height="28"><ellipse cx="12" cy="6" rx="8" ry="3" stroke="currentColor" stroke-width="1.5"/><path d="M4 6v6c0 1.66 3.58 3 8 3s8-1.34 8-3V6" stroke="currentColor" stroke-width="1.5"/><path d="M4 12v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6" stroke="currentColor" stroke-width="1.5"/></svg>
+              <small>pgvector DB</small>
+            </div>
+            <div class="pd-arrow">&#8597;</div>
+            <div class="pd-node pd-llm">
+              <svg viewBox="0 0 24 24" fill="none" width="28" height="28"><rect x="3" y="3" width="18" height="18" rx="3" stroke="currentColor" stroke-width="1.5"/><path d="M8 12h8M12 8v8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="8" r="1" fill="currentColor"/><circle cx="16" cy="8" r="1" fill="currentColor"/><circle cx="8" cy="16" r="1" fill="currentColor"/><circle cx="16" cy="16" r="1" fill="currentColor"/></svg>
+              <small>Local LLM</small>
+            </div>
+          </div>
+          <div class="pd-wall">
+            <svg viewBox="0 0 24 24" fill="none" width="18" height="18"><rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            <span class="pd-wall-text">No data crosses this boundary</span>
+          </div>
+          <div class="pd-outside">
+            <div class="pd-node pd-ext muted">
+              <svg viewBox="0 0 24 24" fill="none" width="28" height="28"><path d="M18 10a6 6 0 0 0-12 0c-2.2.5-4 2.5-4 4.5A4.5 4.5 0 0 0 6.5 19h11A4.5 4.5 0 0 0 22 14.5c0-2-1.8-4-4-4.5z" stroke="currentColor" stroke-width="1.5"/></svg>
+              <small>External APIs</small>
+            </div>
+            <div class="pd-cross">&#10005;</div>
+          </div>
+        </div>
+        <div class="privacy-diagram-img">
+          <img src="images/img_13_data_never_leaves.png" alt="Your data never leaves your cloud" loading="lazy" />
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Onboarding ─────────────────────────────────────────────────── -->
+<section class="section-onboarding" id="onboarding">
+  <div class="container">
+    <div class="section-label reveal">For New Employees</div>
+    <h2 class="section-title reveal">From day one,<br/><span class="gradient-text">they know everything they need to.</span></h2>
+
+    <div class="onboarding-story reveal reveal-delay-1">
+      <div class="story-timeline">
+        <div class="story-day">
+          <div class="day-marker">Day 1</div>
+          <div class="day-card">
+            <p class="day-query">"Who should I talk to about the authentication system?"</p>
+            <p class="day-answer">Surfaces the top 3 contributors to auth-related discussions over the past year, with their contact info and relevant context.</p>
+          </div>
+        </div>
+        <div class="story-day">
+          <div class="day-marker">Day 3</div>
+          <div class="day-card">
+            <p class="day-query">"Why did we choose Postgres over MySQL for the main database?"</p>
+            <p class="day-answer">Pulls the decision thread from Slack and the architecture ADR doc, explaining the exact rationale with citations.</p>
+          </div>
+        </div>
+        <div class="story-day">
+          <div class="day-marker">Week 2</div>
+          <div class="day-card">
+            <p class="day-query">"What are the steps to deploy a hotfix to production?"</p>
+            <p class="day-answer">Retrieves the deployment runbook, recent Slack threads about production incidents, and the current on-call rotation.</p>
+          </div>
+        </div>
+        <div class="story-day">
+          <div class="day-marker">Month 2</div>
+          <div class="day-card">
+            <p class="day-query">"What were the requirements for the Q1 payments feature?"</p>
+            <p class="day-answer">Finds the original PRD, the spec changes during implementation, and the release notes, all within their access permissions.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── CTA ────────────────────────────────────────────────────────── -->
+<section class="section-cta" id="cta">
+  <div class="cta-glow"></div>
+  <div class="container">
+    <div class="cta-inner reveal">
+      <h2>Ready to give your team<br/><span class="gradient-text">their organization's memory back?</span></h2>
+      <p>No data leaves your infrastructure. No per-seat pricing. No procurement nightmare.</p>
+      <div class="cta-actions">
+        <a href="index.html" class="btn-primary btn-large">
+          Launch the Assistant
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </a>
+        <a href="mailto:hello@kgf.qd.je" class="btn-ghost">Request a demo</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Footer ─────────────────────────────────────────────────────── -->
+<footer class="footer">
+  <div class="container">
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <svg viewBox="0 0 24 24" fill="none" width="22" height="22" style="flex-shrink:0">
+          <path d="M12 2L3 6v6c0 5.25 3.75 10.15 9 11.25C17.25 22.15 21 17.25 21 12V6L12 2z" fill="rgba(99,102,241,0.25)" stroke="rgba(99,102,241,0.5)" stroke-width="1"/>
+          <defs><linearGradient id="shield-grad-f" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#6366f1"/><stop offset="100%" stop-color="#8b5cf6" stop-opacity="0.5"/></linearGradient></defs>
+          <path d="M9 12l2 2 4-4" stroke="#a5f3fc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="logo-text">Knowledge Guardian Foundry</span>
+        <p>Privacy-first organizational AI. Your data stays yours.</p>
+      </div>
+      <div class="footer-links">
+        <div class="footer-col">
+          <h5>Product</h5>
+          <a href="#how-it-works">How It Works</a>
+          <a href="#sources">Sources</a>
+          <a href="#privacy">Privacy Architecture</a>
+          <a href="index.html">Launch App</a>
+        </div>
+        <div class="footer-col">
+          <h5>Legal</h5>
+          <a href="privacy.html">Privacy Policy</a>
+          <a href="terms.html">Terms of Service</a>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>&#169; 2026 Knowledge Guardian Foundry. Built in Springfield, IL.</span>
+      <span>All organizational data remains in your cloud infrastructure.</span>
+    </div>
+  </div>
+</footer>
+
+<script src="landing.js"></script>
+</body>
+</html>

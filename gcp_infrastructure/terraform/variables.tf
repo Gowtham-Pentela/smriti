@@ -14,3 +14,10 @@ variable "zone" {
   default     = "us-central1-a"
   description = "The GCP zone for the GKE cluster and node pools"
 }
+
+variable "monitoring_slack_webhook" {
+  type        = string
+  default     = ""
+  description = "Slack incoming webhook URL for GCP monitoring alerts (optional)"
+  sensitive   = true
+}
