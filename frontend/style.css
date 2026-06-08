@@ -328,9 +328,18 @@ input[type="text"]::placeholder { color: var(--text-muted); }
 .oauth-toast a { color: inherit; font-weight: 700; text-decoration: underline; }
 
 /* Sidebar footer */
-.sidebar-footer { margin-top: auto; padding: 10px 14px; border-top: 1px solid var(--border-soft); display: flex; gap: 12px; }
+.sidebar-footer { margin-top: auto; padding: 10px 14px; border-top: 1px solid var(--border-soft); display: flex; flex-direction: column; gap: 8px; }
+.user-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; }
+.user-avatar { width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, rgba(99,102,241,0.3), rgba(139,92,246,0.2)); border: 1px solid rgba(99,102,241,0.3); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #a5b4fc; flex-shrink: 0; }
+.user-info { min-width: 0; }
+.user-email { font-size: 11px; font-weight: 500; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.user-domain { font-size: 10px; color: var(--text-muted); }
+.footer-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 .footer-link { font-size: 11px; color: var(--text-muted); text-decoration: none; transition: color 0.15s; }
 .footer-link:hover { color: var(--text-secondary); }
+.footer-btn { background: none; border: none; padding: 0; cursor: pointer; font-family: inherit; }
+.footer-btn.danger { color: rgba(239,68,68,0.6); }
+.footer-btn.danger:hover { color: #f87171; }
 
 /* ═══════════════════════════════════════════════════════════════════════
    WORKSPACE = CHAT COLUMN + CANVAS COLUMN

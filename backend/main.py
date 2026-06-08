@@ -628,6 +628,53 @@ async def get_me(user: UserIdentity = Depends(get_current_user)):
     return {"email": user.email, "domain": user.domain, "is_admin": user.is_admin}
 
 
+@app.delete("/account")
+async def delete_account(
+    request: Request,
+    user: UserIdentity = Depends(get_current_user),
+):
+    """
+    Delete ALL data for the authenticated user's tenant.
+
+    Permanently removes:
+      - All vector chunks (indexed documents)
+      - Knowledge graph nodes and edges
+      - Ingestion hashes (deduplication records)
+      - OAuth credentials (Slack etc.)
+      - Tenant registry entry
+
+    The user is NOT deleted from Supabase Auth — they can create a fresh
+    workspace by signing in again.
+    """
+    tenant_id = getattr(request.state, "tenant_id", None)
+    if not tenant_id:
+        raise HTTPException(status_code=400, detail="No tenant found for this account.")
+
+    schema = "tenant_redwood_inference_prod"
+    print(f"⚠ ACCOUNT DELETE requested: tenant={tenant_id}, user={user.email}")
+
+    async with app.state.db_pool.acquire() as conn:
+        # Set RLS context
+        await conn.execute(f"SET LOCAL app.current_tenant_id = '{tenant_id}'")
+
+        # Delete all tenant data in dependency order
+        await conn.execute(f"DELETE FROM {schema}.vector_chunks   WHERE tenant_id = $1", tenant_id)
+        await conn.execute(f"DELETE FROM {schema}.graph_edges      WHERE tenant_id = $1", tenant_id)
+        await conn.execute(f"DELETE FROM {schema}.graph_nodes      WHERE tenant_id = $1", tenant_id)
+        await conn.execute(f"DELETE FROM {schema}.ingestion_hashes WHERE tenant_id = $1", tenant_id)
+        await conn.execute(f"DELETE FROM {schema}.tenant_credentials WHERE tenant_id = $1", tenant_id)
+
+        # Remove from tenant registry
+        await conn.execute(
+            "DELETE FROM tenant_registry WHERE tenant_id = $1",
+            tenant_id,
+        )
+
+    print(f"✅ Account deleted: tenant={tenant_id}, user={user.email}")
+    return {"status": "deleted", "tenant_id": tenant_id, "email": user.email}
+
+
+
 @app.get("/connections")
 async def get_connections(
     request: Request,

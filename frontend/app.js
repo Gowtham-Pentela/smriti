@@ -12,6 +12,28 @@ const API_BASE = (window.location.protocol === "file:" || window.location.hostna
     ? "http://localhost:8000"
     : window.location.origin;
 
+/**
+ * Authenticated fetch: wraps all API calls with the Supabase Bearer token.
+ * On 401, redirects to auth.html so the user can re-authenticate.
+ */
+async function authFetch(url, options = {}) {
+    const authHeaders = (typeof window.getAuthHeaders === "function")
+        ? window.getAuthHeaders()
+        : {};
+    const merged = {
+        ...options,
+        headers: { ...authHeaders, ...(options.headers || {}) },
+    };
+    const resp = await fetch(url, merged);
+    if (resp.status === 401) {
+        // Session expired — send user back to sign-in
+        window.location.replace("/app/auth.html");
+        throw new Error("Session expired");
+    }
+    return resp;
+}
+
+
 
 // ── DOM refs ──────────────────────────────────────────────────────────
 const folderPathInput   = document.getElementById("folder-path");
@@ -111,7 +133,7 @@ async function checkSlackConnection() {
     const btnEl    = document.getElementById("btn-connect-slack");
     if (!statusEl || !btnEl) return;
     try {
-        const resp = await fetch(`${API_BASE}/connections`);
+        const resp = await authFetch(`${API_BASE}/connections`);
         if (!resp.ok) { statusEl.textContent = "Not connected"; return; }
         const connections = await resp.json();
         const slackConn   = connections.find(c => c.source === "slack");
@@ -160,7 +182,7 @@ async function disconnectSlack() {
     if (btnDisc) { btnDisc.disabled = true; btnDisc.textContent = "Disconnecting..."; }
 
     try {
-        const resp = await fetch(`${API_BASE}/slack/disconnect`, { method: "DELETE" });
+        const resp = await authFetch(`${API_BASE}/slack/disconnect`, { method: "DELETE" });
         if (resp.ok) {
             _setSlackDisconnected();
             const banner = document.getElementById("oauth-banner");
@@ -185,7 +207,7 @@ async function disconnectSlack() {
 // ── Backend connection ────────────────────────────────────────────────
 async function checkBackendConnection() {
     try {
-        const r = await fetch(`${API_BASE}/status`);
+        const r = await authFetch(`${API_BASE}/status`);
         _setOnline(r.ok);
     } catch {
         _setOnline(false);
@@ -210,7 +232,7 @@ function _setOnline(online) {
 // ── Stats ─────────────────────────────────────────────────────────────
 async function updateStats() {
     try {
-        const r = await fetch(`${API_BASE}/status`);
+        const r = await authFetch(`${API_BASE}/status`);
         if (!r.ok) return;
         const data = await r.json();
         const chunks = data.indexed_chunks_count || 0;
@@ -257,7 +279,7 @@ async function startIndexing() {
     progressContainer.classList.remove("hidden");
 
     try {
-        const r = await fetch(`${API_BASE}/index-folder`, {
+        const r = await authFetch(`${API_BASE}/index-folder`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ folder_path: path }),
@@ -279,7 +301,7 @@ async function startIndexing() {
 
 async function pollIndexing() {
     try {
-        const r = await fetch(`${API_BASE}/indexing-progress`);
+        const r = await authFetch(`${API_BASE}/indexing-progress`);
         if (!r.ok) return;
         const d = await r.json();
         if (d.is_indexing) {
@@ -304,14 +326,14 @@ async function pollIndexing() {
 async function cancelIndexing() {
     btnCancelIndexing.disabled = true;
     userCancelled = true;
-    try { await fetch(`${API_BASE}/cancel-indexing`, { method: "POST" }); }
+    try { await authFetch(`${API_BASE}/cancel-indexing`, { method: "POST" }); }
     catch (e) { console.error("cancel:", e); }
 }
 
 async function clearIndex() {
     if (!confirm("Clear all indexed knowledge?")) return;
     try {
-        const r = await fetch(`${API_BASE}/clear`, { method: "POST" });
+        const r = await authFetch(`${API_BASE}/clear`, { method: "POST" });
         if (r.ok) {
             appendSystemMsg("Knowledge base cleared.");
             renderExperts([]);
@@ -348,7 +370,7 @@ async function sendQuery(overrideQuery) {
     const step1 = addStreamStep(logEl, "🔍 Searching knowledge base...", "active");
 
     try {
-        const r = await fetch(`${API_BASE}/query`, {
+        const r = await authFetch(`${API_BASE}/query`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ query }),

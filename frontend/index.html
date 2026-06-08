@@ -9,6 +9,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <!-- Supabase JS (must load before app.js) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
 <body>
 
@@ -118,8 +120,20 @@
         </div>
 
         <div class="sidebar-footer">
-            <a href="landing.html" class="footer-link">← Home</a>
-            <a href="privacy.html" class="footer-link">Privacy</a>
+            <!-- Signed-in user info -->
+            <div class="user-row" id="user-row" style="display:none">
+                <div class="user-avatar" id="user-avatar">?</div>
+                <div class="user-info">
+                    <div class="user-email" id="user-email">Loading...</div>
+                    <div class="user-domain" id="user-domain"></div>
+                </div>
+            </div>
+            <div class="footer-actions">
+                <a href="landing.html" class="footer-link">Home</a>
+                <a href="privacy.html" class="footer-link">Privacy</a>
+                <button id="btn-signout" class="footer-link footer-btn" onclick="signOut()">Sign out</button>
+                <button id="btn-delete-account" class="footer-link footer-btn danger" onclick="deleteAccount()">Delete data</button>
+            </div>
         </div>
     </aside>
 
@@ -308,6 +322,98 @@
             applyTheme(current === 'dark' ? 'light' : 'dark');
         });
     });
+</script>
+<script>
+// ── Supabase auth gate ────────────────────────────────────────────────────────
+// Runs before app.js. Redirects unauthenticated visitors to auth.html.
+// Exposes window.sbSession and window.getAuthHeaders() for app.js to use.
+
+const _SB_URL  = 'https://jflxoijsjdgbiarvstbp.supabase.co';
+const _SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpmbHhvaWpzamRnYmlhcnZzdGJwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0ODQwNTgsImV4cCI6MjA5NjA2MDA1OH0.XBjV29kRgrQoO2okDx8ugWPssQ1FOFcj4nZ209tw4dA';
+const _sb = supabase.createClient(_SB_URL, _SB_ANON);
+
+window.sbSession = null;
+
+// Returns headers with Bearer token for all API calls
+window.getAuthHeaders = () => {
+    if (!window.sbSession) return {};
+    return { 'Authorization': 'Bearer ' + window.sbSession.access_token };
+};
+
+// Auth gate — runs immediately before DOM is ready
+(async () => {
+    const { data: { session } } = await _sb.auth.getSession();
+    if (!session) {
+        window.location.replace('/app/auth.html');
+        return;
+    }
+    window.sbSession = session;
+
+    // Populate user info in sidebar
+    const email  = session.user.email || '';
+    const domain = email.split('@')[1] || '';
+    const avatar = (email[0] || '?').toUpperCase();
+
+    const userRow  = document.getElementById('user-row');
+    const userAvEl = document.getElementById('user-avatar');
+    const userEmEl = document.getElementById('user-email');
+    const userDmEl = document.getElementById('user-domain');
+    if (userRow)  { userRow.style.display = 'flex'; }
+    if (userAvEl) { userAvEl.textContent  = avatar; }
+    if (userEmEl) { userEmEl.textContent  = email; }
+    if (userDmEl) { userDmEl.textContent  = domain; }
+})();
+
+// Refresh session token silently every 55 minutes (tokens expire at 60 min)
+setInterval(async () => {
+    const { data: { session } } = await _sb.auth.getSession();
+    if (session) window.sbSession = session;
+    else window.location.replace('/app/auth.html');
+}, 55 * 60 * 1000);
+
+// ── Sign out ──────────────────────────────────────────────────────────────────
+async function signOut() {
+    await _sb.auth.signOut();
+    window.location.replace('/app/auth.html');
+}
+
+// ── Delete all account data ───────────────────────────────────────────────────
+async function deleteAccount() {
+    const confirmed = window.confirm(
+        'Delete ALL your data?\n\n' +
+        'This will permanently remove all indexed documents, knowledge objects, ' +
+        'graph data, and connector credentials from your workspace. ' +
+        'This cannot be undone.\n\n' +
+        'Type OK to confirm.'
+    );
+    if (!confirmed) return;
+
+    const btn = document.getElementById('btn-delete-account');
+    if (btn) { btn.disabled = true; btn.textContent = 'Deleting...'; }
+
+    try {
+        const API_BASE = (window.location.protocol === 'file:' || window.location.hostname === 'localhost')
+            ? 'http://localhost:8000' : window.location.origin;
+
+        const resp = await fetch(`${API_BASE}/account`, {
+            method: 'DELETE',
+            headers: { ...window.getAuthHeaders(), 'Content-Type': 'application/json' },
+        });
+
+        if (resp.ok) {
+            await _sb.auth.signOut();
+            alert('All your data has been deleted. You will be signed out.');
+            window.location.replace('/app/auth.html');
+        } else {
+            const err = await resp.json().catch(() => ({ detail: 'Unknown error' }));
+            alert('Delete failed: ' + (err.detail || resp.statusText));
+            if (btn) { btn.disabled = false; btn.textContent = 'Delete data'; }
+        }
+    } catch (e) {
+        alert('Network error. Is the backend running?');
+        if (btn) { btn.disabled = false; btn.textContent = 'Delete data'; }
+    }
+}
 </script>
 <script src="app.js"></script>
 </body>
