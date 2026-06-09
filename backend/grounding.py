@@ -1,7 +1,7 @@
 import re
 
 OLLAMA_URL = "http://localhost:11434/api/chat"
-MODEL_NAME = "qwen2.5-coder:3b"  # 1.9GB — instruction-tuned, fits in 8GB RAM at num_ctx=2048
+MODEL_NAME = "phi4-mini:latest"  # 2.4GB Q4_K_M — Microsoft Phi-4 Mini, superior reasoning vs qwen2.5-coder:3b at same RAM footprint
 
 
 # Canonical strip pattern — removes both [Citation: ...] and [Cite: ...] variants.
@@ -131,7 +131,7 @@ def verify_substring_or_words(sentence, chunk_content):
                 return False  # Year not in chunk → date hallucination
 
     # 4. Word overlap — accept if ≥55% of content words (len≥3) appear in chunk.
-    #    Using a lower threshold than before because qwen2.5 paraphrases well.
+    #    phi4-mini paraphrases well, so 55% threshold avoids over-stripping.
     words = [w.lower() for w in re.findall(r'\w+', clean) if len(w) >= 3]
     if not words:
         return False
