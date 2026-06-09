@@ -438,8 +438,11 @@ async def _async_run_indexing(folder_path: str, db_pool: asyncpg.Pool):
             ".venv", "venv", "env", ".gemini", "__pycache__",
             ".cache", "coverage", ".vercel", ".turbo",
         }
-        # Skip minified files and files > 150 KB (lock file fragments, generated code)
-        MAX_FILE_BYTES = 150_000
+        # Size limits:
+        # - PDFs are parsed page-by-page (streaming) → allow up to 200 MB
+        # - Code/text files load fully into memory → keep 150 KB cap
+        MAX_FILE_BYTES_DEFAULT = 150_000        # 150 KB for text/code
+        MAX_FILE_BYTES_PDF     = 200 * 1024 * 1024  # 200 MB for PDFs
 
         all_files = []
         for root, dirs, files in os.walk(folder_path):
@@ -454,8 +457,11 @@ async def _async_run_indexing(folder_path: str, db_pool: asyncpg.Pool):
                 if ext in doc_exts or ext in video_exts:
                     full_path = os.path.join(root, file)
                     try:
-                        if os.path.getsize(full_path) > MAX_FILE_BYTES:
-                            print(f"  ⏭ Skipping oversized file: {file} ({os.path.getsize(full_path)//1024}KB)")
+                        fsize = os.path.getsize(full_path)
+                        # PDFs get a generous 200 MB limit (page-by-page parsing)
+                        limit = MAX_FILE_BYTES_PDF if ext == '.pdf' else MAX_FILE_BYTES_DEFAULT
+                        if fsize > limit:
+                            print(f"  ⏭ Skipping oversized file: {file} ({fsize//1024}KB, limit {limit//1024}KB)")
                             continue
                     except OSError:
                         continue
@@ -479,8 +485,9 @@ async def _async_run_indexing(folder_path: str, db_pool: asyncpg.Pool):
             file_size = os.path.getsize(file_path)
 
             ext = os.path.splitext(file_path)[1].lower()
-            # Skip large non-video files > 1MB
-            if ext not in video_exts and file_size > 1024 * 1024:
+            # Skip large non-PDF, non-video files > 1 MB
+            # PDFs are handled by the per-file limit above and parsed page-by-page
+            if ext not in video_exts and ext != '.pdf' and file_size > 1024 * 1024:
                 indexing_status["progress"] = int((idx / len(all_files)) * 100)
                 continue
 
