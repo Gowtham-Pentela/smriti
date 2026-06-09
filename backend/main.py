@@ -329,13 +329,23 @@ async def get_async_ollama_embedding(query_text: str) -> list:
 
 # ─── Postgres Ingestion Helper ────────────────────────────────────────────────
 
-async def pg_ingest_chunks(chunks: list, db_pool: asyncpg.Pool):
+async def pg_ingest_chunks(chunks: list, db_pool: asyncpg.Pool, tenant_id: str | None = None):
     """
     Embeds and bulk-inserts parsed document chunks into vector_chunks.
     Replaces the old LocalVectorStore.add_chunks() path for /index-folder.
+
+    tenant_id: the per-user silo key (Supabase user_id UUID). If None,
+               falls back to the global constant (legacy/dev path only).
     """
     if not chunks:
         return
+
+    # Resolve effective tenant
+    effective_tenant_id  = tenant_id or TENANT_NAMESPACE_UUID
+    try:
+        effective_tenant_uuid = uuid.UUID(effective_tenant_id)
+    except ValueError:
+        effective_tenant_uuid = TENANT_UUID
 
     print(f"  → Embedding & inserting {len(chunks)} chunks into Postgres...")
     async with httpx.AsyncClient() as client:
@@ -367,7 +377,7 @@ async def pg_ingest_chunks(chunks: list, db_pool: asyncpg.Pool):
                     # tenant context from leaking to the next connection pool user.
                     async with conn.transaction():
                         await conn.execute(
-                            f"SET LOCAL app.current_tenant_id = '{TENANT_NAMESPACE_UUID}'"
+                            f"SET LOCAL app.current_tenant_id = '{effective_tenant_id}'"
                         )
                         await conn.execute(
                             """
@@ -381,7 +391,7 @@ async def pg_ingest_chunks(chunks: list, db_pool: asyncpg.Pool):
                             ON CONFLICT DO NOTHING
                             """,
                             event_id,
-                            TENANT_UUID,
+                            effective_tenant_uuid,
                             source_id,
                             source_type,
                             author_id,
@@ -402,7 +412,7 @@ async def pg_ingest_chunks(chunks: list, db_pool: asyncpg.Pool):
 # to run on the SAME event loop as the asyncpg connection pool.
 
 
-async def _async_run_indexing(folder_path: str, db_pool: asyncpg.Pool):
+async def _async_run_indexing(folder_path: str, db_pool: asyncpg.Pool, tenant_id: str | None = None):
     global indexing_status, cancel_indexing_flag, _file_hash_cache
 
     indexing_status.update({
@@ -507,7 +517,7 @@ async def _async_run_indexing(folder_path: str, db_pool: asyncpg.Pool):
                 chunks = parse_document(file_path, source_name=source_name)
 
             if chunks:
-                await pg_ingest_chunks(chunks, db_pool)
+                await pg_ingest_chunks(chunks, db_pool, tenant_id=tenant_id)
                 _file_hash_cache[source_name] = file_hash
                 indexing_status["indexed_files"].append(source_name)
 
@@ -552,18 +562,24 @@ async def fetch_top_experts(conn: asyncpg.Connection, top_n: int = 3) -> list:
 # ─── API Routes ───────────────────────────────────────────────────────────────
 
 @app.post("/index-folder")
-async def index_folder(req: IndexRequest):
+async def index_folder(
+    req: IndexRequest,
+    request: Request,
+    user: UserIdentity = Depends(get_current_user),
+):
     """
     Kick off folder indexing on the SAME event loop as the asyncpg pool.
-    Using asyncio.create_task() instead of BackgroundTasks avoids the
-    'Future attached to a different loop' error that occurs when asyncpg
-    connections are used inside asyncio.run() in a background thread.
+    Requires authentication so documents are stored in the calling user's
+    private data silo (per-user tenant_id).
     """
+    tenant_id = getattr(request.state, "tenant_id", None)
+    if not tenant_id:
+        raise HTTPException(status_code=401, detail="Could not resolve user tenant.")
     if not os.path.exists(req.folder_path):
         raise HTTPException(status_code=404, detail="Folder path does not exist.")
     if indexing_status["is_indexing"]:
         raise HTTPException(status_code=400, detail="Indexing already in progress.")
-    asyncio.create_task(_async_run_indexing(req.folder_path, app.state.db_pool))
+    asyncio.create_task(_async_run_indexing(req.folder_path, app.state.db_pool, tenant_id=tenant_id))
     return {"status": "success", "message": "Indexing started in background."}
 
 
@@ -658,19 +674,24 @@ async def health_check():
 
 
 @app.get("/status")
-async def get_status(request: Request):
-    """Return indexed chunk count and source count only. File list is at /files."""
+async def get_status(
+    request: Request,
+    user: UserIdentity = Depends(get_current_user),
+):
+    """Return indexed chunk count and source count — scoped to the calling user."""
     from backend.auth import KGF_DEV_MODE
-    tenant_id = getattr(request.state, "tenant_id", None) or TENANT_NAMESPACE_UUID
+    tenant_id = getattr(request.state, "tenant_id", None)
+    if not tenant_id:
+        return {"status": "ok", "dev_mode": KGF_DEV_MODE, "indexed_chunks_count": 0, "indexed_sources_count": 0}
     try:
         async with app.state.db_pool.acquire() as conn:
             await conn.execute(f"SET app.current_tenant_id = '{tenant_id}'")
             count = await conn.fetchval(
-                "SELECT count(*) FROM tenant_redwood_inference_prod.vector_chunks WHERE tenant_id = $1",
+                "SELECT count(*) FROM tenant_redwood_inference_prod.vector_chunks WHERE tenant_id = $1::uuid",
                 tenant_id,
             )
             sources_count = await conn.fetchval(
-                "SELECT count(DISTINCT source_id) FROM tenant_redwood_inference_prod.vector_chunks WHERE tenant_id = $1",
+                "SELECT count(DISTINCT source_id) FROM tenant_redwood_inference_prod.vector_chunks WHERE tenant_id = $1::uuid",
                 tenant_id,
             )
         return {
@@ -684,15 +705,20 @@ async def get_status(request: Request):
 
 
 @app.get("/files")
-async def get_files(request: Request):
-    """Return the full list of indexed source IDs. Called lazily (not on every page load)."""
+async def get_files(
+    request: Request,
+    user: UserIdentity = Depends(get_current_user),
+):
+    """Return the full list of indexed source IDs — scoped to the calling user."""
     from backend.auth import KGF_DEV_MODE
-    tenant_id = getattr(request.state, "tenant_id", None) or TENANT_NAMESPACE_UUID
+    tenant_id = getattr(request.state, "tenant_id", None)
+    if not tenant_id:
+        return {"status": "ok", "indexed_files": []}
     try:
         async with app.state.db_pool.acquire() as conn:
             await conn.execute(f"SET app.current_tenant_id = '{tenant_id}'")
             rows = await conn.fetch(
-                "SELECT DISTINCT source_id FROM tenant_redwood_inference_prod.vector_chunks WHERE tenant_id = $1 ORDER BY source_id",
+                "SELECT DISTINCT source_id FROM tenant_redwood_inference_prod.vector_chunks WHERE tenant_id = $1::uuid ORDER BY source_id",
                 tenant_id,
             )
         return {
@@ -704,25 +730,54 @@ async def get_files(request: Request):
 
 
 @app.post("/clear")
-async def clear_index():
+async def clear_index(
+    request: Request,
+    user: UserIdentity = Depends(get_current_user),
+):
+    """Clear ONLY the calling user's indexed data (chunks + graph). Safe: no cross-user deletion."""
+    tenant_id = getattr(request.state, "tenant_id", None)
+    if not tenant_id:
+        raise HTTPException(status_code=401, detail="Could not resolve user tenant.")
+    schema = "tenant_redwood_inference_prod"
     try:
         async with app.state.db_pool.acquire() as conn:
-            await conn.execute(
-                f"SET app.current_tenant_id = '{TENANT_NAMESPACE_UUID}'"
-            )
-            await conn.execute(
-                "DELETE FROM tenant_redwood_inference_prod.vector_chunks"
-            )
-            await conn.execute(
-                "DELETE FROM tenant_redwood_inference_prod.graph_edges"
-            )
-            await conn.execute(
-                "DELETE FROM tenant_redwood_inference_prod.graph_nodes"
-            )
+            async with conn.transaction():
+                await conn.execute(f"SET LOCAL app.current_tenant_id = '{tenant_id}'")
+                await conn.execute(f"DELETE FROM {schema}.vector_chunks   WHERE tenant_id = $1::uuid", tenant_id)
+                await conn.execute(f"DELETE FROM {schema}.graph_edges      WHERE tenant_id = $1::uuid", tenant_id)
+                await conn.execute(f"DELETE FROM {schema}.graph_nodes      WHERE tenant_id = $1::uuid", tenant_id)
+                await conn.execute(f"DELETE FROM {schema}.ingestion_hashes WHERE tenant_id = $1",       tenant_id)
         _file_hash_cache.clear()
-        return {"status": "success", "message": "Postgres index cleared."}
+        return {"status": "success", "message": f"Index cleared for user {user.email}."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to clear index: {e}")
+
+
+@app.post("/admin/clear-my-data")
+async def admin_clear_my_data(
+    request: Request,
+    user: UserIdentity = Depends(get_current_user),
+):
+    """
+    Flush ALL data for the calling user and reset their file-hash cache.
+    Use this after the per-user isolation upgrade to clear orphaned data
+    stored under the old hardcoded tenant UUID, then re-index.
+    """
+    tenant_id = getattr(request.state, "tenant_id", None)
+    if not tenant_id:
+        raise HTTPException(status_code=401, detail="Could not resolve user tenant.")
+    schema = "tenant_redwood_inference_prod"
+    print(f"🧹 CLEAR-MY-DATA: tenant={tenant_id}, user={user.email}")
+    async with app.state.db_pool.acquire() as conn:
+        async with conn.transaction():
+            await conn.execute(f"SET LOCAL app.current_tenant_id = '{tenant_id}'")
+            await conn.execute(f"DELETE FROM {schema}.vector_chunks    WHERE tenant_id = $1::uuid", tenant_id)
+            await conn.execute(f"DELETE FROM {schema}.graph_edges       WHERE tenant_id = $1::uuid", tenant_id)
+            await conn.execute(f"DELETE FROM {schema}.graph_nodes       WHERE tenant_id = $1::uuid", tenant_id)
+            await conn.execute(f"DELETE FROM {schema}.ingestion_hashes  WHERE tenant_id = $1",       tenant_id)
+    _file_hash_cache.clear()
+    print(f"✅ Data cleared: tenant={tenant_id}, user={user.email}")
+    return {"status": "cleared", "tenant_id": tenant_id, "email": user.email}
 
 # ─── Identity & Auth Endpoints ─────────────────────────────────────────────────────
 
@@ -949,27 +1004,34 @@ async def process_query(
     words    = re.findall(r"\w+", query_text)
     keywords = [w.lower() for w in words if w.lower() not in COMMON_STOPWORDS]
 
-    # ── 3. Build parameterized hybrid SQL with permission + category filters ────────
-    # $1 = embedding, $2 = user_email, $3 = user_domain, $4+ = keywords
+    # ── 3. Build parameterized hybrid SQL with tenant + permission + category filters ────────
+    # $1 = embedding, $2 = user_email, $3 = user_domain, $4 = tenant_id
+    # $5 = category (if active), $5/$6+ = keywords
+    # Tenant filter: MANDATORY — ensures strict per-user data isolation.
     # Permission clause: return chunk if public OR user is in allowed_users OR
     # user's domain is in allowed_groups.
     permission_clause = (
-        "(is_public = true "
+        "tenant_id = $4::uuid "
+        "AND (is_public = true "
         "OR $2 = ANY(allowed_users) "
         "OR $3 = ANY(allowed_groups))"
     )
 
+    # Resolve tenant_id — must be a valid UUID string.
+    # Falls back to TENANT_NAMESPACE_UUID only in dev mode (where user_id is derived).
+    tenant_id_str = getattr(request.state, "tenant_id", None) or TENANT_NAMESPACE_UUID
+
     # Category filter — parameterized to prevent SQL injection.
-    # $4 is reserved for the category when active; keywords start at $5 then.
+    # $5 is reserved for the category when active; keywords start at $6 then.
     if req.category_filter:
         cat_value = req.category_filter.lower().strip()
-        category_clause = "AND document_category = $4"
-        base_param_idx  = 5   # keywords start at $5
-        query_params_base: list = [query_emb_str, user_email, user_domain, cat_value]
+        category_clause = "AND document_category = $5"
+        base_param_idx  = 6   # keywords start at $6
+        query_params_base: list = [query_emb_str, user_email, user_domain, tenant_id_str, cat_value]
     else:
         category_clause = ""
-        base_param_idx  = 4   # keywords start at $4
-        query_params_base = [query_emb_str, user_email, user_domain]
+        base_param_idx  = 5   # keywords start at $5
+        query_params_base = [query_emb_str, user_email, user_domain, tenant_id_str]
 
     if not keywords:
         text_score_expr = "0.0"

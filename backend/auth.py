@@ -149,8 +149,13 @@ async def extract_user_identity(request: Request) -> UserIdentity:
 
 async def get_current_user(request: Request) -> UserIdentity:
     """
-    FastAPI dependency. Extracts identity, provisions tenant if new,
-    attaches tenant_id to request.state.
+    FastAPI dependency. Extracts identity and attaches a per-user tenant_id
+    to request.state.
+
+    Data isolation model:
+      - Each Supabase user_id UUID is their private data silo (tenant_id).
+      - Documents indexed by User A are never visible to User B.
+      - Upgrading to org-level isolation later is one line: use org_id instead.
 
     Usage:
         @app.get("/query")
@@ -159,16 +164,18 @@ async def get_current_user(request: Request) -> UserIdentity:
     """
     user = await extract_user_identity(request)
 
-    db_pool = getattr(get_current_user, "_db_pool", None)
-    if db_pool is not None:
-        from backend.tenant import get_or_provision_tenant
-        tenant = await get_or_provision_tenant(user.domain, db_pool)
-        request.state.tenant_id        = str(tenant.tenant_id)
-        request.state.tenant_namespace = tenant.tenant_namespace_uuid
-        user.is_admin = tenant.is_first_user
+    # Use the Supabase user_id directly as the tenant_id.
+    # This gives strict per-user isolation without any additional DB lookup.
+    # Dev mode generates a deterministic UUID from the dev email so local
+    # testing still works without a real Supabase session.
+    if user.user_id.startswith("dev:"):
+        import uuid as _uuid
+        _NS = _uuid.UUID("a1b2c3d4-e5f6-7890-abcd-ef1234567890")
+        per_user_tenant_id = str(_uuid.uuid5(_NS, user.user_id))
     else:
-        request.state.tenant_id        = None
-        request.state.tenant_namespace = None
+        per_user_tenant_id = user.user_id  # already a valid UUID from Supabase
 
-    request.state.user = user
+    request.state.tenant_id        = per_user_tenant_id
+    request.state.tenant_namespace = per_user_tenant_id
+    request.state.user             = user
     return user
