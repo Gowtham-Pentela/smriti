@@ -204,6 +204,48 @@ function checkOAuthUrlParams() {
     }
 }
 
+// ── OAuth connect starters (must use authFetch, not plain <a href>) ────────
+// Direct browser navigation (<a href>) sends no Authorization header,
+// causing a 401. Instead: fetch the URL with Bearer token, then redirect.
+
+async function startSlackOAuth() {
+    const btn = document.getElementById("btn-connect-slack");
+    if (btn) { btn.disabled = true; btn.textContent = "Connecting..."; }
+    try {
+        const resp = await authFetch(`${API_BASE}/slack/oauth/start`);
+        if (!resp.ok) {
+            const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+            alert(`Could not start Slack auth: ${err.detail}`);
+            if (btn) { btn.disabled = false; btn.textContent = "Connect"; }
+            return;
+        }
+        const { url } = await resp.json();
+        window.location.href = url;   // now the browser navigates to Slack's consent page
+    } catch (e) {
+        alert("Network error starting Slack auth.");
+        if (btn) { btn.disabled = false; btn.textContent = "Connect"; }
+    }
+}
+
+async function startDriveOAuth() {
+    const btn = document.getElementById("btn-connect-gdrive");
+    if (btn) { btn.disabled = true; btn.textContent = "Connecting..."; }
+    try {
+        const resp = await authFetch(`${API_BASE}/gdrive/oauth/start`);
+        if (!resp.ok) {
+            const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+            alert(`Could not start Google Drive auth: ${err.detail}`);
+            if (btn) { btn.disabled = false; btn.textContent = "Connect"; }
+            return;
+        }
+        const { url } = await resp.json();
+        window.location.href = url;   // browser navigates to Google's consent page
+    } catch (e) {
+        alert("Network error starting Google Drive auth.");
+        if (btn) { btn.disabled = false; btn.textContent = "Connect"; }
+    }
+}
+
 // ── Slack connection ──────────────────────────────────────────────────
 async function checkSlackConnection() {
     const statusEl = document.getElementById("slack-status-text");

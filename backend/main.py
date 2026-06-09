@@ -882,14 +882,16 @@ async def slack_oauth_start(
     user: UserIdentity = Depends(get_current_user),
 ):
     """
-    Step 1: Redirect the user to Slack's OAuth consent screen.
-    Called when user clicks "Connect Slack" in the UI.
+    Returns JSON {url: ...} with the Slack consent URL.
+    The frontend calls this via authFetch() (Bearer token), then redirects
+    the browser to the returned URL.  Plain browser navigation won't work
+    because there's no way to attach an Authorization header to an <a href>.
     """
-    tenant_id = getattr(request.state, "tenant_id", TENANT_NAMESPACE_UUID)
+    tenant_id    = getattr(request.state, "tenant_id", TENANT_NAMESPACE_UUID)
     redirect_uri = str(request.base_url).rstrip("/") + "/slack/oauth/callback"
     try:
         auth_url = _slack_oauth.build_authorization_url(tenant_id, redirect_uri)
-        return RedirectResponse(url=auth_url, status_code=302)
+        return {"url": auth_url}
     except RuntimeError as e:
         raise HTTPException(status_code=503, detail=str(e))
 
@@ -964,8 +966,9 @@ async def gdrive_oauth_start(
     user: UserIdentity = Depends(get_current_user),
 ):
     """
-    Step 1: Redirect the user to Google's OAuth consent screen.
-    Called when user clicks "Connect Google Drive" in the UI.
+    Returns JSON {url: ...} with the Google consent URL.
+    Called via authFetch() from the frontend — NOT via direct browser navigation.
+    The frontend JS receives the URL and does window.location.href = url.
     """
     tenant_id    = getattr(request.state, "tenant_id", None)
     if not tenant_id:
@@ -973,7 +976,7 @@ async def gdrive_oauth_start(
     redirect_uri = str(request.base_url).rstrip("/") + "/gdrive/oauth/callback"
     try:
         auth_url = _gdrive_oauth.build_authorization_url(tenant_id, redirect_uri)
-        return RedirectResponse(url=auth_url, status_code=302)
+        return {"url": auth_url}
     except RuntimeError as e:
         raise HTTPException(status_code=503, detail=str(e))
 
