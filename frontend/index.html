@@ -331,6 +331,11 @@
 // ── Supabase auth gate ────────────────────────────────────────────────────────
 // Runs before app.js. Checks backend dev_mode first, then Supabase session.
 // Exposes window.sbSession and window.getAuthHeaders() for app.js to use.
+// authReady resolves once sbSession is confirmed — app.js awaits this
+// before calling any authenticated endpoints.
+let _resolveAuthReady;
+window.authReady  = new Promise(resolve => { _resolveAuthReady = resolve; });
+window.sbSession  = null;
 
 const _SB_URL  = 'https://jflxoijsjdgbiarvstbp.supabase.co';
 const _SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpmbHhvaWpzamRnYmlhcnZzdGJwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0ODQwNTgsImV4cCI6MjA5NjA2MDA1OH0.XBjV29kRgrQoO2okDx8ugWPssQ1FOFcj4nZ209tw4dA';
@@ -338,7 +343,6 @@ const _sb = supabase.createClient(_SB_URL, _SB_ANON);
 const _API_BASE = (window.location.protocol === 'file:' || window.location.hostname === 'localhost')
     ? 'http://localhost:8000' : window.location.origin;
 
-window.sbSession  = null;
 window._devMode   = false;
 
 // Returns Bearer token header for production, empty object for dev mode
@@ -372,6 +376,7 @@ function _populateUserUI(email, badge) {
             if (cfg.dev_mode) {
                 window._devMode = true;
                 _populateUserUI(cfg.dev_email || 'dev@localhost.local', '⚙');
+                _resolveAuthReady(); // signal app.js: auth done, dev mode
                 return;
             }
         }
@@ -389,6 +394,7 @@ function _populateUserUI(email, badge) {
     }
     window.sbSession = session;
     _populateUserUI(session.user.email || '');
+    _resolveAuthReady(); // signal app.js: session confirmed, safe to call APIs
 
     // Step 3: react to sign-out / token refresh
     _sb.auth.onAuthStateChange((event, session) => {

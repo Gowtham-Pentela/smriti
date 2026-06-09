@@ -26,7 +26,11 @@ async function authFetch(url, options = {}) {
     };
     const resp = await fetch(url, merged);
     if (resp.status === 401) {
-        window.location.replace("/app/auth.html");
+        // Only redirect if we had a confirmed session (genuine expiry).
+        // If sbSession is null, auth gate hasn't completed yet — don't loop.
+        if (window.sbSession || window._devMode) {
+            window.location.replace("/app/auth.html");
+        }
         throw new Error("Session expired");
     }
     return resp;
@@ -99,12 +103,21 @@ let lastRetrievedContext = [];  // stored for citation tooltip lookups
 let lastQuery            = "";  // stored for regenerate
 
 // ── Init ──────────────────────────────────────────────────────────────
-window.addEventListener("DOMContentLoaded", () => {
+window.addEventListener("DOMContentLoaded", async () => {
+    // Unauthenticated calls — fire immediately, no session needed
     checkBackendConnection();
     updateStats();
-    loadFilesList();   // load file list once, lazily
-    checkOAuthUrlParams();
+
+    // Wait for the auth gate in index.html to confirm the session
+    // (auth gate does: fetch /auth-config → getSession → sets window.sbSession)
+    // Without this, checkSlackConnection() runs before sbSession is set,
+    // authFetch sends no Bearer token, backend returns 401, loop starts.
+    if (window.authReady) await window.authReady;
+
+    // Authenticated calls — safe to fire now that sbSession is confirmed
+    loadFilesList();
     checkSlackConnection();
+    checkOAuthUrlParams();
 
     btnIndex.addEventListener("click", startIndexing);
     btnCancelIndexing.addEventListener("click", cancelIndexing);
