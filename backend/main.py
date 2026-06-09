@@ -80,7 +80,7 @@ TENANT_UUID = uuid.UUID(TENANT_NAMESPACE_UUID)
 
 MODEL_NAME_EMBED = "nomic-embed-text"
 OLLAMA_EMBED_URL = "http://localhost:11434/api/embeddings"
-OLLAMA_GEN_URL = "http://localhost:11434/api/generate"
+OLLAMA_CHAT_URL = "http://localhost:11434/api/chat"   # chat API, proper system/user roles
 
 COMMON_STOPWORDS = {
     "a", "about", "above", "after", "again", "against", "all", "am", "an", "and",
@@ -228,11 +228,6 @@ async def get_auth_config():
     }
 
 
-@app.get("/status", include_in_schema=False)
-async def get_status():
-    """Public health check for the frontend connection indicator."""
-    from backend.auth import KGF_DEV_MODE
-    return {"status": "ok", "dev_mode": KGF_DEV_MODE}
 
 # ─── CORS (restrict wildcard in prod via CORS_ORIGINS env var) ──────────────────
 _ALLOWED_ORIGINS = os.getenv("CORS_ORIGINS", "*").split(",")
@@ -251,6 +246,7 @@ class IndexRequest(BaseModel):
 
 class QueryRequest(BaseModel):
     query:           str
+    top_k:           int = 6             # number of chunks to retrieve (capped at 10 in route)
     category_filter: Optional[str] = None  # e.g. "deployment", "requirements"
 
 
@@ -346,6 +342,8 @@ async def pg_ingest_chunks(chunks: list, db_pool: asyncpg.Pool):
             source_type = chunk.get("type", "document")
             channel_or_space = chunk.get("location", "local")
             content = chunk.get("content", "")
+            author_id = chunk.get("author_id") or chunk.get("author") or "system"
+            document_title = chunk.get("title") or chunk.get("section") or source_id
 
             try:
                 async with db_pool.acquire() as conn:
@@ -359,33 +357,33 @@ async def pg_ingest_chunks(chunks: list, db_pool: asyncpg.Pool):
                             """
                             INSERT INTO tenant_redwood_inference_prod.vector_chunks
                                 (event_id, tenant_id, source_id, source_type,
-                                 channel_or_space, content, embedding,
-                                 allowed_groups, allowed_users, is_public)
-                            VALUES ($1, $2, $3, $4, $5, $6, $7::text::vector, $8, $9, $10)
+                                 author_id, channel_or_space, content, embedding,
+                                 allowed_groups, allowed_users, is_public,
+                                 document_title)
+                            VALUES ($1, $2, $3, $4, $5, $6, $7, $8::text::vector,
+                                    $9, $10, $11, $12)
                             ON CONFLICT DO NOTHING
                             """,
                             event_id,
                             TENANT_UUID,
                             source_id,
                             source_type,
+                            author_id,
                             channel_or_space,
                             content,
                             emb_str,
                             [],
                             [],
                             True,
+                            document_title,
                         )
             except Exception as e:
                 print(f"  ⚠ DB insert failed for chunk {source_id}: {e}")
 
 # ─── Background Indexing Task ─────────────────────────────────────────────────
 
-def run_indexing(folder_path: str, db_pool: asyncpg.Pool):
-    """
-    Synchronous wrapper for the async indexing pipeline.
-    Runs in a FastAPI BackgroundTask thread pool thread.
-    """
-    asyncio.run(_async_run_indexing(folder_path, db_pool))
+# run_indexing sync wrapper removed — indexing now uses asyncio.create_task()
+# to run on the SAME event loop as the asyncpg connection pool.
 
 
 async def _async_run_indexing(folder_path: str, db_pool: asyncpg.Pool):
@@ -412,18 +410,41 @@ async def _async_run_indexing(folder_path: str, db_pool: asyncpg.Pool):
             ".yaml", ".yml", ".sql",
         }
         video_exts = {".mp4", ".mkv", ".avi", ".mov"}
-        skip_dirs = {
-            ".git", "node_modules", "dist", "build",
-            ".venv", "venv", "env", ".gemini", "__pycache__",
+
+        # Exact filenames that are never useful for RAG — lock files, minified assets
+        skip_filenames = {
+            "package-lock.json", "yarn.lock", "pnpm-lock.yaml",
+            "Cargo.lock", "poetry.lock", "Gemfile.lock", "composer.lock",
+            "bun.lockb",
         }
+        skip_dirs = {
+            ".git", "node_modules", "dist", "build", ".next", ".nuxt",
+            ".venv", "venv", "env", ".gemini", "__pycache__",
+            ".cache", "coverage", ".vercel", ".turbo",
+        }
+        # Skip minified files and files > 150 KB (lock file fragments, generated code)
+        MAX_FILE_BYTES = 150_000
 
         all_files = []
         for root, dirs, files in os.walk(folder_path):
             dirs[:] = [d for d in dirs if d not in skip_dirs]
             for file in files:
+                if file in skip_filenames:
+                    continue
+                # Skip *.min.js, *.min.css, *.bundle.js etc.
+                if re.search(r'\.(min|bundle|chunk)\.(js|css)$', file, re.IGNORECASE):
+                    continue
                 ext = os.path.splitext(file)[1].lower()
                 if ext in doc_exts or ext in video_exts:
-                    all_files.append(os.path.join(root, file))
+                    full_path = os.path.join(root, file)
+                    try:
+                        if os.path.getsize(full_path) > MAX_FILE_BYTES:
+                            print(f"  ⏭ Skipping oversized file: {file} ({os.path.getsize(full_path)//1024}KB)")
+                            continue
+                    except OSError:
+                        continue
+                    all_files.append(full_path)
+
 
         indexing_status["total_files"] = len(all_files)
         if not all_files:
@@ -508,12 +529,18 @@ async def fetch_top_experts(conn: asyncpg.Connection, top_n: int = 3) -> list:
 # ─── API Routes ───────────────────────────────────────────────────────────────
 
 @app.post("/index-folder")
-def index_folder(req: IndexRequest, background_tasks: BackgroundTasks):
+async def index_folder(req: IndexRequest):
+    """
+    Kick off folder indexing on the SAME event loop as the asyncpg pool.
+    Using asyncio.create_task() instead of BackgroundTasks avoids the
+    'Future attached to a different loop' error that occurs when asyncpg
+    connections are used inside asyncio.run() in a background thread.
+    """
     if not os.path.exists(req.folder_path):
         raise HTTPException(status_code=404, detail="Folder path does not exist.")
     if indexing_status["is_indexing"]:
         raise HTTPException(status_code=400, detail="Indexing already in progress.")
-    background_tasks.add_task(run_indexing, req.folder_path, app.state.db_pool)
+    asyncio.create_task(_async_run_indexing(req.folder_path, app.state.db_pool))
     return {"status": "success", "message": "Indexing started in background."}
 
 
@@ -602,24 +629,29 @@ def get_ingest_status():
 
 
 @app.get("/status")
-async def get_status():
+async def get_status(request: Request):
+    """Return indexed chunk count + file list. Also indicates dev_mode."""
+    from backend.auth import KGF_DEV_MODE
+    tenant_id = getattr(request.state, "tenant_id", None) or TENANT_NAMESPACE_UUID
     try:
         async with app.state.db_pool.acquire() as conn:
-            await conn.execute(
-                f"SET app.current_tenant_id = '{TENANT_NAMESPACE_UUID}'"
-            )
+            await conn.execute(f"SET app.current_tenant_id = '{tenant_id}'")
             count = await conn.fetchval(
-                "SELECT count(*) FROM tenant_redwood_inference_prod.vector_chunks"
+                "SELECT count(*) FROM tenant_redwood_inference_prod.vector_chunks WHERE tenant_id = $1",
+                tenant_id,
             )
             rows = await conn.fetch(
-                "SELECT DISTINCT source_id FROM tenant_redwood_inference_prod.vector_chunks"
+                "SELECT DISTINCT source_id FROM tenant_redwood_inference_prod.vector_chunks WHERE tenant_id = $1",
+                tenant_id,
             )
         return {
+            "status": "ok",
+            "dev_mode": KGF_DEV_MODE,
             "indexed_chunks_count": count,
             "indexed_files": [r["source_id"] for r in rows],
         }
     except Exception as e:
-        return {"indexed_chunks_count": 0, "indexed_files": [], "error": str(e)}
+        return {"status": "ok", "dev_mode": KGF_DEV_MODE, "indexed_chunks_count": 0, "indexed_files": [], "error": str(e)}
 
 
 @app.post("/clear")
@@ -901,6 +933,9 @@ async def process_query(
         text_score_expr = f"({' + '.join(cases)}) / {float(len(keywords))}"
         query_params = query_params_base + [f"%{kw}%" for kw in keywords]
 
+    # Clamp top_k to a safe range — context window budget allows up to 10 chunks at 700 chars each
+    effective_top_k = max(1, min(req.top_k, 10))
+
     opt_hybrid_sql = f"""
         WITH candidates AS (
             SELECT
@@ -915,7 +950,7 @@ async def process_query(
             WHERE {permission_clause}
             {category_clause}
             ORDER BY embedding <=> $1::vector ASC
-            LIMIT 30
+            LIMIT 50
         )
         SELECT
             source_id,
@@ -929,7 +964,7 @@ async def process_query(
             (0.7 * semantic_score + 0.3 * ({text_score_expr})) AS combined_score
         FROM candidates
         ORDER BY combined_score DESC
-        LIMIT 4;
+        LIMIT {effective_top_k};
     """
 
     # ── 4. Execute retrieval + graph expert query ─────────────────────────────────────
@@ -943,7 +978,6 @@ async def process_query(
             # Using bare SET causes the value to persist across pooled connection
             # reuse — a Tenant A context bleeds into Tenant B’s query (data breach).
             # Graph expert injection — inside the same transaction / tenant context.
-            # fetch_top_experts uses the connection directly, so it needs SET LOCAL active.
             async with conn.transaction():
                 await conn.execute(f"SET LOCAL app.current_tenant_id = '{tenant_id}'")
                 rows = await conn.fetch(opt_hybrid_sql, *query_params)
@@ -983,77 +1017,81 @@ async def process_query(
             "latency_seconds": round(time.perf_counter() - start_time, 4),
         }
 
-    # ── 5. Assemble LLM prompt with context + expert grounding ───────────────
+    # ── 5. Assemble LLM prompt with context ──────────────────────────────────
+    # Budget: num_ctx=3072 - 400 (reply) - 200 (prompts) = ~2472 tokens = ~9888 chars for all chunks
+    MAX_CHUNK_CHARS = min(700, max(250, 9500 // max(len(retrieved_chunks), 1)))
+
+    # Boost semantic data files (content.js, README) to top so the model sees
+    # the person's identity/profile before generic code files.
+    _PRIORITY_SOURCES = {"content.js", "readme.md", "README.md"}
+    priority_chunks = [c for c in retrieved_chunks if any(p in c['source'] for p in _PRIORITY_SOURCES)]
+    other_chunks    = [c for c in retrieved_chunks if not any(p in c['source'] for p in _PRIORITY_SOURCES)]
+    ordered_chunks  = priority_chunks + other_chunks
+
+    # HTML-tag stripper — portfolio content.js has <strong>...</strong> in bullet points
+    _html_tag_re = re.compile(r'<[^>]+>')
+
     context_str = ""
-    for idx, chunk in enumerate(retrieved_chunks):
+    for idx, chunk in enumerate(ordered_chunks):
+        clean_content = _html_tag_re.sub('', chunk['content'])
+        content = clean_content[:MAX_CHUNK_CHARS]
+        if len(clean_content) > MAX_CHUNK_CHARS:
+            content += "…"
         context_str += (
-            f"--- CONTEXT CHUNK {idx+1} "
-            f"(Source: {chunk['source']}, Location: {chunk['location']}) ---\n"
-            f"{chunk['content']}\n\n"
+            f"[{idx+1}] Source: {chunk['source']} | Location: {chunk['location']}\n"
+            f"{content}\n\n"
         )
 
-    # Inject graph experts into prompt so LLM can attribute expertise
-    expert_note = ""
-    if experts:
-        expert_lines = ", ".join(
-            [f"{e['name']} (score: {e['score']})" for e in experts]
-        )
-        expert_note = (
-            f"\n\nIDENTIFIED DOMAIN EXPERTS (from interaction graph): {expert_lines}."
-            " Reference these individuals when appropriate for follow-up."
-        )
 
-    system_instructions = (
-        "You are an elite, highly accurate Knowledge Transfer assistant.\n"
-        "Your task is to answer the user query based ONLY on the Context provided below.\n"
-        "\n"
-        "STRICT RULES — follow these exactly:\n"
-        "1. Do not use any external knowledge. If the context does not contain the answer, "
-        "say exactly: 'I cannot find the answer in the provided documents/videos.'\n"
-        "2. Only state information directly supported by the context chunks.\n"
-        "3. CITATION FORMAT IS MANDATORY. After every factual statement append:\n"
-        "   [Citation: source_id, location]\n"
-        "   Use the exact source_id and location from the context chunk header.\n"
-        "4. NEVER meta-comment. Do NOT write 'The provided text...', 'Based on context...', "
-        "'The context mentions...'. Answer directly and factually.\n"
-        "5. Do NOT restate the question.\n"
-        "\n"
-        "EXAMPLE:\n"
-        "CONTEXT CHUNK 1 (Source: msg_9912, Location: eng-infra):\n"
-        "Jane: We migrated auth caching from standalone Redis to an isolated Redis cluster.\n"
-        "USER QUERY: What caching changes occurred?\n"
-        "RESPONSE: Auth caching was migrated from standalone Redis to an isolated Redis "
-        "cluster [Citation: msg_9912, eng-infra].\n"
-        "END EXAMPLE"
+    system_prompt = (
+        "You are a precise knowledge assistant. "
+        "Answer the question using ONLY facts explicitly written in the numbered context blocks. "
+        "The context may include source code, JS exports, JSON, or markdown — extract the data and explain it in plain English.\n"
+        "DATA STRUCTURE GUIDE:\n"
+        "- STATS = [] arrays contain portfolio achievement numbers — NOT job history.\n"
+        "- EXPERIENCE = [] arrays contain {period, company, title, bullets} objects — these ARE job history entries.\n"
+        "- META = {} contains personal profile data (name, title, email, location).\n"
+        "Do NOT invent job roles from STATS numbers. Do NOT fabricate dates or company names.\n"
+        "After each fact write [Citation: filename, location]. "
+        "If the context does not contain the answer say: 'I cannot find this in the indexed documents.'"
     )
 
-    full_prompt = (
-        f"{system_instructions}\n\n"
-        f"CONTEXT:\n\"\"\"\n{context_str}\"\"\"\n\n"
-        f"USER QUERY: {req.query}\n\nRESPONSE:"
+    user_message = (
+        f"CONTEXT:\n{context_str}\n"
+        f"QUESTION: {req.query}"
     )
 
-    # ── 6. LLM generation ─────────────────────────────────────────────────────
+    # ── 6. LLM generation (chat API) ─────────────────────────────────────────
     async with httpx.AsyncClient() as client:
-        payload = {
+        chat_payload = {
             "model": MODEL_NAME,
-            "prompt": full_prompt,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user",   "content": user_message},
+            ],
             "stream": False,
             "options": {
-                "temperature": 0.1,
-                "num_ctx": 2048,      # 2048 fits in 8GB RAM with Docker overhead
-                "num_predict": 400,   # keep responses concise and fast
+                "temperature": 0,
+                "num_ctx": 3072,   # safe for qwen2.5:3b on 8GB — model ~1.9GB, 6GB for KV cache
+                "num_predict": 400,
             },
         }
         try:
-            response = await client.post(OLLAMA_GEN_URL, json=payload, timeout=150.0)
+            response = await client.post(OLLAMA_CHAT_URL, json=chat_payload, timeout=180.0)
             if response.status_code != 200:
                 raise HTTPException(
                     status_code=500,
                     detail=f"Ollama synthesis failure: {response.text}",
                 )
 
-            raw_response = response.json().get("response", "")
+            # chat API returns {"message": {"role": "assistant", "content": "..."}}
+            resp_json = response.json()
+            raw_response = (resp_json.get("message") or {}).get("content") or ""
+            if not raw_response.strip():
+                # Model returned empty — context likely exceeded token budget
+                print("  ⚠ LLM returned empty response — context may be too large")
+                raw_response = "I cannot find this in the indexed documents."
+
 
             # ── 7. Grounding firewall ─────────────────────────────────────────
             validated_response = validate_response(raw_response, retrieved_chunks)

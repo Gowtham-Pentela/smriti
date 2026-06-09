@@ -137,6 +137,18 @@
         </div>
     </aside>
 
+    <!-- ── Inline Confirmation Modal (replaces window.confirm) ── -->
+    <div id="confirm-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;">
+        <div style="background:#13131e;border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:28px 32px;max-width:400px;width:90%;box-shadow:0 24px 64px rgba(0,0,0,0.5);">
+            <h3 id="confirm-modal-title" style="font-size:15px;font-weight:600;margin-bottom:10px;color:#e8e8f0;"></h3>
+            <p id="confirm-modal-msg" style="font-size:13px;color:rgba(255,255,255,0.55);line-height:1.6;margin-bottom:22px;"></p>
+            <div style="display:flex;gap:10px;justify-content:flex-end;">
+                <button id="confirm-modal-cancel" style="padding:8px 18px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.6);font-size:13px;font-family:inherit;cursor:pointer;">Cancel</button>
+                <button id="confirm-modal-ok" style="padding:8px 18px;border-radius:8px;border:none;background:#ef4444;color:#fff;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;">Confirm</button>
+            </div>
+        </div>
+    </div>
+
     <!-- ═══════════════════════════════════════════
          WORKSPACE - Chat Column + Canvas Column
     ═══════════════════════════════════════════ -->
@@ -401,13 +413,14 @@ async function signOut() {
 
 // ── Delete all account data ───────────────────────────────────────────────────
 async function deleteAccount() {
-    const confirmed = window.confirm(
-        'Delete ALL your data?\n\n' +
-        'This will permanently remove all indexed documents, knowledge objects, ' +
-        'graph data, and connector credentials from your workspace. ' +
-        'This cannot be undone.\n\n' +
-        'Type OK to confirm.'
-    );
+    // showConfirm is defined in app.js (loaded right after this block)
+    const confirmed = (typeof showConfirm === 'function')
+        ? await showConfirm(
+            'Delete ALL your data?',
+            'This will permanently remove all indexed documents, knowledge objects, graph data, and connector credentials from your workspace. This cannot be undone.',
+            'Delete permanently'
+          )
+        : window.confirm('Delete ALL your data? This cannot be undone.');
     if (!confirmed) return;
 
     const btn = document.getElementById('btn-delete-account');

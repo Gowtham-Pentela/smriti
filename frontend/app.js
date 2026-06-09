@@ -26,12 +26,49 @@ async function authFetch(url, options = {}) {
     };
     const resp = await fetch(url, merged);
     if (resp.status === 401) {
-        // Session expired — send user back to sign-in
         window.location.replace("/app/auth.html");
         throw new Error("Session expired");
     }
     return resp;
 }
+
+/**
+ * showConfirm(title, message, confirmLabel?)
+ * Promise-based inline modal — replaces window.confirm().
+ * Resolves true if user clicks Confirm, false if Cancel or Escape.
+ */
+function showConfirm(title, message, confirmLabel = "Confirm", danger = true) {
+    return new Promise((resolve) => {
+        const modal  = document.getElementById("confirm-modal");
+        const titleEl = document.getElementById("confirm-modal-title");
+        const msgEl   = document.getElementById("confirm-modal-msg");
+        const okBtn   = document.getElementById("confirm-modal-ok");
+        const cancelBtn = document.getElementById("confirm-modal-cancel");
+        if (!modal) { resolve(window.confirm(`${title}\n\n${message}`)); return; }
+
+        titleEl.textContent = title;
+        msgEl.textContent   = message;
+        okBtn.textContent   = confirmLabel;
+        okBtn.style.background = danger ? "#ef4444" : "#6366f1";
+        modal.style.display = "flex";
+
+        function finish(result) {
+            modal.style.display = "none";
+            okBtn.removeEventListener("click", onOk);
+            cancelBtn.removeEventListener("click", onCancel);
+            document.removeEventListener("keydown", onKey);
+            resolve(result);
+        }
+        function onOk()     { finish(true);  }
+        function onCancel() { finish(false); }
+        function onKey(e)   { if (e.key === "Escape") finish(false); }
+
+        okBtn.addEventListener("click", onOk);
+        cancelBtn.addEventListener("click", onCancel);
+        document.addEventListener("keydown", onKey);
+    });
+}
+
 
 
 
@@ -171,10 +208,11 @@ function _setSlackDisconnected() {
 }
 
 async function disconnectSlack() {
-    const confirmed = window.confirm(
-        "Disconnect Slack?\n\n" +
+    const confirmed = await showConfirm(
+        "Disconnect Slack?",
         "Your stored Slack credentials will be removed and automatic syncing will stop. " +
-        "Already-indexed Slack data stays in your knowledge base — you can clear it separately with the Clear Index button."
+        "Already-indexed Slack data stays in your knowledge base — you can clear it separately with the Clear Index button.",
+        "Disconnect"
     );
     if (!confirmed) return;
 
@@ -331,7 +369,12 @@ async function cancelIndexing() {
 }
 
 async function clearIndex() {
-    if (!confirm("Clear all indexed knowledge?")) return;
+    const confirmed = await showConfirm(
+        "Clear all indexed knowledge?",
+        "This removes all vector chunks, graph nodes, and graph edges for your workspace. Source files on disk are untouched — you can re-index at any time.",
+        "Clear index"
+    );
+    if (!confirmed) return;
     try {
         const r = await authFetch(`${API_BASE}/clear`, { method: "POST" });
         if (r.ok) {

@@ -1,18 +1,16 @@
 import re
-import requests
 
-OLLAMA_URL = "http://localhost:11434/api/generate"
-MODEL_NAME = "tinyllama"  # 638MB — fast on 8GB RAM; qwen2.5-coder:3b was OOMing
+OLLAMA_URL = "http://localhost:11434/api/chat"
+MODEL_NAME = "qwen2.5-coder:3b"  # 1.9GB — instruction-tuned, fits in 8GB RAM at num_ctx=2048
 
 
 # Canonical strip pattern — removes both [Citation: ...] and [Cite: ...] variants.
-# Used by validate_response to clean sentences before rewriting with a verified source.
 _CITATION_STRIP_RE = re.compile(
     r"\[Cit(?:ation)?:\s*[^\]]+\]",
     re.IGNORECASE,
 )
 
-# Extraction pattern — flexible parser that tolerates the two common model outputs:
+# Extraction pattern — flexible parser that tolerates two common model outputs:
 #   [Citation: source_id, location]   ← canonical
 #   [Cite: source_id (location)]      ← common model shortcut
 _CITATION_EXTRACT_RE = re.compile(
@@ -20,30 +18,48 @@ _CITATION_EXTRACT_RE = re.compile(
     re.IGNORECASE,
 )
 
-def extract_citations(text):
-    """Extract citation tokens from model output.
+# ── Placeholder template patterns ───────────────────────────────────────────
+# Model outputs these when it finds a record header but can't locate the actual
+# values in truncated context — e.g. **Job Title**, [Company Name], [Start Date].
+_PLACEHOLDER_TERMS = (
+    r'Job\s+Title|Company\s+Name|Start\s+Date|End\s+Date|'
+    r'Your\s+Name|Department|Position'
+)
+_PLACEHOLDER_RE = re.compile(
+    r'(\[(' + _PLACEHOLDER_TERMS + r')\]|\*\*(' + _PLACEHOLDER_TERMS + r')\*\*)',
+    re.IGNORECASE,
+)
 
-    Accepts both canonical and shorthand variants:
-        [Citation: SourceName, Location]
-        [Cite: SourceName (Location)]
-    Returns a list of {source, location} dicts.
-    """
+# ── Meta-commentary patterns ─────────────────────────────────────────────────
+# These sentences describe the context rather than answering the question.
+# They should be STRIPPED from the validated output entirely.
+_META_COMMENTARY_RE = re.compile(
+    r"^(based on the (information|context|provided|text|document)|"
+    r"the (context|provided text|text|document) (shows|states|mentions|indicates|says|contains)|"
+    r"as (mentioned|stated|shown|noted) (in|above|below|the)|"
+    r"(looking at|examining|from) the (context|provided|text|document)|"
+    r"according to the (provided|context|text|document)|"
+    r"in the (context|provided|text|document)|"
+    r"from the (context|provided|text|document)|"
+    r"the provided (context|text|information|document))",
+    re.IGNORECASE,
+)
+
+# ── Harmless transition patterns ─────────────────────────────────────────────
+# These are intro/outro phrases that don't need grounding (kept as-is).
+_TRANSITION_RE = re.compile(
+    r"^(here (is|are)|below (is|are|list)|the following (is|are)|"
+    r"please|note that|let me know|if you (need|have|want)|hope this|feel free|"
+    r"in summary|to summarize|overall|firstly|secondly|finally|"
+    r"thank you|sure,?\s+here|as requested)",
+    re.IGNORECASE,
+)
+
+
+def extract_citations(text):
+    """Extract citation tokens from model output."""
     matches = _CITATION_EXTRACT_RE.findall(text)
     return [{"source": m[0].strip(), "location": m[1].strip().rstrip(")").strip()} for m in matches]
-
-def verify_grounding(statement, context_text):
-    """Fast lexical grounding check — no LLM call.
-
-    The synchronous requests.post this previously made (20s timeout, called
-    once per sentence × per chunk candidate) was blocking the asyncio event
-    loop for 30-90s per query. Replaced with verify_substring_or_words which
-    is defined below and is equally accurate: tinyllama follows the citation
-    format when the answer is grounded; ungrounded sentences have low word
-    overlap and are correctly stripped.
-    """
-    # verify_substring_or_words is defined after this function; forward-call is
-    # safe because validate_response (the only caller) runs after module load.
-    return verify_substring_or_words(statement, context_text)
 
 
 def is_source_match(chunk_source, citation_source):
@@ -51,240 +67,190 @@ def is_source_match(chunk_source, citation_source):
     cit_src = citation_source.lower().split('.')[0]
     return cit_src in c_src or c_src in cit_src
 
+
 def split_into_sentences(text):
     paragraphs = text.split('\n')
     all_sentences = []
-    
-    abbrev_pattern = re.compile(r'\b(Dr|Mr|Mrs|Ms|MD|DO|PT|PhD|St|Ave|Rd|Ste|Inc|Co|vs|approx|eg|ie|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\.$', re.IGNORECASE)
-    
+    abbrev_pattern = re.compile(
+        r'\b(Dr|Mr|Mrs|Ms|MD|DO|PT|PhD|St|Ave|Rd|Ste|Inc|Co|vs|approx|eg|ie|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\.$',
+        re.IGNORECASE,
+    )
     for para in paragraphs:
         if not para.strip():
             continue
-            
         raw_splits = re.split(r'(?<=[.!?])\s+', para)
         current_sentence = []
         for part in raw_splits:
             part_str = part.strip()
             if not part_str:
                 continue
-                
             if not current_sentence:
                 current_sentence.append(part)
                 continue
-                
             prev = current_sentence[-1].strip()
             words = prev.split()
             last_word = words[-1] if words else ""
-            
             is_initial = len(last_word.rstrip('.')) == 1 and last_word.rstrip('.').isupper()
             is_abbrev = abbrev_pattern.search(last_word) is not None
             is_number = last_word.rstrip('.').isdigit()
-            
             if is_initial or is_abbrev or is_number:
                 current_sentence[-1] += " " + part
             else:
                 current_sentence.append(part)
-                
         all_sentences.extend([s.strip() for s in current_sentence if s.strip()])
-        
     return all_sentences
 
-def is_conversational_or_transition(sentence):
-    """Detect if a sentence is a conversational filler, introduction, transition, or polite close."""
-    clean = _CITATION_STRIP_RE.sub('', sentence).strip()
-    
-    # If it starts with a list marker (e.g. - or * or 1.), it's a data item, not conversational/transition
-    if re.match(r'^[\-\*\u2022\d]+\.?\s+', clean) or re.match(r'^\d+\.\s+', clean):
-        return False
-        
-    words = clean.split()
-    if len(words) <= 4:  # Very short phrases (e.g. "Yes.", "Sure.", "Correct.")
-        return True
-        
-    # Check common conversational or introductory/transitional patterns
-    patterns = [
-        r"^(here (is|are)|below (is|are|list)|the following|based on|according to|i found|i have found)",
-        r"^(please|note that|let me know|if you (need|have|want)|hope this|feel free)",
-        r"^(in summary|to summarize|overall|concluding|firstly|secondly|finally|next|yes|no,)",
-        r"^thank you",
-        r"^sure, here",
-        r"^as requested"
-    ]
-    for p in patterns:
-        if re.search(p, clean, re.IGNORECASE):
-            return True
-            
-    return False
 
 def verify_substring_or_words(sentence, chunk_content):
-    """Deterministic fallback to verify name list items or short fragments via substring/word match."""
-    # Strip bullet/number prefixes and citations
+    """Verify that a sentence is supported by a chunk via substring or word overlap."""
     clean = _CITATION_STRIP_RE.sub('', sentence).strip()
     clean = re.sub(r'^[\-\*\u2022\d]+\.?\s*', '', clean).strip()
-    
+
     if not clean:
         return False
-        
-    # Case-insensitive substring match of the full clean sentence
-    if clean.lower() in chunk_content.lower():
+
+    chunk_lower = chunk_content.lower()
+    clean_lower = clean.lower()
+
+    # 1. Full substring match
+    if clean_lower in chunk_lower:
         return True
-        
-    # Check if the name part matches (e.g. "Sushila Dalal, MD" -> "Sushila Dalal")
+
+    # 2. Name-part match (e.g. "Sushila Dalal, MD" → "Sushila Dalal")
     clean_name = clean.split(',')[0].strip()
-    if clean_name.lower() in chunk_content.lower():
+    if clean_name.lower() in chunk_lower:
         return True
-        
-    # Word overlap: accept if >=60% of key words (len>=3) appear in chunk.
-    # Using all() was too strict — tinyllama paraphrases rather than quotes verbatim.
+
+    # 3. Year anchor check — if the claim contains a 4-digit year (1980-2099),
+    #    that EXACT year string must appear in the chunk.
+    #    This catches hallucinated dates like '2019' when chunk only has 'Jan 2020'.
+    claim_years = re.findall(r'\b(19[89]\d|20[0-9]\d)\b', clean)
+    if claim_years:
+        for year in claim_years:
+            if year not in chunk_lower:
+                return False  # Year not in chunk → date hallucination
+
+    # 4. Word overlap — accept if ≥55% of content words (len≥3) appear in chunk.
+    #    Using a lower threshold than before because qwen2.5 paraphrases well.
     words = [w.lower() for w in re.findall(r'\w+', clean) if len(w) >= 3]
     if not words:
         return False
-        
-    chunk_lower = chunk_content.lower()
     matched = sum(1 for w in words if w in chunk_lower)
-    # Require both 60% ratio AND at least 2 matched words to prevent trivial hits
-    if matched >= max(2, len(words) * 0.6):
+    if matched >= max(2, len(words) * 0.55):
         return True
-        
+
     return False
+
+
+def verify_grounding(statement, context_text):
+    """Fast lexical grounding check — no LLM call."""
+    return verify_substring_or_words(statement, context_text)
+
 
 def validate_response(response_text, retrieved_chunks):
     """
-    Validates a generated response against retrieved chunks.
-    Splits the response into sentences, extracts citations, and verifies them.
-    If a sentence fails verification, it is flagged/removed, or corrected with true citations.
+    Post-process and validate a model-generated response.
+
+    Each sentence is classified as:
+      - META-COMMENTARY → stripped (e.g. "Based on the context...")
+      - HARMLESS TRANSITION → kept without grounding check
+      - FALLBACK/CANNOT-FIND → kept (tells user no info found)
+      - FACTUAL CLAIM → must be verifiable against retrieved chunks,
+                        otherwise stripped to prevent hallucination
     """
     sentences = split_into_sentences(response_text)
     validated_sentences = []
-    
-    # Negative assertions/fallback phrases that indicate absence of info
-    fallback_patterns = [
-        r"(?i)cannot find the answer",
-        r"(?i)not find the answer",
-        r"(?i)unable to find",
-        r"(?i)no information",
-        r"(?i)not mention",
-        r"(?i)not contain",
-        r"(?i)not provided",
-        r"(?i)does not provide",
-        r"(?i)do not know",
-        r"(?i)don't know",
-        r"(?i)no relevant info",
-        # Meta-commentary patterns — tinyllama sometimes describes the context instead of answering
-        r"(?i)the provided text only includes",
-        r"(?i)the context (only |)mentions",
-        r"(?i)based on the provided context",
-        r"(?i)the text does not (contain|include|mention)",
-        r"(?i)only includes? (a summary|responses|information)",
-    ]
-    
-    # Common English stopwords to exclude from overlap calculations
-    stopwords = {
-        "the", "and", "are", "for", "you", "but", "not", "with", "this", "that", 
-        "have", "from", "they", "will", "was", "were", "been", "has", "had", "can", 
-        "could", "should", "would", "about", "their", "there", "these", "those", 
-        "which", "who", "whom", "whose", "here", "there", "their", "about", "listed", 
-        "any", "some", "all", "more", "most", "other", "than", "then", "into", "only"
-    }
-    
+
+    # Patterns indicating the model is correctly admitting it doesn't know
+    _FALLBACK_RE = re.compile(
+        r"(cannot find (the answer|this)|unable to find|not find the answer|"
+        r"no information|not mention|not contain|not provided|does not provide|"
+        r"do not know|don't know|no relevant info|cannot find this in)",
+        re.IGNORECASE,
+    )
+
     for sentence in sentences:
-        if not sentence.strip():
+        s = sentence.strip()
+        if not s:
             continue
-            
-        # Check if this is a negative assertion indicating lack of data
-        is_fallback = False
-        for pattern in fallback_patterns:
-            if re.search(pattern, sentence):
-                is_fallback = True
-                break
-                
-        if is_fallback:
-            validated_sentences.append(sentence)
+
+        clean = _CITATION_STRIP_RE.sub('', s).strip()
+
+        # 1. Strip meta-commentary sentences entirely
+        if _META_COMMENTARY_RE.search(clean):
+            print(f"  [grounding] stripped meta-commentary: {clean[:80]!r}")
             continue
-            
-        # Check if conversational/transition
-        if is_conversational_or_transition(sentence):
-            validated_sentences.append(sentence)
+
+        # 2. Strip template placeholder sentences — model outputs these when it
+        #    finds a record header but can't locate the actual values in context.
+        #    Catches both [Job Title] and **Job Title** (bold markdown) forms.
+        if _PLACEHOLDER_RE.search(clean):
+            print(f"  [grounding] stripped placeholder template: {clean[:80]!r}")
             continue
-            
-        citations = extract_citations(sentence)
-        citation_valid = False
-        
+
+        # 2. Keep fallback/cannot-find admissions
+        if _FALLBACK_RE.search(clean):
+            validated_sentences.append(s)
+            continue
+
+        # 3. Keep harmless transitions (intro phrases) without grounding check
+        clean_words = clean.split()
+        if len(clean_words) <= 4:
+            validated_sentences.append(s)
+            continue
+        if _TRANSITION_RE.search(clean):
+            validated_sentences.append(s)
+            continue
+
+        # 4. Verify factual claims against retrieved chunks
+        citations = extract_citations(s)
+
         if citations:
-            citation_valid = True
+            # Has citation — verify each citation is grounded
+            all_valid = True
             for citation in citations:
-                # Find matching chunks with flexible extension-agnostic naming
-                matching_chunks = [
-                    c for c in retrieved_chunks 
+                matching = [
+                    c for c in retrieved_chunks
                     if is_source_match(c["source"], citation["source"])
                 ]
-                
-                if not matching_chunks:
-                    citation_valid = False
+                if not matching:
+                    all_valid = False
                     break
-                    
-                chunk_context = "\n\n".join([mc["content"] for mc in matching_chunks])
-                # Fast local substring/word check first
-                is_supported = verify_substring_or_words(sentence, chunk_context)
-                if not is_supported:
-                    # Slower semantic LLM check fallback
-                    is_supported = verify_grounding(sentence, chunk_context)
-                    
-                if not is_supported:
-                    citation_valid = False
+                chunk_text = "\n\n".join(m["content"] for m in matching)
+                if not verify_substring_or_words(s, chunk_text):
+                    all_valid = False
                     break
-            
-            if citation_valid:
-                validated_sentences.append(sentence)
-                continue
-                
-        # If no citation exists, or the citation validation failed, search candidate chunks using word overlap
-        sentence_words = set(w.lower() for w in re.findall(r'\w+', sentence) if len(w) >= 3)
-        sentence_words = sentence_words - stopwords
-        
-        chunk_candidates = []
-        for chunk in retrieved_chunks:
-            chunk_words = set(w.lower() for w in re.findall(r'\w+', chunk["content"]) if len(w) >= 3)
-            overlap = len(sentence_words & chunk_words)
-            if overlap > 0:
-                chunk_candidates.append((overlap, chunk))
-                
-        # Sort candidates by overlap score descending
-        chunk_candidates.sort(key=lambda x: x[0], reverse=True)
-        
-        found_source = False
-        # Verify against all candidate chunks (not just top 5 — small list anyway)
-        for overlap, chunk in chunk_candidates:
-            # Fast local substring/word check first
-            is_supported = verify_substring_or_words(sentence, chunk["content"])
-            if not is_supported:
-                # Slower semantic LLM check fallback
-                is_supported = verify_grounding(sentence, chunk["content"])
-                
-            if is_supported:
-                true_source = chunk["source"]
-                true_location = chunk["location"]
-                
-                # Strip old invalid citations if any
-                clean_sentence = _CITATION_STRIP_RE.sub('', sentence).strip()
-                
-                # Remove trailing period if we append a new citation
-                if clean_sentence.endswith('.'):
-                    clean_sentence = clean_sentence[:-1].strip()
-                    
-                corrected_sentence = f"{clean_sentence} [Citation: {true_source}, {true_location}]."
-                validated_sentences.append(corrected_sentence)
-                found_source = True
-                break
-                
-        if not found_source:
-            # Fact is not supported by any candidate chunk; strip it to prevent hallucination
-            print(f"Warning: Hallucinated/unsupported sentence stripped: '{sentence}'")
-            continue
-            
+            if all_valid:
+                validated_sentences.append(s)
+            else:
+                print(f"  [grounding] stripped unverified cited claim: {clean[:80]!r}")
+        else:
+            # No citation — search all chunks for word overlap and auto-cite
+            sentence_words = {
+                w.lower() for w in re.findall(r'\w+', clean) if len(w) >= 3
+            }
+            candidates = []
+            for chunk in retrieved_chunks:
+                chunk_words = set(re.findall(r'\w+', chunk["content"].lower()))
+                overlap = len(sentence_words & chunk_words)
+                if overlap > 0:
+                    candidates.append((overlap, chunk))
+            candidates.sort(key=lambda x: x[0], reverse=True)
+
+            found = False
+            for _, chunk in candidates:
+                if verify_substring_or_words(s, chunk["content"]):
+                    # Auto-attach citation
+                    clean_s = _CITATION_STRIP_RE.sub('', s).strip().rstrip('.')
+                    corrected = f"{clean_s} [Citation: {chunk['source']}, {chunk['location']}]."
+                    validated_sentences.append(corrected)
+                    found = True
+                    break
+
+            if not found:
+                print(f"  [grounding] stripped unsupported claim: {clean[:80]!r}")
+
     result = " ".join(validated_sentences).strip()
     if not result:
-        return "I cannot find the answer in the provided documents/videos."
+        return "I cannot find the answer in the provided documents."
     return result
-
-
