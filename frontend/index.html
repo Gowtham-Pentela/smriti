@@ -349,7 +349,9 @@ window._devMode   = false;
 // Returns Bearer token header for production, empty object for dev mode
 window.getAuthHeaders = () => {
     if (window._devMode || !window.sbSession) return {};
-    return { 'Authorization': 'Bearer ' + window.sbSession.access_token };
+    const token = window.sbSession.access_token;
+    if (!token) return {}; // guard: session exists but token not yet populated
+    return { 'Authorization': 'Bearer ' + token };
 };
 
 function _populateUserUI(email, badge) {
