@@ -1,4 +1,11 @@
 import os
+
+# Load .env before anything else — handles "KEY = VALUE" spacing that shell
+# `source` can't parse. This ensures GOOGLE_CLIENT_ID, SLACK_CLIENT_ID, etc.
+# are always available regardless of how uvicorn was launched.
+from dotenv import load_dotenv
+load_dotenv(override=False)  # override=False: env vars already set in shell take priority
+
 import glob
 import asyncio
 import hashlib
