@@ -1,5 +1,5 @@
 /**
- * Knowledge Guardian — Landing Page JavaScript
+ * Smriti — Landing Page JavaScript
  * Particle canvas, scroll reveal, nav scroll effect, typing animation
  */
 
@@ -265,7 +265,7 @@ function initThemeToggle() {
   if (!btn) return;
 
   const html = document.documentElement;
-  const KEY  = 'kgf-theme';
+  const KEY  = 'smriti-theme';
 
   function applyTheme(t) {
     html.setAttribute('data-theme', t);

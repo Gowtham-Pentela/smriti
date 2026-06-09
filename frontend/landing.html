@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Knowledge Guardian Foundry: Organizational AI Memory, Built for Privacy</title>
-  <meta name="description" content="Knowledge Guardian Foundry (KGF) turns your organization's Slack, docs, meetings, and project history into a private AI assistant that answers like a senior employee. Your data never leaves your cloud." />
+  <title>Smriti: Organizational AI Memory, Built for Privacy</title>
+  <meta name="description" content="Smriti turns your organization's Slack, docs, meetings, and project history into a private AI assistant that answers like a senior employee. Your data never leaves your cloud." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
@@ -12,7 +12,7 @@
   <script>
     // Apply saved theme before first paint to avoid flash
     (function() {
-      var t = localStorage.getItem('kgf-theme') || 'dark';
+      var t = localStorage.getItem('smriti-theme') || 'dark';
       document.documentElement.setAttribute('data-theme', t);
     })();
   </script>
@@ -26,12 +26,8 @@
 <nav class="nav" id="nav">
   <div class="nav-inner">
     <a href="#" class="nav-logo">
-      <svg class="logo-shield-svg" viewBox="0 0 24 24" fill="none" width="22" height="22">
-        <path d="M12 2L3 6v6c0 5.25 3.75 10.15 9 11.25C17.25 22.15 21 17.25 21 12V6L12 2z" fill="rgba(99,102,241,0.35)" stroke="rgba(99,102,241,0.6)" stroke-width="1"/>
-        <defs><linearGradient id="shield-grad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#6366f1"/><stop offset="100%" stop-color="#8b5cf6" stop-opacity="0.6"/></linearGradient></defs>
-        <path d="M9 12l2 2 4-4" stroke="#a5f3fc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-      <span class="logo-text">Knowledge Guardian Foundry</span>
+      <img src="images/smriti_logo.png" alt="Smriti" width="28" height="28" style="border-radius:6px;flex-shrink:0;">
+      <span class="logo-text">Smriti</span>
     </a>
     <div class="nav-links">
       <a href="#how-it-works">How It Works</a>
@@ -74,7 +70,7 @@
 
     <p class="hero-sub">
       Stop losing knowledge when people leave. Stop wasting hours onboarding new hires.
-      Knowledge Guardian Foundry connects every Slack thread, meeting, doc, and decision into
+      Smriti connects every Slack thread, meeting, doc, and decision into
       a private AI assistant that answers like your most experienced employee
       <strong>without a single byte leaving your cloud.</strong>
     </p>
@@ -112,7 +108,7 @@
         <div class="demo-dots">
           <span></span><span></span><span></span>
         </div>
-        <span class="demo-title">Knowledge Guardian Foundry</span>
+        <span class="demo-title">Smriti</span>
       </div>
       <div class="demo-query">
         <svg class="demo-user-icon" viewBox="0 0 24 24" fill="none" width="20" height="20"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.5"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
@@ -187,7 +183,7 @@
         <div class="step-number">01</div>
         <div class="step-content">
           <h3>Connect your sources</h3>
-          <p>Authorize once with your Slack workspace, Google Drive, Confluence, or simply upload your project docs. Knowledge Guardian Foundry reads what you give it and nothing more.</p>
+          <p>Authorize once with your Slack workspace, Google Drive, Confluence, or simply upload your project docs. Smriti reads what you give it and nothing more.</p>
           <div class="step-tags">
             <span>Slack</span><span>Google Drive</span><span>Confluence</span><span>PDF / Markdown</span><span>Zoom</span>
           </div>
@@ -308,7 +304,7 @@
         <div class="section-label">Privacy Architecture</div>
         <h2>Your data never leaves<br/><span class="gradient-text">your cloud. Ever.</span></h2>
         <p class="privacy-lead">
-          We built Knowledge Guardian Foundry with a hard constraint: zero external API calls for inference.
+          We built Smriti with a hard constraint: zero external API calls for inference.
           Every LLM call, every embedding, every retrieval happens inside your GCP project
           on infrastructure that you own, with keys that only you control.
         </p>
@@ -363,7 +359,7 @@
             <div class="pd-arrow">&#8594;</div>
             <div class="pd-node pd-app">
               <svg viewBox="0 0 24 24" fill="none" width="28" height="28"><path d="M12 2L3 6v6c0 5.25 3.75 10.15 9 11.25C17.25 22.15 21 17.25 21 12V6L12 2z" stroke="currentColor" stroke-width="1.5"/><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              <small>KGF Assistant</small>
+              <small>Smriti</small>
             </div>
             <div class="pd-arrow">&#8597;</div>
             <div class="pd-node pd-db">
@@ -449,7 +445,7 @@
           Launch the Assistant
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </a>
-        <a href="mailto:hello@kgf.qd.je" class="btn-ghost">Request a demo</a>
+        <a href="mailto:hello@smriti.one" class="btn-ghost">Request a demo</a>
       </div>
     </div>
   </div>
@@ -460,12 +456,8 @@
   <div class="container">
     <div class="footer-inner">
       <div class="footer-brand">
-        <svg viewBox="0 0 24 24" fill="none" width="22" height="22" style="flex-shrink:0">
-          <path d="M12 2L3 6v6c0 5.25 3.75 10.15 9 11.25C17.25 22.15 21 17.25 21 12V6L12 2z" fill="rgba(99,102,241,0.25)" stroke="rgba(99,102,241,0.5)" stroke-width="1"/>
-          <defs><linearGradient id="shield-grad-f" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#6366f1"/><stop offset="100%" stop-color="#8b5cf6" stop-opacity="0.5"/></linearGradient></defs>
-          <path d="M9 12l2 2 4-4" stroke="#a5f3fc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        <span class="logo-text">Knowledge Guardian Foundry</span>
+        <img src="images/smriti_logo.png" alt="Smriti" width="28" height="28" style="border-radius:6px;flex-shrink:0;">
+        <span class="logo-text">Smriti</span>
         <p>Privacy-first organizational AI. Your data stays yours.</p>
       </div>
       <div class="footer-links">
@@ -484,7 +476,7 @@
       </div>
     </div>
     <div class="footer-bottom">
-      <span>&#169; 2026 Knowledge Guardian Foundry. Built in Springfield, IL.</span>
+      <span>&#169; 2026 Smriti. Built in Springfield, IL.</span>
       <span>All organizational data remains in your cloud infrastructure.</span>
     </div>
   </div>

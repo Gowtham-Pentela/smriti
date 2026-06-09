@@ -3,15 +3,15 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Privacy Policy: Knowledge Guardian Foundry</title>
-  <meta name="description" content="Knowledge Guardian Foundry Privacy Policy. Your organizational data stays in your cloud. We never access, share, or train on it." />
+  <title>Privacy Policy: Smriti</title>
+  <meta name="description" content="Smriti Privacy Policy. Your organizational data stays in your cloud. We never access, share, or train on it." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="landing.css" />
   <script>
     (function() {
-      var t = localStorage.getItem('kgf-theme') || 'dark';
+      var t = localStorage.getItem('smriti-theme') || 'dark';
       document.documentElement.setAttribute('data-theme', t);
     })();
   </script>
@@ -39,12 +39,8 @@
 <nav class="nav scrolled" id="nav">
   <div class="nav-inner">
     <a href="landing.html" class="nav-logo">
-      <svg viewBox="0 0 24 24" fill="none" width="22" height="22">
-        <path d="M12 2L3 6v6c0 5.25 3.75 10.15 9 11.25C17.25 22.15 21 17.25 21 12V6L12 2z" fill="rgba(99,102,241,0.35)" stroke="rgba(99,102,241,0.6)" stroke-width="1"/>
-        <defs><linearGradient id="sp-grad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#6366f1"/><stop offset="100%" stop-color="#8b5cf6" stop-opacity="0.6"/></linearGradient></defs>
-        <path d="M9 12l2 2 4-4" stroke="#a5f3fc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-      <span class="logo-text">Knowledge Guardian Foundry</span>
+      <img src="images/smriti_logo.png" alt="Smriti" width="26" height="26" style="border-radius:6px;flex-shrink:0;">
+      <span class="logo-text">Smriti</span>
     </a>
     <div class="nav-links">
       <a href="landing.html#privacy">Privacy Architecture</a>
@@ -68,26 +64,26 @@
   </div>
 
   <div class="highlight-box">
-    <p>The short version: Your organizational data is indexed and stored in <strong>your own GCP infrastructure</strong>. Knowledge Guardian Foundry operators never have access to it. No data is ever sent to external AI APIs for inference. Ever.</p>
+    <p>The short version: Your organizational data is indexed and stored in <strong>your own GCP infrastructure</strong>. Smriti operators never have access to it. No data is ever sent to external AI APIs for inference. Ever.</p>
   </div>
 
   <div class="legal-section">
     <h2>1. Who We Are</h2>
-    <p>Knowledge Guardian Foundry ("KGF", "we", "us") is an organizational AI knowledge assistant. The product is deployed into the customer's own Google Cloud Platform (GCP) project. Gowtham Pentela, operating from Springfield, IL, USA, is the controller of this Privacy Policy for the software itself. Customers who deploy KGF are independent controllers of their own organizational data.</p>
+    <p>Smriti is an organizational AI knowledge assistant. The product is deployed into the customer's own Google Cloud Platform (GCP) project. Gowtham Pentela, operating from Springfield, IL, USA, is the controller of this Privacy Policy for the software itself. Customers who deploy Smriti are independent controllers of their own organizational data.</p>
   </div>
 
   <div class="legal-section">
     <h2>2. Data We Collect and Process</h2>
-    <p>KGF collects two categories of data:</p>
+    <p>Smriti collects two categories of data:</p>
     <ul>
-      <li><strong>Organizational knowledge data:</strong> Messages, documents, meeting transcripts, and other content you authorize KGF to index via OAuth or file upload. This data is stored in your Postgres database (pgvector) inside your GCP project. We have no direct access to it.</li>
+      <li><strong>Organizational knowledge data:</strong> Messages, documents, meeting transcripts, and other content you authorize Smriti to index via OAuth or file upload. This data is stored in your Postgres database (pgvector) inside your GCP project. We have no direct access to it.</li>
       <li><strong>Product usage data:</strong> If you contact us for support, we may collect your name and email. We do not embed analytics trackers in the application.</li>
     </ul>
   </div>
 
   <div class="legal-section">
     <h2>3. Data Residency</h2>
-    <p>All organizational data is stored exclusively in the GCP region you choose during deployment (default: <code>us-central1</code>). Data does not leave that GCP region or project boundary during normal operation. The GCP project is owned and billed to your organization, not to Knowledge Guardian Foundry.</p>
+    <p>All organizational data is stored exclusively in the GCP region you choose during deployment (default: <code>us-central1</code>). Data does not leave that GCP region or project boundary during normal operation. The GCP project is owned and billed to your organization, not to Smriti.</p>
   </div>
 
   <div class="legal-section">
@@ -103,12 +99,12 @@
 
   <div class="legal-section">
     <h2>5. Third-Party Data Processors</h2>
-    <p>KGF uses the following third-party services during normal operation:</p>
+    <p>Smriti uses the following third-party services during normal operation:</p>
     <ul>
       <li><strong>Google Cloud Platform:</strong> Compute (GKE), database (Cloud SQL), and storage. Your GCP project is the controller. GCP's DPA applies. <a href="https://cloud.google.com/terms/data-processing-addendum" target="_blank" rel="noopener">GCP DPA &rarr;</a></li>
-      <li><strong>Slack:</strong> If you connect Slack, KGF uses the Slack API to read authorized channel history. Slack's API terms apply. Only channels explicitly authorized during OAuth setup are read.</li>
+      <li><strong>Slack:</strong> If you connect Slack, Smriti uses the Slack API to read authorized channel history. Slack's API terms apply. Only channels explicitly authorized during OAuth setup are read.</li>
     </ul>
-    <p>KGF does not use OpenAI, Anthropic, Cohere, or any other external LLM API. Inference runs entirely on hardware inside your GCP project.</p>
+    <p>Smriti does not use OpenAI, Anthropic, Cohere, or any other external LLM API. Inference runs entirely on hardware inside your GCP project.</p>
   </div>
 
   <div class="legal-section">
@@ -131,14 +127,14 @@
     <h2>8. Your Rights</h2>
     <p>Depending on your jurisdiction, you may have rights to access, correct, or delete personal data we process about you. For all data rights requests:</p>
     <ul>
-      <li>For data stored in your KGF deployment (organizational data): contact your company's IT administrator, who controls your KGF deployment.</li>
-      <li>For any personal data KGF holds (e.g., support email): contact us at <a href="mailto:privacy@kgf.qd.je">privacy@kgf.qd.je</a>. We will respond within 30 days.</li>
+      <li>For data stored in your Smriti deployment (organizational data): contact your company's IT administrator, who controls your Smriti deployment.</li>
+      <li>For any personal data Smriti holds (e.g., support email): contact us at <a href="mailto:privacy@smriti.one">privacy@smriti.one</a>. We will respond within 30 days.</li>
     </ul>
   </div>
 
   <div class="legal-section">
     <h2>9. Children's Privacy</h2>
-    <p>KGF is a B2B enterprise product not directed at individuals under 18. We do not knowingly collect personal data from children.</p>
+    <p>Smriti is a B2B enterprise product not directed at individuals under 18. We do not knowingly collect personal data from children.</p>
   </div>
 
   <div class="legal-section">
@@ -148,14 +144,14 @@
 
   <div class="contact-box">
     <h3>Privacy Contact</h3>
-    <p>Knowledge Guardian Foundry<br/>Springfield, IL, USA<br/>Email: <a href="mailto:privacy@kgf.qd.je">privacy@kgf.qd.je</a></p>
+    <p>Smriti<br/>Springfield, IL, USA<br/>Email: <a href="mailto:privacy@smriti.one">privacy@smriti.one</a></p>
   </div>
 </main>
 
 <footer class="footer" style="position:relative;z-index:1;">
   <div class="container">
     <div class="footer-bottom">
-      <span>© 2026 Knowledge Guardian Foundry. Springfield, IL.</span>
+      <span>© 2026 Smriti. Springfield, IL.</span>
       <span><a href="terms.html" style="color:var(--text-muted)">Terms of Service</a> &nbsp;·&nbsp; Privacy Policy</span>
     </div>
   </div>

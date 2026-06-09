@@ -1,4 +1,4 @@
-/* app.js — Knowledge Guardian AI Workspace
+/* app.js — Smriti AI Workspace
    Rebuilt for split-workspace architecture:
    - Numbered citation badges → canvas panel accordion cards
    - Execution telemetry (latency + model)
@@ -478,7 +478,7 @@ function appendAssistantBlock() {
     headerEl.className = "msg-header";
     headerEl.innerHTML = `
         <div class="msg-role-icon"><svg viewBox="0 0 24 24" fill="none" width="16" height="16"><path d="M12 2L3 6v6c0 5.25 3.75 10.15 9 11.25C17.25 22.15 21 17.25 21 12V6L12 2z" fill="rgba(99,102,241,0.3)" stroke="rgba(99,102,241,0.8)" stroke-width="1.5"/><path d="M9 12l2 2 4-4" stroke="#a5f3fc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-        <div class="msg-role-label">KGF Assistant</div>
+        <div class="msg-role-label">Smriti</div>
     `;
 
     const logEl = document.createElement("div");

@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Knowledge Guardian Foundry: AI Workspace</title>
-    <meta name="description" content="Knowledge Guardian Foundry (KGF): Private AI workspace grounded in your organization's knowledge. Every answer cited.">
+    <title>Smriti: AI Workspace</title>
+    <meta name="description" content="Smriti: Private AI workspace grounded in your organization's knowledge. Every answer cited.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -21,14 +21,10 @@
     ═══════════════════════════════════════════ -->
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-brand">
-            <a href="landing.html" class="brand-logo">
-                <svg class="brand-shield" viewBox="0 0 24 24" fill="none" width="20" height="20">
-                    <path d="M12 2L3 6v6c0 5.25 3.75 10.15 9 11.25C17.25 22.15 21 17.25 21 12V6L12 2z" fill="rgba(99,102,241,0.35)" stroke="rgba(99,102,241,0.6)" stroke-width="1"/>
-                    <defs><linearGradient id="bi-grad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#6366f1"/><stop offset="100%" stop-color="#8b5cf6" stop-opacity="0.6"/></linearGradient></defs>
-                    <path d="M9 12l2 2 4-4" stroke="#a5f3fc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
+                <a href="landing.html" class="brand-logo">
+                <img src="images/smriti_logo.png" alt="Smriti" width="26" height="26" style="border-radius:6px;flex-shrink:0;">
                 <div class="brand-text">
-                    <span class="brand-name">KGF</span>
+                    <span class="brand-name">Smriti</span>
                     <span class="brand-tagline">Organizational AI</span>
                 </div>
             </a>
@@ -162,7 +158,7 @@
                 <div class="topbar-left">
                     <div class="assistant-dot"></div>
                     <div>
-                        <div class="topbar-title">Knowledge Guardian Foundry</div>
+                        <div class="topbar-title">Smriti</div>
                         <div class="topbar-sub" id="model-status">Ready · Private inference · On-premise</div>
                     </div>
                 </div>
@@ -190,11 +186,7 @@
                 <!-- Welcome state -->
                 <div class="welcome-state" id="welcome-state">
                     <div class="welcome-icon">
-                        <svg viewBox="0 0 24 24" fill="none" width="48" height="48">
-                            <path d="M12 2L3 6v6c0 5.25 3.75 10.15 9 11.25C17.25 22.15 21 17.25 21 12V6L12 2z" fill="rgba(99,102,241,0.2)" stroke="rgba(99,102,241,0.7)" stroke-width="1"/>
-                            <defs><linearGradient id="wi-grad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#6366f1" stop-opacity="0.5"/><stop offset="100%" stop-color="#8b5cf6" stop-opacity="0.2"/></linearGradient></defs>
-                            <path d="M9 12l2 2 4-4" stroke="#a5f3fc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
+                        <img src="images/smriti_logo.png" alt="Smriti" width="64" height="64" style="border-radius:14px;">
                     </div>
                     <h1 class="welcome-title">Ask your organization anything</h1>
                     <p class="welcome-sub">Every answer is grounded in your indexed knowledge with numbered citations. Click any citation to view the source in the panel.</p>
@@ -316,7 +308,7 @@
     }
 
     // ── Theme toggle ──────────────────────────────────────
-    const THEME_KEY = 'kgf-theme';
+    const THEME_KEY = 'smriti-theme';
     const html      = document.documentElement;
 
     function applyTheme(theme) {
