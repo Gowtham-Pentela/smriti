@@ -360,51 +360,66 @@ function _populateUserUI(email, badge) {
     if (userDmEl) { userDmEl.textContent  = domain; }
 }
 
-// Auth gate — uses Supabase v2 INITIAL_SESSION event which fires exactly
-// once AFTER all initialization (including PKCE code exchange) is complete.
-// No race conditions, no Promises, no timeouts.
+// ── Auth gate ──────────────────────────────────────────────────────────────
+// Simple rule: auth.html handles ALL OAuth/session processing.
+// By the time index.html loads, the session is already in localStorage.
 (async () => {
-    // ── Step 1: check if backend is in dev mode (no sign-in needed) ──────────
+    // Step 1: dev mode bypass
     try {
         const cfgResp = await fetch(`${_API_BASE}/auth-config`);
         if (cfgResp.ok) {
             const cfg = await cfgResp.json();
             if (cfg.dev_mode) {
                 window._devMode = true;
-                const devEmail = cfg.dev_email || 'dev@localhost.local';
-                _populateUserUI(devEmail, '⚙');
-                return; // skip Supabase — app loads normally
+                _populateUserUI(cfg.dev_email || 'dev@localhost.local', '⚙');
+                return;
             }
         }
-    } catch (_) {
-        // backend offline — fall through to Supabase check
-    }
+    } catch (_) { /* backend offline — fall through */ }
 
-    // ── Step 2: production mode — INITIAL_SESSION pattern ────────────────────
-    // Supabase v2 fires INITIAL_SESSION once after fully initialising,
-    // including completing any PKCE auth-code exchange. session is null if
-    // the user is not authenticated.
+    // Step 2: check session (always present if coming from auth.html post-login)
+    const { data: { session } } = await _sb.auth.getSession();
+    if (!session) {
+        window.location.replace('/app/auth.html');
+        return;
+    }
+    window.sbSession = session;
+    _populateUserUI(session.user.email || '');
+
+    // Step 3: react to sign-out / token refresh
     _sb.auth.onAuthStateChange((event, session) => {
-        if (event === 'INITIAL_SESSION') {
-            if (!session) {
-                window.location.replace('/app/auth.html');
-            } else {
-                window.sbSession = session;
-                _populateUserUI(session.user.email || '');
-            }
-        }
-        // Keep sbSession fresh on token refresh
-        if (event === 'TOKEN_REFRESHED' && session) {
-            window.sbSession = session;
-        }
-        // Sign-out from another tab
         if (event === 'SIGNED_OUT') {
             window.location.replace('/app/auth.html');
+        }
+        if (event === 'TOKEN_REFRESHED' && session) {
+            window.sbSession = session;
         }
     });
 })();
 
-// Note: Token refresh is handled automatically by Supabase v2 (TOKEN_REFRESHED event above)
+// ── 15-minute inactivity auto-logout ───────────────────────────────────────
+(function startInactivityTimer() {
+    const TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
+    let timer;
+
+    async function onTimeout() {
+        if (window._devMode) return; // no timeout in dev mode
+        await _sb.auth.signOut();
+        window.location.replace('/app/auth.html');
+    }
+
+    function reset() {
+        clearTimeout(timer);
+        timer = setTimeout(onTimeout, TIMEOUT_MS);
+    }
+
+    ['mousemove', 'keydown', 'mousedown', 'touchstart', 'scroll', 'click']
+        .forEach(e => window.addEventListener(e, reset, { passive: true }));
+
+    reset(); // start the clock
+})();
+
+// Note: Token refresh is handled automatically by Supabase v2
 
 // ── Sign out ──────────────────────────────────────────────────────────────────
 async function signOut() {

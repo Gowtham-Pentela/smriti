@@ -341,9 +341,10 @@ const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
-// ── Session handling: go to app if already/newly signed in ───────────────
-// INITIAL_SESSION fires once on page load (catches already-logged-in users).
-// SIGNED_IN fires after OAuth/email login completes.
+// ── Session gate ──────────────────────────────────────────────────────────
+// INITIAL_SESSION: fires once on load. If session exists → already logged in → go to app.
+// SIGNED_IN:       fires after OAuth code exchange or email login → go to app.
+// Any other event (null session) → stay on this page and show the login form.
 sb.auth.onAuthStateChange((event, session) => {
     if ((event === 'INITIAL_SESSION' || event === 'SIGNED_IN') && session) {
         window.location.replace('/app/index.html');
