@@ -628,9 +628,15 @@ def get_ingest_status():
     return _connector_status
 
 
+@app.get("/health", include_in_schema=False)
+async def health_check():
+    """Lightweight ping — returns minimal JSON. Used by frontend connection check."""
+    return {"status": "ok"}
+
+
 @app.get("/status")
 async def get_status(request: Request):
-    """Return indexed chunk count + file list. Also indicates dev_mode."""
+    """Return indexed chunk count and source count only. File list is at /files."""
     from backend.auth import KGF_DEV_MODE
     tenant_id = getattr(request.state, "tenant_id", None) or TENANT_NAMESPACE_UUID
     try:
@@ -640,18 +646,38 @@ async def get_status(request: Request):
                 "SELECT count(*) FROM tenant_redwood_inference_prod.vector_chunks WHERE tenant_id = $1",
                 tenant_id,
             )
-            rows = await conn.fetch(
-                "SELECT DISTINCT source_id FROM tenant_redwood_inference_prod.vector_chunks WHERE tenant_id = $1",
+            sources_count = await conn.fetchval(
+                "SELECT count(DISTINCT source_id) FROM tenant_redwood_inference_prod.vector_chunks WHERE tenant_id = $1",
                 tenant_id,
             )
         return {
             "status": "ok",
             "dev_mode": KGF_DEV_MODE,
             "indexed_chunks_count": count,
+            "indexed_sources_count": sources_count,
+        }
+    except Exception as e:
+        return {"status": "ok", "dev_mode": KGF_DEV_MODE, "indexed_chunks_count": 0, "indexed_sources_count": 0, "error": str(e)}
+
+
+@app.get("/files")
+async def get_files(request: Request):
+    """Return the full list of indexed source IDs. Called lazily (not on every page load)."""
+    from backend.auth import KGF_DEV_MODE
+    tenant_id = getattr(request.state, "tenant_id", None) or TENANT_NAMESPACE_UUID
+    try:
+        async with app.state.db_pool.acquire() as conn:
+            await conn.execute(f"SET app.current_tenant_id = '{tenant_id}'")
+            rows = await conn.fetch(
+                "SELECT DISTINCT source_id FROM tenant_redwood_inference_prod.vector_chunks WHERE tenant_id = $1 ORDER BY source_id",
+                tenant_id,
+            )
+        return {
+            "status": "ok",
             "indexed_files": [r["source_id"] for r in rows],
         }
     except Exception as e:
-        return {"status": "ok", "dev_mode": KGF_DEV_MODE, "indexed_chunks_count": 0, "indexed_files": [], "error": str(e)}
+        return {"status": "ok", "indexed_files": [], "error": str(e)}
 
 
 @app.post("/clear")

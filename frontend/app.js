@@ -102,6 +102,7 @@ let lastQuery            = "";  // stored for regenerate
 window.addEventListener("DOMContentLoaded", () => {
     checkBackendConnection();
     updateStats();
+    loadFilesList();   // load file list once, lazily
     checkOAuthUrlParams();
     checkSlackConnection();
 
@@ -245,7 +246,7 @@ async function disconnectSlack() {
 // ── Backend connection ────────────────────────────────────────────────
 async function checkBackendConnection() {
     try {
-        const r = await authFetch(`${API_BASE}/status`);
+        const r = await authFetch(`${API_BASE}/health`);
         _setOnline(r.ok);
     } catch {
         _setOnline(false);
@@ -267,34 +268,19 @@ function _setOnline(online) {
     if (topSub && !online) topSub.textContent = "⚠️ Backend offline — run: uvicorn backend.main:app";
 }
 
-// ── Stats ─────────────────────────────────────────────────────────────
+// ── Stats (counts only — file list loaded lazily) ────────────────────
+let _sourcesLoaded = false;
+
 async function updateStats() {
     try {
         const r = await authFetch(`${API_BASE}/status`);
         if (!r.ok) return;
         const data = await r.json();
-        const chunks = data.indexed_chunks_count || 0;
-        const files  = data.indexed_files || [];
+        const chunks  = data.indexed_chunks_count  || 0;
+        const sources = data.indexed_sources_count || 0;
 
         statChunks.innerText = chunks.toLocaleString();
-        statFiles.innerText  = files.length.toLocaleString();
-
-        filesList.innerHTML = "";
-        if (files.length === 0) {
-            filesList.innerHTML = `<li class="files-empty">No sources indexed yet</li>`;
-        } else {
-            files.slice(0, 20).forEach(f => {
-                const li = document.createElement("li");
-                li.innerText = f;
-                filesList.appendChild(li);
-            });
-            if (files.length > 20) {
-                const li = document.createElement("li");
-                li.className = "files-empty";
-                li.innerText = `…and ${files.length - 20} more`;
-                filesList.appendChild(li);
-            }
-        }
+        statFiles.innerText  = sources.toLocaleString();
 
         const hasData = chunks > 0;
         queryInput.disabled = !hasData;
@@ -304,6 +290,37 @@ async function updateStats() {
         if (!hasData) btnSend.disabled = true;
     } catch (e) {
         console.error("updateStats:", e);
+    }
+}
+
+// Called lazily when user opens the sources/files panel
+async function loadFilesList() {
+    if (_sourcesLoaded) return;
+    _sourcesLoaded = true;
+    try {
+        const r = await authFetch(`${API_BASE}/files`);
+        if (!r.ok) return;
+        const data = await r.json();
+        const files = data.indexed_files || [];
+
+        filesList.innerHTML = "";
+        if (files.length === 0) {
+            filesList.innerHTML = `<li class="files-empty">No sources indexed yet</li>`;
+        } else {
+            files.slice(0, 50).forEach(f => {
+                const li = document.createElement("li");
+                li.innerText = f;
+                filesList.appendChild(li);
+            });
+            if (files.length > 50) {
+                const li = document.createElement("li");
+                li.className = "files-empty";
+                li.innerText = `…and ${files.length - 50} more`;
+                filesList.appendChild(li);
+            }
+        }
+    } catch (e) {
+        console.error("loadFilesList:", e);
     }
 }
 
@@ -357,6 +374,8 @@ async function pollIndexing() {
                 : `✅ Indexing complete${t} — knowledge base ready.`);
             userCancelled = false;
             updateStats();
+            _sourcesLoaded = false;  // force file list reload after indexing
+            loadFilesList();
         }
     } catch (e) { console.error("pollIndexing:", e); }
 }
@@ -382,6 +401,8 @@ async function clearIndex() {
             renderExperts([]);
             renderSources([]);
             updateStats();
+            _sourcesLoaded = false;  // force file list reload after clear
+            loadFilesList();
         } else {
             const err = await r.json();
             alert(`Error: ${err.detail}`);
