@@ -360,7 +360,9 @@ function _populateUserUI(email, badge) {
     if (userDmEl) { userDmEl.textContent  = domain; }
 }
 
-// Auth gate — runs immediately, before DOM is interactive
+// Auth gate — uses Supabase v2 INITIAL_SESSION event which fires exactly
+// once AFTER all initialization (including PKCE code exchange) is complete.
+// No race conditions, no Promises, no timeouts.
 (async () => {
     // ── Step 1: check if backend is in dev mode (no sign-in needed) ──────────
     try {
@@ -378,45 +380,31 @@ function _populateUserUI(email, badge) {
         // backend offline — fall through to Supabase check
     }
 
-    // ── Step 2: production mode — require Supabase session ───────────────────
-    // Set up listener FIRST to catch PKCE code exchange completing async
-    const _authReady = new Promise((resolve) => {
-        const { data: { subscription } } = _sb.auth.onAuthStateChange((event, session) => {
-            if (event === 'SIGNED_IN' && session) {
-                subscription.unsubscribe();
-                resolve(session);
+    // ── Step 2: production mode — INITIAL_SESSION pattern ────────────────────
+    // Supabase v2 fires INITIAL_SESSION once after fully initialising,
+    // including completing any PKCE auth-code exchange. session is null if
+    // the user is not authenticated.
+    _sb.auth.onAuthStateChange((event, session) => {
+        if (event === 'INITIAL_SESSION') {
+            if (!session) {
+                window.location.replace('/app/auth.html');
+            } else {
+                window.sbSession = session;
+                _populateUserUI(session.user.email || '');
             }
-        });
-        // Timeout after 3s — no session arrived
-        setTimeout(() => resolve(null), 3000);
+        }
+        // Keep sbSession fresh on token refresh
+        if (event === 'TOKEN_REFRESHED' && session) {
+            window.sbSession = session;
+        }
+        // Sign-out from another tab
+        if (event === 'SIGNED_OUT') {
+            window.location.replace('/app/auth.html');
+        }
     });
-
-    const { data: { session } } = await _sb.auth.getSession();
-    if (session) {
-        // Session already in localStorage (normal page load after prior login)
-        window.sbSession = session;
-        _populateUserUI(session.user.email || '');
-        return;
-    }
-
-    // Session not in localStorage yet — could be PKCE code exchange in progress
-    // Wait up to 3s for onAuthStateChange to fire
-    const arrivedSession = await _authReady;
-    if (!arrivedSession) {
-        window.location.replace('/app/auth.html');
-        return;
-    }
-    window.sbSession = arrivedSession;
-    _populateUserUI(arrivedSession.user.email || '');
 })();
 
-// Refresh session token silently every 55 minutes — production only
-setInterval(async () => {
-    if (window._devMode) return;
-    const { data: { session } } = await _sb.auth.getSession();
-    if (session) window.sbSession = session;
-    else window.location.replace('/app/auth.html');
-}, 55 * 60 * 1000);
+// Note: Token refresh is handled automatically by Supabase v2 (TOKEN_REFRESHED event above)
 
 // ── Sign out ──────────────────────────────────────────────────────────────────
 async function signOut() {

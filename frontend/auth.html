@@ -341,18 +341,12 @@ const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
-// ── On load: if already signed in, go straight to the app ────────────────
-(async () => {
-    const { data: { session } } = await sb.auth.getSession();
-    if (session) {
-        window.location.href = '/app/index.html';
-    }
-})();
-
-// Handle OAuth redirect (email confirmation links come back here)
+// ── Session handling: go to app if already/newly signed in ───────────────
+// INITIAL_SESSION fires once on page load (catches already-logged-in users).
+// SIGNED_IN fires after OAuth/email login completes.
 sb.auth.onAuthStateChange((event, session) => {
-    if (event === 'SIGNED_IN' && session) {
-        window.location.href = '/app/index.html';
+    if ((event === 'INITIAL_SESSION' || event === 'SIGNED_IN') && session) {
+        window.location.replace('/app/index.html');
     }
 });
 
