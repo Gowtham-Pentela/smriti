@@ -365,8 +365,10 @@ function _populateUserUI(email, badge) {
 }
 
 // ── Auth gate ──────────────────────────────────────────────────────────────
-// Simple rule: auth.html handles ALL OAuth/session processing.
+// Simple rule: callback.html handles ALL OAuth PKCE exchange.
 // By the time index.html loads, the session is already in localStorage.
+// We retry getSession() up to 8 times (2.4s total) to handle the timing gap
+// between callback.html writing the session and index.html reading it.
 (async () => {
     // Step 1: dev mode bypass
     try {
@@ -382,27 +384,40 @@ function _populateUserUI(email, badge) {
         }
     } catch (_) { /* backend offline — fall through */ }
 
-    // Step 2: check session (validated — checks expiry and refreshes if needed)
-    const { data: { session } } = await _sb.auth.getSession();
+    // Step 2: retry getSession() to handle post-OAuth timing gap.
+    // IMPORTANT: Do NOT call signOut() here — it destroys the session that
+    // callback.html just wrote, causing the redirect loop.
+    let session = null;
+    const MAX_RETRIES = 8;
+    for (let i = 0; i < MAX_RETRIES; i++) {
+        const { data } = await _sb.auth.getSession();
+        if (data.session) {
+            session = data.session;
+            break;
+        }
+        if (i < MAX_RETRIES - 1) {
+            await new Promise(r => setTimeout(r, 300)); // wait 300ms between retries
+        }
+    }
+
     if (!session) {
-        // signOut() clears any stale/expired token from localStorage.
-        // Without this, auth.html's getSession() might see the dead token
-        // and redirect back here, creating the redirect loop.
-        try { await _sb.auth.signOut(); } catch (_) {}
+        // Genuinely no session after retries — redirect to login.
+        // Do NOT call signOut() — only redirect.
         window.location.replace('/app/auth.html');
         return;
     }
+
     window.sbSession = session;
     _populateUserUI(session.user.email || '');
     _resolveAuthReady(); // signal app.js: session confirmed, safe to call APIs
 
     // Step 3: react to sign-out / token refresh
-    _sb.auth.onAuthStateChange((event, session) => {
+    _sb.auth.onAuthStateChange((event, newSession) => {
         if (event === 'SIGNED_OUT') {
             window.location.replace('/app/auth.html');
         }
-        if (event === 'TOKEN_REFRESHED' && session) {
-            window.sbSession = session;
+        if (event === 'TOKEN_REFRESHED' && newSession) {
+            window.sbSession = newSession;
         }
     });
 })();
