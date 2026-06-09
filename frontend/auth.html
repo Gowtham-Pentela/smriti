@@ -342,11 +342,11 @@ const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // ── Session gate ──────────────────────────────────────────────────────────
-// INITIAL_SESSION: fires once on load. If session exists → already logged in → go to app.
-// SIGNED_IN:       fires after OAuth code exchange or email login → go to app.
-// Any other event (null session) → stay on this page and show the login form.
+// INITIAL_SESSION fires once on load. If there's already a valid session
+// (user came back while still logged in) → skip auth, go straight to app.
+// If no session → show the sign-in form (do nothing, let user interact).
 sb.auth.onAuthStateChange((event, session) => {
-    if ((event === 'INITIAL_SESSION' || event === 'SIGNED_IN') && session) {
+    if (event === 'INITIAL_SESSION' && session) {
         window.location.replace('/app/index.html');
     }
 });
@@ -383,7 +383,7 @@ async function signInWithGoogle() {
     clearMsg();
     const { error } = await sb.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo: window.location.origin + '/app/auth.html' },
+        options: { redirectTo: window.location.origin + '/app/callback.html' },
     });
     if (error) showMsg(error.message);
 }
@@ -393,7 +393,7 @@ async function signInWithGitHub() {
     clearMsg();
     const { error } = await sb.auth.signInWithOAuth({
         provider: 'github',
-        options: { redirectTo: window.location.origin + '/app/auth.html' },
+        options: { redirectTo: window.location.origin + '/app/callback.html' },
     });
     if (error) showMsg(error.message);
 }
@@ -431,7 +431,7 @@ async function signUpWithEmail() {
     const { error } = await sb.auth.signUp({
         email,
         password,
-        options: { emailRedirectTo: window.location.origin + '/app/index.html' },
+        options: { emailRedirectTo: window.location.origin + '/app/callback.html' },
     });
     setLoading('btn-signup', false, 'Create account');
 
@@ -454,7 +454,7 @@ async function resendVerification() {
     const { error } = await sb.auth.resend({
         type: 'signup',
         email: pendingSignupEmail,
-        options: { emailRedirectTo: window.location.origin + '/app/index.html' },
+        options: { emailRedirectTo: window.location.origin + '/app/callback.html' },
     });
     btn.textContent = error ? 'Failed — try again' : 'Sent! Check your inbox';
     setTimeout(() => { btn.disabled = false; btn.textContent = 'Resend email'; }, 5000);
