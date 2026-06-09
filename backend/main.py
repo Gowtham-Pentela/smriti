@@ -65,10 +65,12 @@ from backend.parser import parse_document
 from backend.transcription import transcribe_video
 from backend.grounding import validate_response, extract_citations, MODEL_NAME
 from backend import slack_connector
+from backend import gdrive_connector as _gdrive_connector
 from backend.db import check_and_mark_ingested, save_tenant_credentials, load_tenant_credentials
 from backend.auth import get_current_user, UserIdentity
 from backend import sync_scheduler
 from backend import slack_oauth as _slack_oauth
+from backend import gdrive_oauth as _gdrive_oauth
 from backend.doc_classifier import classify_document
 
 
@@ -599,6 +601,11 @@ def cancel_indexing():
 
 # ─── Slack Live Connector ─────────────────────────────────────────────────────
 
+class IngestDriveRequest(BaseModel):
+    """Request body for /ingest-gdrive."""
+    folder_id: str | None = None  # None = ingest entire Drive
+
+
 async def _run_slack_ingest(req: IngestSlackRequest):
     """Background coroutine: pull Slack history, dedup, embed, insert."""
     global _connector_status
@@ -939,6 +946,159 @@ async def slack_disconnect(
         raise HTTPException(
             status_code=404,
             detail="No Slack connection found for this tenant.",
+        )
+
+
+# ─── Google Drive OAuth + Connector Endpoints ──────────────────────────────────
+
+@app.get("/gdrive/oauth/start")
+async def gdrive_oauth_start(
+    request: Request,
+    user: UserIdentity = Depends(get_current_user),
+):
+    """
+    Step 1: Redirect the user to Google's OAuth consent screen.
+    Called when user clicks "Connect Google Drive" in the UI.
+    """
+    tenant_id    = getattr(request.state, "tenant_id", None)
+    if not tenant_id:
+        raise HTTPException(status_code=401, detail="Not authenticated.")
+    redirect_uri = str(request.base_url).rstrip("/") + "/gdrive/oauth/callback"
+    try:
+        auth_url = _gdrive_oauth.build_authorization_url(tenant_id, redirect_uri)
+        return RedirectResponse(url=auth_url, status_code=302)
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
+
+@app.get("/gdrive/oauth/callback")
+async def gdrive_oauth_callback(
+    request: Request,
+    code: str = "",
+    state: str = "",
+    error: str = "",
+):
+    """
+    Step 2: Google calls this after user authorizes Drive access.
+    Exchanges code for token (including refresh_token), stores encrypted.
+    """
+    if error:
+        return RedirectResponse(url="/app/index.html?error=gdrive_denied#connectors", status_code=302)
+
+    redirect_uri = str(request.base_url).rstrip("/") + "/gdrive/oauth/callback"
+    try:
+        await _gdrive_oauth.exchange_code_for_token(
+            code=code,
+            state=state,
+            redirect_uri=redirect_uri,
+            db_pool=app.state.db_pool,
+        )
+        return RedirectResponse(url="/app/index.html?connected=gdrive#connectors", status_code=302)
+    except ValueError as e:
+        print(f"  ⚠ Google OAuth state error (likely expired): {e}")
+        return RedirectResponse(
+            url="/app/index.html?error=oauth_expired#connectors",
+            status_code=302,
+        )
+    except RuntimeError as e:
+        raise HTTPException(status_code=502, detail=f"Google Drive token exchange failed: {e}")
+
+
+@app.post("/ingest-gdrive")
+async def ingest_gdrive(
+    req: IngestDriveRequest,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    user: UserIdentity = Depends(get_current_user),
+):
+    """
+    Kick off a background Google Drive ingestion job.
+    Requires an active OAuth connection (/gdrive/oauth/start).
+    """
+    tenant_id = getattr(request.state, "tenant_id", None)
+    if not tenant_id:
+        raise HTTPException(status_code=401, detail="Not authenticated.")
+    if _connector_status["is_running"]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"A connector is already running: {_connector_status['connector']}",
+        )
+
+    async def _run():
+        global _connector_status
+        _connector_status.update({
+            "is_running": True,
+            "connector":  "gdrive",
+            "ingested":   0,
+            "skipped":    0,
+            "errors":     [],
+            "message":    "running",
+        })
+        try:
+            access_token = await _gdrive_oauth.get_valid_token(tenant_id, app.state.db_pool)
+            result = await _gdrive_connector.ingest_from_gdrive(
+                access_token=access_token,
+                db_pool=app.state.db_pool,
+                tenant_id=tenant_id,
+                folder_id=req.folder_id,
+            )
+            _connector_status.update({
+                "ingested": result["ingested"],
+                "skipped":  result["skipped"],
+                "errors":   result["errors"],
+                "message":  f"completed — {result['files']} files processed",
+            })
+        except Exception as e:
+            _connector_status["errors"].append(str(e))
+            _connector_status["message"] = f"failed: {e}"
+            print(f"  ✗ Google Drive ingest error: {e}")
+        finally:
+            _connector_status["is_running"] = False
+
+    background_tasks.add_task(_run)
+    return {
+        "status": "started",
+        "message": "Google Drive ingestion started in background.",
+        "folder_id": req.folder_id or "(entire Drive)",
+    }
+
+
+@app.get("/gdrive/status")
+async def gdrive_status(
+    request: Request,
+    user: UserIdentity = Depends(get_current_user),
+):
+    """Check whether Google Drive is connected for this user."""
+    tenant_id = getattr(request.state, "tenant_id", None)
+    if not tenant_id:
+        return {"connected": False}
+    async with app.state.db_pool.acquire() as conn:
+        creds = await load_tenant_credentials(conn, tenant_id, "gdrive")
+    return {
+        "connected":    creds is not None,
+        "connected_at": creds.get("connected_at") if creds else None,
+    }
+
+
+@app.delete("/gdrive/disconnect")
+async def gdrive_disconnect(
+    request: Request,
+    user: UserIdentity = Depends(get_current_user),
+):
+    """Disconnect Google Drive: removes stored OAuth token."""
+    tenant_id = getattr(request.state, "tenant_id", None)
+    if not tenant_id:
+        raise HTTPException(status_code=401, detail="Not authenticated.")
+    from backend.db import delete_tenant_credentials
+    async with app.state.db_pool.acquire() as conn:
+        deleted = await delete_tenant_credentials(conn, tenant_id, "gdrive")
+    if deleted:
+        print(f"✅ Google Drive disconnected for tenant={tenant_id} by {user.email}")
+        return {"status": "disconnected", "source": "gdrive"}
+    else:
+        raise HTTPException(
+            status_code=404,
+            detail="No Google Drive connection found for this tenant.",
         )
 
 

@@ -131,6 +131,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     // Authenticated calls — safe to fire now that sbSession is confirmed
     loadFilesList();
     checkSlackConnection();
+    checkDriveConnection();
     checkOAuthUrlParams();
 
     btnIndex.addEventListener("click", startIndexing);
@@ -176,6 +177,12 @@ function checkOAuthUrlParams() {
         banner.classList.remove("hidden");
         _setSlackConnected();
         setTimeout(() => banner.classList.add("hidden"), 8000);
+    } else if (connected === "gdrive") {
+        banner.className = "oauth-toast success";
+        banner.innerHTML = "✅ Google Drive connected! Click \"Sync Drive\" to start indexing.";
+        banner.classList.remove("hidden");
+        _setDriveConnected();
+        setTimeout(() => banner.classList.add("hidden"), 8000);
     } else if (error === "oauth_expired") {
         banner.className = "oauth-toast error";
         banner.innerHTML = `⏱ Session expired. <a href="/slack/oauth/start">Retry →</a>`;
@@ -183,6 +190,11 @@ function checkOAuthUrlParams() {
     } else if (error === "slack_denied") {
         banner.className = "oauth-toast error";
         banner.innerHTML = "Slack authorization cancelled.";
+        banner.classList.remove("hidden");
+        setTimeout(() => banner.classList.add("hidden"), 5000);
+    } else if (error === "gdrive_denied") {
+        banner.className = "oauth-toast error";
+        banner.innerHTML = "Google Drive authorization cancelled.";
         banner.classList.remove("hidden");
         setTimeout(() => banner.classList.add("hidden"), 5000);
     }
@@ -272,6 +284,110 @@ async function disconnectSlack() {
     } catch (e) {
         alert("Network error while disconnecting. Is the backend running?");
         if (btnDisc) { btnDisc.disabled = false; btnDisc.textContent = "✕ Disconnect"; }
+    }
+}
+
+
+// ── Google Drive connection ──────────────────────────────────────────────
+async function checkDriveConnection() {
+    const statusEl = document.getElementById("gdrive-status-text");
+    const btnEl    = document.getElementById("btn-connect-gdrive");
+    if (!statusEl || !btnEl) return;
+    try {
+        const resp = await authFetch(`${API_BASE}/gdrive/status`);
+        if (!resp.ok) { _setDriveDisconnected(); return; }
+        const data = await resp.json();
+        if (data.connected) _setDriveConnected(data.connected_at);
+        else _setDriveDisconnected();
+    } catch { statusEl.textContent = "Backend offline"; }
+}
+
+function _setDriveConnected(connectedAt) {
+    const statusEl   = document.getElementById("gdrive-status-text");
+    const btnConnect = document.getElementById("btn-connect-gdrive");
+    const btnDisc    = document.getElementById("btn-disconnect-gdrive");
+    const syncBtn    = document.getElementById("btn-sync-drive");
+    if (!statusEl || !btnConnect) return;
+
+    const dateStr = connectedAt
+        ? ` since ${new Date(connectedAt * 1000).toLocaleDateString()}`
+        : "";
+    statusEl.textContent = `Connected${dateStr}`;
+    statusEl.className   = "source-status connected";
+    btnConnect.style.display = "none";
+    if (btnDisc) {
+        btnDisc.classList.remove("hidden");
+        btnDisc.onclick = disconnectDrive;
+    }
+    if (syncBtn) syncBtn.classList.remove("hidden");
+}
+
+function _setDriveDisconnected() {
+    const statusEl   = document.getElementById("gdrive-status-text");
+    const btnConnect = document.getElementById("btn-connect-gdrive");
+    const btnDisc    = document.getElementById("btn-disconnect-gdrive");
+    const syncBtn    = document.getElementById("btn-sync-drive");
+    if (statusEl)   { statusEl.textContent = "Not connected"; statusEl.className = "source-status"; }
+    if (btnConnect) { btnConnect.style.display = ""; }
+    if (btnDisc)    { btnDisc.classList.add("hidden"); }
+    if (syncBtn)    { syncBtn.classList.add("hidden"); }
+}
+
+async function disconnectDrive() {
+    const confirmed = await showConfirm(
+        "Disconnect Google Drive?",
+        "Your stored Google credentials will be removed and automatic syncing will stop. " +
+        "Already-indexed Drive data stays in your knowledge base — clear it separately with the Clear Index button.",
+        "Disconnect"
+    );
+    if (!confirmed) return;
+
+    const btnDisc = document.getElementById("btn-disconnect-gdrive");
+    if (btnDisc) { btnDisc.disabled = true; btnDisc.textContent = "Disconnecting..."; }
+
+    try {
+        const resp = await authFetch(`${API_BASE}/gdrive/disconnect`, { method: "DELETE" });
+        if (resp.ok) {
+            _setDriveDisconnected();
+            const banner = document.getElementById("oauth-banner");
+            if (banner) {
+                banner.className = "oauth-toast success";
+                banner.innerHTML = "Google Drive disconnected. You can reconnect at any time.";
+                banner.classList.remove("hidden");
+                setTimeout(() => banner.classList.add("hidden"), 6000);
+            }
+        } else {
+            const err = await resp.json().catch(() => ({ detail: "Unknown error" }));
+            alert(`Could not disconnect: ${err.detail || resp.statusText}`);
+            if (btnDisc) { btnDisc.disabled = false; btnDisc.textContent = "✕ Disconnect"; }
+        }
+    } catch (e) {
+        alert("Network error while disconnecting. Is the backend running?");
+        if (btnDisc) { btnDisc.disabled = false; btnDisc.textContent = "✕ Disconnect"; }
+    }
+}
+
+async function syncDrive() {
+    const banner = document.getElementById("oauth-banner");
+    try {
+        const resp = await authFetch(`${API_BASE}/ingest-gdrive`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ folder_id: null }),  // null = entire Drive
+        });
+        if (resp.ok) {
+            if (banner) {
+                banner.className = "oauth-toast success";
+                banner.innerHTML = "🔄 Google Drive sync started! Large drives may take several minutes.";
+                banner.classList.remove("hidden");
+                setTimeout(() => banner.classList.add("hidden"), 10000);
+            }
+        } else {
+            const err = await resp.json().catch(() => ({ detail: "Unknown error" }));
+            alert(`Drive sync failed: ${err.detail || resp.statusText}`);
+        }
+    } catch (e) {
+        alert("Network error starting Drive sync.");
     }
 }
 

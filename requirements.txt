@@ -12,3 +12,6 @@ streamlit==1.35.0
 slack-sdk==3.27.2
 cryptography==42.0.8
 openai-whisper==20231117
+google-api-python-client==2.131.0
+google-auth-httplib2==0.2.0
+google-auth-oauthlib==1.2.0

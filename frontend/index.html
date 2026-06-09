@@ -112,6 +112,30 @@
                     <button id="btn-disconnect-slack" class="btn-disconnect hidden" title="Disconnect Slack">✕ Disconnect</button>
                 </div>
             </div>
+            <!-- Google Drive connector -->
+            <div class="source-row" id="gdrive-connector-row">
+                <div class="source-info">
+                    <div class="source-icon-wrap">
+                        <!-- Google Drive icon -->
+                        <svg viewBox="0 0 87.3 78" width="18" height="18" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M6.6 66.85l3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8H0c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/>
+                            <path d="M43.65 25L29.9 1.2C28.55 2 27.4 3.1 26.6 4.5L1.2 49.5A9 9 0 000 54h27.5z" fill="#00ac47"/>
+                            <path d="M73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5H60l5.85 10.6z" fill="#ea4335"/>
+                            <path d="M43.65 25L57.4 1.2C56.05.45 54.5 0 52.85 0H34.45c-1.65 0-3.2.45-4.55 1.2z" fill="#00832d"/>
+                            <path d="M60 54H27.5L13.75 77.8c1.35.75 2.9 1.2 4.55 1.2h50c1.65 0 3.2-.45 4.55-1.2z" fill="#2684fc"/>
+                            <path d="M73.4 27.5l-12.6-21.8c-1.35-.8-2.9-1.2-4.55-1.2H43.65L60 54h27.5c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="source-name">Google Drive</div>
+                        <div class="source-status" id="gdrive-status-text">Checking...</div>
+                    </div>
+                </div>
+                <div class="connector-actions">
+                    <a href="/gdrive/oauth/start" id="btn-connect-gdrive" class="btn-connect">Connect</a>
+                    <button id="btn-disconnect-gdrive" class="btn-disconnect hidden" title="Disconnect Google Drive">✕ Disconnect</button>
+                </div>
+            </div>
             <div id="oauth-banner" class="oauth-toast hidden"></div>
         </div>
 
