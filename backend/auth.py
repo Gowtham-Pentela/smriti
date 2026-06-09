@@ -84,8 +84,10 @@ async def _verify_supabase_token(token: str) -> UserIdentity:
         raise HTTPException(status_code=503, detail=f"Auth service unreachable: {exc}")
 
     if resp.status_code == 401:
+        print(f"[AUTH DEBUG] Token rejected by Supabase. Token prefix: {token[:40]!r}")
         raise HTTPException(status_code=401, detail="Session expired. Please sign in again.")
     if resp.status_code != 200:
+        print(f"[AUTH DEBUG] Supabase returned {resp.status_code}. Token prefix: {token[:40]!r}")
         raise HTTPException(status_code=401, detail="Invalid session token.")
 
     data  = resp.json()
@@ -134,6 +136,7 @@ async def extract_user_identity(request: Request) -> UserIdentity:
     # ── Bearer token ──────────────────────────────────────────────────────────
     auth_header = request.headers.get("Authorization", "")
     if not auth_header.startswith("Bearer "):
+        print(f"[AUTH DEBUG] No Bearer token. Auth header: {auth_header[:60]!r}")
         raise HTTPException(
             status_code=401,
             detail="Not authenticated. Sign in at /app/auth.html",

@@ -340,6 +340,7 @@ window.sbSession  = null;
 const _SB_URL  = 'https://jflxoijsjdgbiarvstbp.supabase.co';
 const _SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpmbHhvaWpzamRnYmlhcnZzdGJwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0ODQwNTgsImV4cCI6MjA5NjA2MDA1OH0.XBjV29kRgrQoO2okDx8ugWPssQ1FOFcj4nZ209tw4dA';
 const _sb = supabase.createClient(_SB_URL, _SB_ANON);
+window._sb = _sb; // expose for app.js token refresh
 const _API_BASE = (window.location.protocol === 'file:' || window.location.hostname === 'localhost')
     ? 'http://localhost:8000' : window.location.origin;
 

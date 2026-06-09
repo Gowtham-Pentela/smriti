@@ -14,26 +14,40 @@ const API_BASE = (window.location.protocol === "file:" || window.location.hostna
 
 /**
  * Authenticated fetch: wraps all API calls with the Supabase Bearer token.
- * On 401, redirects to auth.html so the user can re-authenticate.
+ * On 401, attempts a token refresh and retries once before redirecting.
  */
 async function authFetch(url, options = {}) {
-    const authHeaders = (typeof window.getAuthHeaders === "function")
-        ? window.getAuthHeaders()
-        : {};
-    const merged = {
-        ...options,
-        headers: { ...authHeaders, ...(options.headers || {}) },
-    };
-    const resp = await fetch(url, merged);
-    if (resp.status === 401) {
-        // Only redirect if we had a confirmed session (genuine expiry).
-        // If sbSession is null, auth gate hasn't completed yet — don't loop.
-        if (window.sbSession || window._devMode) {
-            window.location.replace("/app/auth.html");
+    async function _doFetch(retrying) {
+        const authHeaders = (typeof window.getAuthHeaders === "function")
+            ? window.getAuthHeaders()
+            : {};
+        const merged = {
+            ...options,
+            headers: { ...authHeaders, ...(options.headers || {}) },
+        };
+        const resp = await fetch(url, merged);
+        if (resp.status === 401) {
+            if (retrying) {
+                // Second 401 after refresh — genuine expiry, redirect to sign-in
+                if (window.sbSession || window._devMode) {
+                    window.location.replace("/app/auth.html");
+                }
+                throw new Error("Session expired");
+            }
+            // First 401: try to refresh the token
+            if (typeof window._sb !== 'undefined' && window._sb) {
+                try {
+                    const { data } = await window._sb.auth.refreshSession();
+                    if (data && data.session) {
+                        window.sbSession = data.session; // update cached session
+                    }
+                } catch (_) {}
+            }
+            return _doFetch(true); // retry once with refreshed token
         }
-        throw new Error("Session expired");
+        return resp;
     }
-    return resp;
+    return _doFetch(false);
 }
 
 /**
@@ -184,8 +198,14 @@ async function checkSlackConnection() {
     const btnEl    = document.getElementById("btn-connect-slack");
     if (!statusEl || !btnEl) return;
     try {
-        const resp = await authFetch(`${API_BASE}/connections`);
-        if (!resp.ok) { statusEl.textContent = "Not connected"; return; }
+        // Use plain fetch with manual auth headers — do NOT use authFetch here.
+        // A 401 from /connections must NEVER trigger a redirect: it only means
+        // Slack isn't connected yet, which is normal for new users.
+        const authHeaders = (typeof window.getAuthHeaders === "function")
+            ? window.getAuthHeaders()
+            : {};
+        const resp = await fetch(`${API_BASE}/connections`, { headers: authHeaders });
+        if (!resp.ok) { _setSlackDisconnected(); return; }
         const connections = await resp.json();
         const slackConn   = connections.find(c => c.source === "slack");
         if (slackConn) _setSlackConnected(slackConn.connected_at);
