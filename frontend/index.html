@@ -325,35 +325,27 @@
 </script>
 <script>
 // ── Supabase auth gate ────────────────────────────────────────────────────────
-// Runs before app.js. Redirects unauthenticated visitors to auth.html.
+// Runs before app.js. Checks backend dev_mode first, then Supabase session.
 // Exposes window.sbSession and window.getAuthHeaders() for app.js to use.
 
 const _SB_URL  = 'https://jflxoijsjdgbiarvstbp.supabase.co';
 const _SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpmbHhvaWpzamRnYmlhcnZzdGJwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0ODQwNTgsImV4cCI6MjA5NjA2MDA1OH0.XBjV29kRgrQoO2okDx8ugWPssQ1FOFcj4nZ209tw4dA';
 const _sb = supabase.createClient(_SB_URL, _SB_ANON);
+const _API_BASE = (window.location.protocol === 'file:' || window.location.hostname === 'localhost')
+    ? 'http://localhost:8000' : window.location.origin;
 
-window.sbSession = null;
+window.sbSession  = null;
+window._devMode   = false;
 
-// Returns headers with Bearer token for all API calls
+// Returns Bearer token header for production, empty object for dev mode
 window.getAuthHeaders = () => {
-    if (!window.sbSession) return {};
+    if (window._devMode || !window.sbSession) return {};
     return { 'Authorization': 'Bearer ' + window.sbSession.access_token };
 };
 
-// Auth gate — runs immediately before DOM is ready
-(async () => {
-    const { data: { session } } = await _sb.auth.getSession();
-    if (!session) {
-        window.location.replace('/app/auth.html');
-        return;
-    }
-    window.sbSession = session;
-
-    // Populate user info in sidebar
-    const email  = session.user.email || '';
+function _populateUserUI(email, badge) {
     const domain = email.split('@')[1] || '';
-    const avatar = (email[0] || '?').toUpperCase();
-
+    const avatar = (badge || email[0] || '?').toUpperCase();
     const userRow  = document.getElementById('user-row');
     const userAvEl = document.getElementById('user-avatar');
     const userEmEl = document.getElementById('user-email');
@@ -362,10 +354,39 @@ window.getAuthHeaders = () => {
     if (userAvEl) { userAvEl.textContent  = avatar; }
     if (userEmEl) { userEmEl.textContent  = email; }
     if (userDmEl) { userDmEl.textContent  = domain; }
+}
+
+// Auth gate — runs immediately, before DOM is interactive
+(async () => {
+    // ── Step 1: check if backend is in dev mode (no sign-in needed) ──────────
+    try {
+        const cfgResp = await fetch(`${_API_BASE}/auth-config`);
+        if (cfgResp.ok) {
+            const cfg = await cfgResp.json();
+            if (cfg.dev_mode) {
+                window._devMode = true;
+                const devEmail = cfg.dev_email || 'dev@localhost.local';
+                _populateUserUI(devEmail, '⚙');
+                return; // skip Supabase — app loads normally
+            }
+        }
+    } catch (_) {
+        // backend offline — fall through to Supabase check
+    }
+
+    // ── Step 2: production mode — require Supabase session ───────────────────
+    const { data: { session } } = await _sb.auth.getSession();
+    if (!session) {
+        window.location.replace('/app/auth.html');
+        return;
+    }
+    window.sbSession = session;
+    _populateUserUI(session.user.email || '');
 })();
 
-// Refresh session token silently every 55 minutes (tokens expire at 60 min)
+// Refresh session token silently every 55 minutes — production only
 setInterval(async () => {
+    if (window._devMode) return;
     const { data: { session } } = await _sb.auth.getSession();
     if (session) window.sbSession = session;
     else window.location.replace('/app/auth.html');
@@ -373,9 +394,10 @@ setInterval(async () => {
 
 // ── Sign out ──────────────────────────────────────────────────────────────────
 async function signOut() {
-    await _sb.auth.signOut();
+    if (!window._devMode) await _sb.auth.signOut();
     window.location.replace('/app/auth.html');
 }
+
 
 // ── Delete all account data ───────────────────────────────────────────────────
 async function deleteAccount() {

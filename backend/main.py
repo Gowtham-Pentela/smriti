@@ -211,6 +211,29 @@ async def _root_redirect():
     """Redirect bare domain to landing page."""
     return RedirectResponse(url="/app/landing.html")
 
+
+@app.get("/auth-config", include_in_schema=False)
+async def get_auth_config():
+    """
+    Public endpoint — no auth required.
+    Tells the frontend whether the backend is running in dev mode.
+    When dev_mode=true the frontend skips the Supabase sign-in gate
+    and the backend accepts requests without a Bearer token.
+    """
+    from backend.auth import KGF_DEV_MODE
+    dev_email = os.getenv("KGF_DEV_USER_EMAIL", "dev@localhost.local")
+    return {
+        "dev_mode":  KGF_DEV_MODE,
+        "dev_email": dev_email if KGF_DEV_MODE else None,
+    }
+
+
+@app.get("/status", include_in_schema=False)
+async def get_status():
+    """Public health check for the frontend connection indicator."""
+    from backend.auth import KGF_DEV_MODE
+    return {"status": "ok", "dev_mode": KGF_DEV_MODE}
+
 # ─── CORS (restrict wildcard in prod via CORS_ORIGINS env var) ──────────────────
 _ALLOWED_ORIGINS = os.getenv("CORS_ORIGINS", "*").split(",")
 app.add_middleware(
