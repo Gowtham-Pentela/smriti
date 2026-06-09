@@ -342,11 +342,22 @@ const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // ── Session gate ──────────────────────────────────────────────────────────
-// INITIAL_SESSION fires once on load. If there's already a valid session
-// (user came back while still logged in) → skip auth, go straight to app.
-// If no session → show the sign-in form (do nothing, let user interact).
+// IMPORTANT: We use getSession() (not INITIAL_SESSION event) because
+// getSession() actually VALIDATES the token (checks expiry + refresh).
+// INITIAL_SESSION fires based on a raw localStorage read without validation,
+// which causes a loop when the stored token is stale/expired.
+(async () => {
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) {
+        // Valid, non-expired session exists — skip sign-in, go straight to app
+        window.location.replace('/app/index.html');
+    }
+    // No valid session — fall through and show the login form
+})();
+
+// After fresh OAuth or email login, go to app
 sb.auth.onAuthStateChange((event, session) => {
-    if (event === 'INITIAL_SESSION' && session) {
+    if (event === 'SIGNED_IN' && session) {
         window.location.replace('/app/index.html');
     }
 });

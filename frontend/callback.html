@@ -121,35 +121,45 @@ function goToApp() {
     }, 150);
 }
 
-// Primary mechanism: onAuthStateChange
-// Supabase fires INITIAL_SESSION AFTER PKCE exchange completes.
-// If exchange succeeds → INITIAL_SESSION fires with session → go to app.
-// If user is already signed in → INITIAL_SESSION fires with session → go to app.
-// If no code + no session → INITIAL_SESSION fires with null → redirect to auth.
+// Primary: SIGNED_IN fires after PKCE exchange completes successfully
+// This is the reliable event for post-OAuth session detection
 let handled = false;
 
 sb.auth.onAuthStateChange((event, session) => {
     if (handled) return;
-
-    if (event === 'INITIAL_SESSION') {
-        if (session) {
-            handled = true;
-            goToApp();
-        } else {
-            // No session and no code to process — shouldn't land here directly
-            // but handle gracefully
-            handled = true;
-            window.location.replace('/app/auth.html');
-        }
-    }
-
     if (event === 'SIGNED_IN' && session) {
-        if (!handled) {
-            handled = true;
-            goToApp();
-        }
+        handled = true;
+        goToApp();
     }
 });
+
+// Fallback: poll getSession() in case SIGNED_IN doesn't fire
+// (e.g., Supabase version differences, network delays)
+(async () => {
+    let attempts = 0;
+    const maxAttempts = 20; // 20 × 500ms = 10 seconds max
+
+    while (attempts < maxAttempts) {
+        await new Promise(r => setTimeout(r, 500));
+        if (handled) return; // SIGNED_IN already fired, stop polling
+
+        const { data: { session } } = await sb.auth.getSession();
+        if (session) {
+            if (!handled) {
+                handled = true;
+                goToApp();
+            }
+            return;
+        }
+        attempts++;
+    }
+
+    // Gave up — no session after 10s. Show error.
+    if (!handled) {
+        handled = true;
+        showError('Sign-in could not be completed. Please try again.');
+    }
+})();
 
 // Safety net: if onAuthStateChange never fires (edge case), timeout to auth
 setTimeout(() => {

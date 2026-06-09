@@ -377,9 +377,13 @@ function _populateUserUI(email, badge) {
         }
     } catch (_) { /* backend offline — fall through */ }
 
-    // Step 2: check session (always present if coming from auth.html post-login)
+    // Step 2: check session (validated — checks expiry and refreshes if needed)
     const { data: { session } } = await _sb.auth.getSession();
     if (!session) {
+        // signOut() clears any stale/expired token from localStorage.
+        // Without this, auth.html's getSession() might see the dead token
+        // and redirect back here, creating the redirect loop.
+        try { await _sb.auth.signOut(); } catch (_) {}
         window.location.replace('/app/auth.html');
         return;
     }
