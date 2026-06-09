@@ -204,6 +204,22 @@ app = FastAPI(
 # ─── Static frontend (served at /app/) ───────────────────────────────────────
 _frontend_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend")
 if os.path.isdir(_frontend_dir):
+    # ── No-cache middleware for frontend files ──────────────────────────────
+    # Prevents browsers from serving stale JS/HTML after deploys.
+    from starlette.middleware.base import BaseHTTPMiddleware
+    from starlette.requests import Request as StarletteRequest
+
+    class NoCacheMiddleware(BaseHTTPMiddleware):
+        async def dispatch(self, request: StarletteRequest, call_next):
+            response = await call_next(request)
+            path = request.url.path
+            if path.startswith('/app/') or path == '/app':
+                response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+                response.headers['Pragma']        = 'no-cache'
+                response.headers['Expires']       = '0'
+            return response
+
+    app.add_middleware(NoCacheMiddleware)
     app.mount("/app", StaticFiles(directory=_frontend_dir, html=True), name="frontend")
 
 @app.get("/", include_in_schema=False)
