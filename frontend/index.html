@@ -387,25 +387,57 @@ function _populateUserUI(email, badge) {
         }
     } catch (_) { /* backend offline — fall through */ }
 
-    // Step 2: retry getSession() to handle post-OAuth timing gap.
-    // IMPORTANT: Do NOT call signOut() here — it destroys the session that
-    // callback.html just wrote, causing the redirect loop.
+    // Step 2: resolve the session — try getSession() AND onAuthStateChange events.
+    // getSession() may return a session without access_token during PKCE exchange.
+    // onAuthStateChange SIGNED_IN is the authoritative signal of a fully established session.
     let session = null;
-    const MAX_RETRIES = 8;
-    for (let i = 0; i < MAX_RETRIES; i++) {
-        const { data } = await _sb.auth.getSession();
-        if (data.session) {
-            session = data.session;
-            break;
+
+    await new Promise((resolve) => {
+        let done = false;
+        function finish(s) {
+            if (done) return;
+            done = true;
+            session = s;
+            resolve();
         }
-        if (i < MAX_RETRIES - 1) {
-            await new Promise(r => setTimeout(r, 300)); // wait 300ms between retries
-        }
-    }
+
+        // Listen for auth events — SIGNED_IN guarantees a fresh, fully-formed token
+        const { data: { subscription } } = _sb.auth.onAuthStateChange((event, s) => {
+            if (event === 'SIGNED_IN' && s && s.access_token) {
+                finish(s);
+            } else if (event === 'TOKEN_REFRESHED' && s && s.access_token) {
+                finish(s);
+            } else if (event === 'INITIAL_SESSION' && s && s.access_token) {
+                finish(s);
+            } else if (event === 'SIGNED_OUT') {
+                finish(null);
+            }
+        });
+
+        // Also poll getSession() — handles returning users whose session is already in localStorage
+        (async () => {
+            const MAX_RETRIES = 10;
+            for (let i = 0; i < MAX_RETRIES; i++) {
+                if (done) break;
+                const { data } = await _sb.auth.getSession();
+                // Only accept sessions with a real access_token
+                if (data.session && data.session.access_token) {
+                    finish(data.session);
+                    break;
+                }
+                if (i < MAX_RETRIES - 1) {
+                    await new Promise(r => setTimeout(r, 300));
+                }
+            }
+            if (!done) finish(null); // give up after 3s
+        })();
+
+        // Hard timeout: 8 seconds max
+        setTimeout(() => finish(null), 8000);
+    });
 
     if (!session) {
-        // Genuinely no session after retries — redirect to login.
-        // Do NOT call signOut() — only redirect.
+        // No valid session — redirect to login.
         window.location.replace('/app/auth.html');
         return;
     }
@@ -414,7 +446,7 @@ function _populateUserUI(email, badge) {
     _populateUserUI(session.user.email || '');
     _resolveAuthReady(); // signal app.js: session confirmed, safe to call APIs
 
-    // Step 3: react to sign-out / token refresh
+    // Step 3: react to sign-out / token refresh (re-use the same _sb instance)
     _sb.auth.onAuthStateChange((event, newSession) => {
         if (event === 'SIGNED_OUT') {
             window.location.replace('/app/auth.html');
