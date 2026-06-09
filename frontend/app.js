@@ -179,10 +179,14 @@ function checkOAuthUrlParams() {
         setTimeout(() => banner.classList.add("hidden"), 8000);
     } else if (connected === "gdrive") {
         banner.className = "oauth-toast success";
-        banner.innerHTML = "✅ Google Drive connected! Click \"Sync Drive\" to start indexing.";
+        banner.innerHTML = "✅ Google Drive connected! Starting indexing now...";
         banner.classList.remove("hidden");
         _setDriveConnected();
-        setTimeout(() => banner.classList.add("hidden"), 8000);
+        // Auto-start indexing immediately — user shouldn't need a second click
+        setTimeout(() => {
+            syncDrive();
+        }, 1500);  // small delay so the connection UI settles first
+        setTimeout(() => banner.classList.add("hidden"), 12000);
     } else if (error === "oauth_expired") {
         banner.className = "oauth-toast error";
         banner.innerHTML = `⏱ Session expired. <a href="/slack/oauth/start">Retry →</a>`;
@@ -410,27 +414,88 @@ async function disconnectDrive() {
 }
 
 async function syncDrive() {
-    const banner = document.getElementById("oauth-banner");
+    const banner  = document.getElementById("oauth-banner");
+    const syncBtn = document.getElementById("btn-sync-drive");
+
+    // Disable the sync button to prevent double-clicks
+    if (syncBtn) { syncBtn.disabled = true; syncBtn.textContent = "⏳ Syncing..."; }
+
     try {
         const resp = await authFetch(`${API_BASE}/ingest-gdrive`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ folder_id: null }),  // null = entire Drive
+            body: JSON.stringify({ folder_id: null }),
         });
+
         if (resp.ok) {
             if (banner) {
                 banner.className = "oauth-toast success";
-                banner.innerHTML = "🔄 Google Drive sync started! Large drives may take several minutes.";
+                banner.innerHTML = "🔄 Google Drive indexing started — this runs in the background. Check back in a few minutes.";
                 banner.classList.remove("hidden");
-                setTimeout(() => banner.classList.add("hidden"), 10000);
             }
+            // Poll status every 5 seconds and update the banner
+            _pollDriveSyncStatus(banner, syncBtn);
         } else {
             const err = await resp.json().catch(() => ({ detail: "Unknown error" }));
-            alert(`Drive sync failed: ${err.detail || resp.statusText}`);
+            // "already running" is fine — just show progress
+            if (resp.status === 400 && err.detail && err.detail.includes("already running")) {
+                if (banner) {
+                    banner.className = "oauth-toast success";
+                    banner.innerHTML = "⏳ Indexing already in progress...";
+                    banner.classList.remove("hidden");
+                }
+                _pollDriveSyncStatus(banner, syncBtn);
+            } else {
+                if (banner) {
+                    banner.className = "oauth-toast error";
+                    banner.innerHTML = `❌ Drive sync failed: ${err.detail || resp.statusText}`;
+                    banner.classList.remove("hidden");
+                    setTimeout(() => banner.classList.add("hidden"), 8000);
+                }
+                if (syncBtn) { syncBtn.disabled = false; syncBtn.textContent = "🔄 Sync Now"; }
+            }
         }
     } catch (e) {
-        alert("Network error starting Drive sync.");
+        if (banner) {
+            banner.className = "oauth-toast error";
+            banner.innerHTML = "❌ Network error starting Drive sync.";
+            banner.classList.remove("hidden");
+        }
+        if (syncBtn) { syncBtn.disabled = false; syncBtn.textContent = "🔄 Sync Now"; }
     }
+}
+
+function _pollDriveSyncStatus(banner, syncBtn) {
+    let pollCount = 0;
+    const maxPolls = 120;  // 10 minutes max (120 × 5s)
+
+    const interval = setInterval(async () => {
+        pollCount++;
+        try {
+            const r = await authFetch(`${API_BASE}/ingest-status`);
+            if (!r.ok) { clearInterval(interval); return; }
+            const s = await r.json();
+
+            if (banner && !banner.classList.contains("hidden")) {
+                if (s.is_running) {
+                    banner.innerHTML = `⏳ Indexing Drive... ${s.ingested || 0} chunks added so far.`;
+                } else {
+                    banner.className = "oauth-toast success";
+                    banner.innerHTML = `✅ Drive indexing complete — ${s.ingested || 0} chunks added. You can now ask questions!`;
+                    setTimeout(() => banner.classList.add("hidden"), 10000);
+                    if (syncBtn) { syncBtn.disabled = false; syncBtn.textContent = "🔄 Sync Now"; }
+                    // Refresh the file list so newly indexed Drive files appear
+                    if (typeof loadFilesList === "function") loadFilesList();
+                    clearInterval(interval);
+                }
+            }
+        } catch { /* ignore poll errors */ }
+
+        if (pollCount >= maxPolls) {
+            clearInterval(interval);
+            if (syncBtn) { syncBtn.disabled = false; syncBtn.textContent = "🔄 Sync Now"; }
+        }
+    }, 5000);
 }
 
 
