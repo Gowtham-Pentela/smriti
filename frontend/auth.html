@@ -342,17 +342,19 @@ const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // ── Session gate ──────────────────────────────────────────────────────────
-// IMPORTANT: We use getSession() (not INITIAL_SESSION event) because
-// getSession() actually VALIDATES the token (checks expiry + refresh).
-// INITIAL_SESSION fires based on a raw localStorage read without validation,
-// which causes a loop when the stored token is stale/expired.
+// CRITICAL: Use getUser() NOT getSession() here.
+// getSession() only reads localStorage and returns a session even when the
+// access_token is expired — which causes a redirect to index.html with an
+// invalid token, triggering SIGNED_OUT there, causing an infinite loop.
+// getUser() makes a real network call to Supabase to validate the token.
+// If the token is expired, it returns an error and we show the login form.
 (async () => {
-    const { data: { session } } = await sb.auth.getSession();
-    if (session) {
-        // Valid, non-expired session exists — skip sign-in, go straight to app
+    const { data: { user }, error } = await sb.auth.getUser();
+    if (user && !error) {
+        // Token is valid (server-confirmed) — skip sign-in, go straight to app
         window.location.replace('/app/index.html');
     }
-    // No valid session — fall through and show the login form
+    // No valid session or expired token — fall through and show the login form
 })();
 
 // After fresh OAuth or email login, go to app

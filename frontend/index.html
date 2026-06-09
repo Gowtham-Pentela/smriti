@@ -368,73 +368,60 @@ function _populateUserUI(email, badge) {
 }
 
 // ── Auth gate ──────────────────────────────────────────────────────────────
-// Simple rule: callback.html handles ALL OAuth PKCE exchange.
-// By the time index.html loads, the session is already in localStorage.
-// We retry getSession() up to 8 times (2.4s total) to handle the timing gap
-// between callback.html writing the session and index.html reading it.
+// CRITICAL ORDER: Register onAuthStateChange BEFORE any async operation.
+// Supabase fires INITIAL_SESSION (setTimeout-based) right after registration.
+// If we await fetch('/auth-config') first, that event fires during the
+// network wait WITH NO LISTENER → session missed → redirect loop.
 (async () => {
-    // Step 1: dev mode bypass
-    try {
-        const cfgResp = await fetch(`${_API_BASE}/auth-config`);
-        if (cfgResp.ok) {
-            const cfg = await cfgResp.json();
-            if (cfg.dev_mode) {
-                window._devMode = true;
-                _populateUserUI(cfg.dev_email || 'dev@localhost.local', '⚙');
-                _resolveAuthReady(); // signal app.js: auth done, dev mode
-                return;
-            }
+    // Register auth listener SYNCHRONOUSLY — before any await
+    let _authResolve;
+    const _authPromise = new Promise(r => { _authResolve = r; });
+    let _authDone = false;
+    function _finishAuth(s) {
+        if (_authDone) return;
+        _authDone = true;
+        _authResolve(s);
+    }
+
+    _sb.auth.onAuthStateChange((event, s) => {
+        if (event === 'SIGNED_IN' && s && s.access_token) {
+            _finishAuth(s);
+        } else if (event === 'TOKEN_REFRESHED' && s && s.access_token) {
+            _finishAuth(s);
+        } else if (event === 'INITIAL_SESSION') {
+            // INITIAL_SESSION fires immediately after subscription (next tick).
+            // s is null if no session exists — fast-fail instead of waiting 3s.
+            if (s && s.access_token) _finishAuth(s);
+            else _finishAuth(null);
+        } else if (event === 'SIGNED_OUT') {
+            _finishAuth(null);
         }
-    } catch (_) { /* backend offline — fall through */ }
-
-    // Step 2: resolve the session — try getSession() AND onAuthStateChange events.
-    // getSession() may return a session without access_token during PKCE exchange.
-    // onAuthStateChange SIGNED_IN is the authoritative signal of a fully established session.
-    let session = null;
-
-    await new Promise((resolve) => {
-        let done = false;
-        function finish(s) {
-            if (done) return;
-            done = true;
-            session = s;
-            resolve();
-        }
-
-        // Listen for auth events — SIGNED_IN guarantees a fresh, fully-formed token
-        const { data: { subscription } } = _sb.auth.onAuthStateChange((event, s) => {
-            if (event === 'SIGNED_IN' && s && s.access_token) {
-                finish(s);
-            } else if (event === 'TOKEN_REFRESHED' && s && s.access_token) {
-                finish(s);
-            } else if (event === 'INITIAL_SESSION' && s && s.access_token) {
-                finish(s);
-            } else if (event === 'SIGNED_OUT') {
-                finish(null);
-            }
-        });
-
-        // Also poll getSession() — handles returning users whose session is already in localStorage
-        (async () => {
-            const MAX_RETRIES = 10;
-            for (let i = 0; i < MAX_RETRIES; i++) {
-                if (done) break;
-                const { data } = await _sb.auth.getSession();
-                // Only accept sessions with a real access_token
-                if (data.session && data.session.access_token) {
-                    finish(data.session);
-                    break;
-                }
-                if (i < MAX_RETRIES - 1) {
-                    await new Promise(r => setTimeout(r, 300));
-                }
-            }
-            if (!done) finish(null); // give up after 3s
-        })();
-
-        // Hard timeout: 8 seconds max
-        setTimeout(() => finish(null), 8000);
     });
+
+    // Step 1: dev mode bypass (runs concurrently with auth state detection)
+    const _devPromise = (async () => {
+        try {
+            const cfgResp = await fetch(`${_API_BASE}/auth-config`);
+            if (cfgResp.ok) {
+                const cfg = await cfgResp.json();
+                if (cfg.dev_mode) return cfg;
+            }
+        } catch (_) {}
+        return null;
+    })();
+
+    // Wait for session OR timeout — whichever comes first
+    const _timeout = new Promise(r => setTimeout(() => r(null), 8000));
+    const session = await Promise.race([_authPromise, _timeout]);
+
+    // Check if dev mode resolved while we were waiting
+    const devCfg = await Promise.race([_devPromise, Promise.resolve(null)]);
+    if (devCfg) {
+        window._devMode = true;
+        _populateUserUI(devCfg.dev_email || 'dev@localhost.local', '⚙');
+        _resolveAuthReady();
+        return;
+    }
 
     if (!session) {
         // No valid session — redirect to login.
