@@ -388,7 +388,7 @@ async function signInWithGoogle() {
     clearMsg();
     const { error } = await sb.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo: window.location.origin + '/app/index.html' },
+        options: { redirectTo: window.location.origin + '/app/auth.html' },
     });
     if (error) showMsg(error.message);
 }
@@ -398,7 +398,7 @@ async function signInWithGitHub() {
     clearMsg();
     const { error } = await sb.auth.signInWithOAuth({
         provider: 'github',
-        options: { redirectTo: window.location.origin + '/app/index.html' },
+        options: { redirectTo: window.location.origin + '/app/auth.html' },
     });
     if (error) showMsg(error.message);
 }
