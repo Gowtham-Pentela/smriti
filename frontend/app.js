@@ -589,12 +589,13 @@ async function updateStats() {
         statChunks.innerText = chunks.toLocaleString();
         statFiles.innerText  = sources.toLocaleString();
 
-        const hasData = chunks > 0;
-        queryInput.disabled = !hasData;
+        // Always keep input enabled — grounding firewall handles the no-docs case.
+        // Disabling confuses users (text becomes invisible at 45% opacity).
+        queryInput.disabled = false;
         queryInput.placeholder = hasData
             ? "Ask anything about your organization..."
-            : "Index a folder or connect Slack to begin...";
-        if (!hasData) btnSend.disabled = true;
+            : "Upload documents or connect Slack / Drive to begin...";
+
     } catch (e) {
         console.error("updateStats:", e);
     }
