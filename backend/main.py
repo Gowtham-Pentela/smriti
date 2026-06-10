@@ -708,7 +708,7 @@ async def ingest_file(
             raise HTTPException(status_code=422, detail="No text could be extracted from this file.")
 
         db_pool = request.app.state.db_pool
-        await pg_ingest_chunks(chunks, db_pool, tenant_id=user.tenant_id)
+        await pg_ingest_chunks(chunks, db_pool, tenant_id=user.user_id)
         return {
             "status": "ok",
             "filename": source_name,
