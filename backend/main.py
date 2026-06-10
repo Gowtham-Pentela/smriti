@@ -1327,14 +1327,11 @@ async def process_query(
     system_prompt = (
         "You are a precise knowledge assistant. "
         "Answer the question using ONLY facts explicitly written in the numbered context blocks. "
-        "The context may include source code, JS exports, JSON, or markdown — extract the data and explain it in plain English.\n"
-        "DATA STRUCTURE GUIDE:\n"
-        "- STATS = [] arrays contain portfolio achievement numbers — NOT job history.\n"
-        "- EXPERIENCE = [] arrays contain {period, company, title, bullets} objects — these ARE job history entries.\n"
-        "- META = {} contains personal profile data (name, title, email, location).\n"
-        "Do NOT invent job roles from STATS numbers. Do NOT fabricate dates or company names.\n"
-        "After each fact write [Citation: filename, location]. "
-        "If the context does not contain the answer say: 'I cannot find this in the indexed documents.'"
+        "After EVERY factual sentence, immediately write an inline citation in this exact format: [Citation: filename, location]. "
+        "Example: Supervised learning maps inputs to outputs [Citation: CS229_Lecture_Notes.pdf, page 1]. "
+        "Do NOT put citations at the end. Do NOT use numbered footnotes like [1]. Put [Citation: ...] directly after each fact.\n"
+        "Do NOT invent facts, dates, or company names not present in the context.\n"
+        "If the context does not contain the answer say exactly: 'I cannot find this in the indexed documents.'"
     )
 
     user_message = (

@@ -147,6 +147,50 @@ def verify_grounding(statement, context_text):
     return verify_substring_or_words(statement, context_text)
 
 
+def _rewrite_endnote_citations(text: str) -> str:
+    """
+    Safety net: phi4-mini sometimes writes endnote-style citations like:
+      Some fact.\n\n[1] source: file.pdf, location: page 3
+    This function detects that pattern and rewrites them as inline
+      Some fact [Citation: file.pdf, page 3].
+    so the grounding firewall can verify them normally.
+    """
+    # Match numbered endnote lines: [1] source: X, location: Y
+    endnote_re = re.compile(
+        r'^\[(\d+)\]\s*source:\s*([^,\n]+),\s*location:\s*(.+)$',
+        re.IGNORECASE | re.MULTILINE,
+    )
+    endnotes = {m.group(1): (m.group(2).strip(), m.group(3).strip())
+                for m in endnote_re.finditer(text)}
+    if not endnotes:
+        return text
+
+    # Strip all endnote lines from the text
+    cleaned = endnote_re.sub('', text).strip()
+
+    # Replace [1], [2] etc. inline references in sentences with [Citation: ...]
+    def _replace_ref(m):
+        num = m.group(1)
+        if num in endnotes:
+            src, loc = endnotes[num]
+            return f' [Citation: {src}, {loc}]'
+        return m.group(0)
+
+    cleaned = re.sub(r'\[(\d+)\]', _replace_ref, cleaned)
+
+    # If sentences have no inline refs but we have exactly one endnote source,
+    # attach it to all sentences that don't already have a citation.
+    if len(endnotes) == 1 and '[Citation:' not in cleaned:
+        src, loc = list(endnotes.values())[0]
+        cleaned = re.sub(
+            r'([.!?])(\s+|$)',
+            lambda m: f' [Citation: {src}, {loc}]{m.group(1)}{m.group(2)}',
+            cleaned,
+        )
+
+    return cleaned
+
+
 def validate_response(response_text, retrieved_chunks):
     """
     Post-process and validate a model-generated response.
@@ -158,7 +202,11 @@ def validate_response(response_text, retrieved_chunks):
       - FACTUAL CLAIM → must be verifiable against retrieved chunks,
                         otherwise stripped to prevent hallucination
     """
+    # Pre-process: rewrite phi4-mini endnote citations to inline format
+    response_text = _rewrite_endnote_citations(response_text)
+
     sentences = split_into_sentences(response_text)
+
     validated_sentences = []
 
     # Patterns indicating the model is correctly admitting it doesn't know
