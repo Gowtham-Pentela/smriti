@@ -800,10 +800,15 @@ async def clear_index(
         async with app.state.db_pool.acquire() as conn:
             async with conn.transaction():
                 await conn.execute(f"SET LOCAL app.current_tenant_id = '{tenant_id}'")
-                await conn.execute(f"DELETE FROM {schema}.vector_chunks   WHERE tenant_id = $1::uuid", tenant_id)
-                await conn.execute(f"DELETE FROM {schema}.graph_edges      WHERE tenant_id = $1::uuid", tenant_id)
-                await conn.execute(f"DELETE FROM {schema}.graph_nodes      WHERE tenant_id = $1::uuid", tenant_id)
-                await conn.execute(f"DELETE FROM {schema}.ingestion_hashes WHERE tenant_id = $1",       tenant_id)
+                tid = uuid.UUID(tenant_id)
+                # graph_edges cascades from graph_nodes via FK; neither has tenant_id column.
+                await conn.execute(
+                    f"DELETE FROM {schema}.graph_nodes WHERE external_source_id IN "
+                    f"(SELECT DISTINCT author_id FROM {schema}.vector_chunks WHERE tenant_id = $1)",
+                    tid,
+                )
+                await conn.execute(f"DELETE FROM {schema}.vector_chunks    WHERE tenant_id = $1", tid)
+                await conn.execute(f"DELETE FROM {schema}.ingestion_hashes WHERE tenant_id = $1", tid)
         _file_hash_cache.clear()
         return {"status": "success", "message": f"Index cleared for user {user.email}."}
     except Exception as e:
@@ -817,26 +822,38 @@ async def admin_clear_my_data(
 ):
     """
     Flush ALL data for the calling user and reset their file-hash cache.
-    Use this after the per-user isolation upgrade to clear orphaned data
-    stored under the old hardcoded tenant UUID, then re-index.
-    """
-    tenant_id = getattr(request.state, "tenant_id", None)
-    if not tenant_id:
-        raise HTTPException(status_code=401, detail="Could not resolve user tenant.")
-    schema = "tenant_redwood_inference_prod"
-    print(f"🧹 CLEAR-MY-DATA: tenant={tenant_id}, user={user.email}")
-    async with app.state.db_pool.acquire() as conn:
-        async with conn.transaction():
-            await conn.execute(f"SET LOCAL app.current_tenant_id = '{tenant_id}'")
-            await conn.execute(f"DELETE FROM {schema}.vector_chunks    WHERE tenant_id = $1::uuid", tenant_id)
-            await conn.execute(f"DELETE FROM {schema}.graph_edges       WHERE tenant_id = $1::uuid", tenant_id)
-            await conn.execute(f"DELETE FROM {schema}.graph_nodes       WHERE tenant_id = $1::uuid", tenant_id)
-            await conn.execute(f"DELETE FROM {schema}.ingestion_hashes  WHERE tenant_id = $1",       tenant_id)
-    _file_hash_cache.clear()
-    print(f"✅ Data cleared: tenant={tenant_id}, user={user.email}")
-    return {"status": "cleared", "tenant_id": tenant_id, "email": user.email}
+    Use t    tid = uuid.UUID(tenant_id)  # asyncpg needs a UUID object
 
-# ─── Identity & Auth Endpoints ─────────────────────────────────────────────────────
+    async with app.state.db_pool.acquire() as conn:
+        # Set RLS context
+        await conn.execute(f"SET LOCAL app.current_tenant_id = '{tenant_id}'")
+
+        # graph_edges has no tenant_id — it cascades from graph_nodes via FK.
+        # graph_nodes has no tenant_id — linked via author_id in vector_chunks.
+        # Delete graph_nodes for authors belonging to this tenant first
+        # (graph_edges cascade automatically via ON DELETE CASCADE).
+        await conn.execute(
+            f"""
+            DELETE FROM {schema}.graph_nodes
+            WHERE external_source_id IN (
+                SELECT DISTINCT author_id FROM {schema}.vector_chunks
+                WHERE tenant_id = $1
+            )
+            """,
+            tid,
+        )
+
+        # Delete all tenant vector data
+        await conn.execute(f"DELETE FROM {schema}.vector_chunks    WHERE tenant_id = $1", tid)
+        await conn.execute(f"DELETE FROM {schema}.ingestion_hashes WHERE tenant_id = $1", tid)
+        await conn.execute(f"DELETE FROM {schema}.tenant_credentials WHERE tenant_id = $1", tid)
+
+        # Remove from tenant registry
+        await conn.execute("DELETE FROM tenant_registry WHERE tenant_id = $1", tid)
+
+    print(f"✅ Account deleted: tenant={tenant_id}, user={user.email}")
+    return {"status": "deleted", "tenant_id": tenant_id, "email": user.email}
+─────────────────────────────
 
 @app.get("/me")
 async def get_me(user: UserIdentity = Depends(get_current_user)):
@@ -873,18 +890,18 @@ async def delete_account(
         # Set RLS context
         await conn.execute(f"SET LOCAL app.current_tenant_id = '{tenant_id}'")
 
-        # Delete all tenant data in dependency order
-        await conn.execute(f"DELETE FROM {schema}.vector_chunks   WHERE tenant_id = $1", tenant_id)
-        await conn.execute(f"DELETE FROM {schema}.graph_edges      WHERE tenant_id = $1", tenant_id)
-        await conn.execute(f"DELETE FROM {schema}.graph_nodes      WHERE tenant_id = $1", tenant_id)
-        await conn.execute(f"DELETE FROM {schema}.ingestion_hashes WHERE tenant_id = $1", tenant_id)
-        await conn.execute(f"DELETE FROM {schema}.tenant_credentials WHERE tenant_id = $1", tenant_id)
-
-        # Remove from tenant registry
+        tid = uuid.UUID(tenant_id)
+        # graph_edges cascades from graph_nodes (FK ON DELETE CASCADE).
+        # graph_nodes has no tenant_id; delete nodes whose author_id appears in this tenant's chunks.
         await conn.execute(
-            "DELETE FROM tenant_registry WHERE tenant_id = $1",
-            tenant_id,
+            f"DELETE FROM {schema}.graph_nodes WHERE external_source_id IN "
+            f"(SELECT DISTINCT author_id FROM {schema}.vector_chunks WHERE tenant_id = $1)",
+            tid,
         )
+        await conn.execute(f"DELETE FROM {schema}.vector_chunks     WHERE tenant_id = $1", tid)
+        await conn.execute(f"DELETE FROM {schema}.ingestion_hashes  WHERE tenant_id = $1", tid)
+        await conn.execute(f"DELETE FROM {schema}.tenant_credentials WHERE tenant_id = $1", tid)
+        await conn.execute("DELETE FROM tenant_registry WHERE tenant_id = $1", tid)
 
     print(f"✅ Account deleted: tenant={tenant_id}, user={user.email}")
     return {"status": "deleted", "tenant_id": tenant_id, "email": user.email}

@@ -91,15 +91,7 @@ function showConfirm(title, message, confirmLabel = "Confirm", danger = true) {
 
 
 // ── DOM refs ──────────────────────────────────────────────────────────
-const folderPathInput   = document.getElementById("folder-path");
-const btnIndex          = document.getElementById("btn-index");
 const btnClear          = document.getElementById("btn-clear");
-const progressContainer = document.getElementById("progress-container");
-const progressFilename  = document.getElementById("progress-filename");
-const progressPct       = document.getElementById("progress-percentage");
-const progressBar       = document.getElementById("progress-bar-fill");
-const progressTimer     = document.getElementById("progress-timer");
-const btnCancelIndexing = document.getElementById("btn-cancel-indexing");
 const statChunks        = document.getElementById("stat-chunks");
 const statFiles         = document.getElementById("stat-files");
 const filesList         = document.getElementById("files-list");
@@ -134,8 +126,6 @@ window.addEventListener("DOMContentLoaded", async () => {
     checkDriveConnection();
     checkOAuthUrlParams();
 
-    btnIndex.addEventListener("click", startIndexing);
-    btnCancelIndexing.addEventListener("click", cancelIndexing);
     btnClear.addEventListener("click", clearIndex);
     btnSend.addEventListener("click", sendQuery);
 
@@ -585,12 +575,12 @@ async function updateStats() {
         const data = await r.json();
         const chunks  = data.indexed_chunks_count  || 0;
         const sources = data.indexed_sources_count || 0;
+        const hasData = chunks > 0;
 
         statChunks.innerText = chunks.toLocaleString();
         statFiles.innerText  = sources.toLocaleString();
 
         // Always keep input enabled — grounding firewall handles the no-docs case.
-        // Disabling confuses users (text becomes invisible at 45% opacity).
         queryInput.disabled = false;
         queryInput.placeholder = hasData
             ? "Ask anything about your organization..."
