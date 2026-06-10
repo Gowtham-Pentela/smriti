@@ -1353,7 +1353,7 @@ async def process_query(
             "stream": False,
             "options": {
                 "temperature": 0,
-                "num_ctx": 3072,   # safe for qwen2.5:3b on 8GB — model ~1.9GB, 6GB for KV cache
+                "num_ctx": 3072,   # safe for phi4-mini on 8GB — model ~3.2GB, leaves ~4GB for KV cache
                 "num_predict": 400,
             },
         }
@@ -1385,6 +1385,7 @@ async def process_query(
             payload = {
                 "query": req.query,
                 "response": _sanitize(validated_response),
+                "model": MODEL_NAME,
                 "citations": citations,
                 "retrieved_context": [
                     {

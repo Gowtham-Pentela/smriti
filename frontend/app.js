@@ -761,7 +761,7 @@ async function sendQuery(overrideQuery) {
 
             // Clear log, render telemetry in header
             logEl.innerHTML = "";
-            _setTelemetry(headerEl, latencyMs, data.model || "tinyllama:1.1b");
+            _setTelemetry(headerEl, latencyMs, data.model || "phi4-mini · Q4_K_M");
 
             lastRetrievedContext = data.retrieved_context || [];
             const body = formatResponse(data.response, lastRetrievedContext);
