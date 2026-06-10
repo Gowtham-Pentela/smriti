@@ -756,7 +756,7 @@ input[type="text"]::placeholder { color: var(--text-muted); }
     max-width: 100%;
 }
 
-/* ── INPUT ZONE ─────────────────────────────────────────────────────── */
+/* ── INPUT ZONE — Pill Card Design ──────────────────────────────────── */
 .input-zone {
     padding: 14px 20px 16px;
     border-top: 1px solid var(--border-soft);
@@ -764,20 +764,48 @@ input[type="text"]::placeholder { color: var(--text-muted); }
     flex-shrink: 0;
     transition: background 0.2s;
 }
-.input-shell {
+
+/* Floating card with gradient glow border */
+.input-card {
+    background: var(--bg-input);
+    border-radius: 16px;
+    border: 1px solid var(--border-input);
+    box-shadow: 0 0 0 1px transparent,
+                0 4px 24px rgba(0,0,0,0.25),
+                0 0 32px rgba(99,102,241,0.06);
+    transition: border-color 0.2s, box-shadow 0.2s;
+    overflow: visible;
+    position: relative;
+}
+.input-card:focus-within {
+    border-color: rgba(99,102,241,0.4);
+    box-shadow: 0 0 0 3px rgba(99,102,241,0.08),
+                0 4px 24px rgba(0,0,0,0.3),
+                0 0 40px rgba(99,102,241,0.12);
+}
+
+/* Top bar — textarea + icons */
+.input-bar {
     display: flex;
     align-items: flex-end;
     gap: 8px;
-    background: var(--bg-input);
-    border: 1px solid var(--border-input);
-    border-radius: 10px;
-    padding: 10px 10px 10px 14px;
-    transition: border-color 0.2s, box-shadow 0.2s;
+    padding: 12px 12px 10px 16px;
+    border-bottom: 1px solid var(--border-soft);
 }
-.input-shell:focus-within {
-    border-color: var(--border-accent);
-    box-shadow: var(--shadow-input);
+
+.input-plus {
+    font-size: 18px;
+    font-weight: 300;
+    color: var(--text-muted);
+    flex-shrink: 0;
+    line-height: 1;
+    padding-bottom: 3px;
+    cursor: pointer;
+    transition: color 0.15s;
+    user-select: none;
 }
+.input-plus:hover { color: var(--text-secondary); }
+
 textarea {
     flex: 1;
     background: none;
@@ -789,17 +817,45 @@ textarea {
     line-height: 1.6;
     resize: none;
     min-height: 22px;
-    max-height: 180px;
+    max-height: 160px;
     overflow-y: auto;
     scrollbar-width: none;
 }
 textarea::placeholder { color: var(--text-muted); }
 textarea:disabled { opacity: 0.45; cursor: not-allowed; }
-.input-controls { display: flex; align-items: center; gap: 6px; flex-shrink: 0; padding-bottom: 2px; }
-.btn-send {
-    width: 34px;
-    height: 34px;
+
+.input-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+    padding-bottom: 2px;
+}
+
+.input-icon-btn {
+    width: 32px;
+    height: 32px;
     border-radius: 8px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.input-icon-btn:hover {
+    background: var(--bg-hover);
+    border-color: var(--border-accent);
+    color: var(--text-secondary);
+}
+
+/* Pill-style send button */
+.btn-send-pill {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
     background: var(--gradient);
     border: none;
     color: #fff;
@@ -807,13 +863,141 @@ textarea:disabled { opacity: 0.45; cursor: not-allowed; }
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: opacity 0.15s, transform 0.1s;
+    transition: opacity 0.15s, transform 0.1s, box-shadow 0.15s;
+    flex-shrink: 0;
+    box-shadow: 0 2px 12px rgba(99,102,241,0.35);
+}
+.btn-send-pill:hover:not(:disabled) {
+    opacity: 0.88;
+    box-shadow: 0 4px 16px rgba(99,102,241,0.5);
+    transform: scale(1.04);
+}
+.btn-send-pill:active:not(:disabled) { transform: scale(0.93); }
+.btn-send-pill:disabled {
+    background: var(--bg-surface-2);
+    color: var(--text-muted);
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+/* ── Service Pill Chips Row ─────────────────────────────────────────── */
+.service-pills-row {
+    padding: 8px 10px 10px;
+    overflow: hidden;
+}
+
+.service-pills-scroll {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    align-items: center;
+    padding-bottom: 2px;
+}
+.service-pills-scroll::-webkit-scrollbar { display: none; }
+
+/* Each chip */
+.service-pill {
+    position: relative;
     flex-shrink: 0;
 }
-.btn-send:hover:not(:disabled) { opacity: 0.85; }
-.btn-send:active:not(:disabled) { transform: scale(0.93); }
-.btn-send:disabled { background: var(--bg-surface-2); color: var(--text-muted); cursor: not-allowed; }
 
+.pill-inner {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 11px 5px 9px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+    white-space: nowrap;
+    user-select: none;
+}
+.pill-inner:hover {
+    background: var(--bg-hover);
+    border-color: var(--border-accent);
+    color: var(--text-primary);
+}
+
+/* Connected state — green dot indicator */
+.pill-status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: transparent;
+    transition: background 0.2s;
+    flex-shrink: 0;
+}
+.service-pill[data-connected="true"] .pill-status-dot {
+    background: var(--emerald);
+    box-shadow: 0 0 5px var(--emerald);
+}
+.service-pill[data-connected="true"] .pill-inner {
+    border-color: rgba(16,185,129,0.3);
+    color: var(--text-primary);
+}
+
+/* Coming soon dimmed pills */
+.pill-coming-soon .pill-inner {
+    opacity: 0.42;
+    cursor: default;
+    pointer-events: none;
+}
+.pill-coming-soon .pill-inner span {
+    font-style: italic;
+}
+
+/* Dropdown menu below each pill */
+.pill-menu {
+    display: none;
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 4px;
+    z-index: 999;
+    min-width: 130px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+    animation: fadeUp 0.15s ease;
+}
+.service-pill:hover .pill-menu,
+.service-pill:focus-within .pill-menu {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.pill-menu-btn {
+    font-size: 12px;
+    font-weight: 500;
+    font-family: 'Inter', sans-serif;
+    color: var(--text-secondary);
+    background: none;
+    border: none;
+    border-radius: 6px;
+    padding: 7px 10px;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.12s, color 0.12s;
+    white-space: nowrap;
+}
+.pill-menu-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+.pill-menu-sync { color: var(--emerald) !important; }
+.pill-menu-sync:hover { background: var(--emerald-dim) !important; }
+.pill-menu-disc { color: #f87171 !important; }
+.pill-menu-disc:hover { background: rgba(239,68,68,0.08) !important; }
+
+/* ── Input meta bar ─────────────────────────────────────────────────── */
 .input-meta {
     display: flex;
     justify-content: space-between;

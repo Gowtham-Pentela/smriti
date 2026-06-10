@@ -272,31 +272,27 @@ async function checkSlackConnection() {
 }
 
 function _setSlackConnected(connectedAt) {
-    const statusEl   = document.getElementById("slack-status-text");
-    const btnConnect = document.getElementById("btn-connect-slack");
-    const btnDisc    = document.getElementById("btn-disconnect-slack");
-    if (!statusEl || !btnConnect) return;
-
-    const dateStr = connectedAt ? ` since ${new Date(connectedAt).toLocaleDateString()}` : "";
-    statusEl.textContent = `Connected${dateStr}`;
-    statusEl.className   = "source-status connected";
-
-    // Hide connect, show disconnect
-    btnConnect.style.display = "none";
-    if (btnDisc) {
-        btnDisc.classList.remove("hidden");
-        btnDisc.onclick = disconnectSlack;
-    }
+    const pill = document.getElementById("pill-slack");
+    if (!pill) return;
+    pill.setAttribute("data-connected", "true");
+    const connect = document.getElementById("pill-slack-connect");
+    const sync    = document.getElementById("pill-slack-sync");
+    const disc    = document.getElementById("pill-slack-disc");
+    if (connect) connect.classList.add("hidden");
+    if (sync)    sync.classList.remove("hidden");
+    if (disc)    disc.classList.remove("hidden");
 }
 
 function _setSlackDisconnected() {
-    const statusEl   = document.getElementById("slack-status-text");
-    const btnConnect = document.getElementById("btn-connect-slack");
-    const btnDisc    = document.getElementById("btn-disconnect-slack");
-
-    if (statusEl) { statusEl.textContent = "Not connected"; statusEl.className = "source-status"; }
-    if (btnConnect) { btnConnect.style.display = ""; }
-    if (btnDisc)    { btnDisc.classList.add("hidden"); }
+    const pill = document.getElementById("pill-slack");
+    if (!pill) return;
+    pill.setAttribute("data-connected", "false");
+    const connect = document.getElementById("pill-slack-connect");
+    const sync    = document.getElementById("pill-slack-sync");
+    const disc    = document.getElementById("pill-slack-disc");
+    if (connect) connect.classList.remove("hidden");
+    if (sync)    sync.classList.add("hidden");
+    if (disc)    disc.classList.add("hidden");
 }
 
 async function disconnectSlack() {
@@ -349,34 +345,27 @@ async function checkDriveConnection() {
 }
 
 function _setDriveConnected(connectedAt) {
-    const statusEl   = document.getElementById("gdrive-status-text");
-    const btnConnect = document.getElementById("btn-connect-gdrive");
-    const btnDisc    = document.getElementById("btn-disconnect-gdrive");
-    const syncBtn    = document.getElementById("btn-sync-drive");
-    if (!statusEl || !btnConnect) return;
-
-    const dateStr = connectedAt
-        ? ` since ${new Date(connectedAt * 1000).toLocaleDateString()}`
-        : "";
-    statusEl.textContent = `Connected${dateStr}`;
-    statusEl.className   = "source-status connected";
-    btnConnect.style.display = "none";
-    if (btnDisc) {
-        btnDisc.classList.remove("hidden");
-        btnDisc.onclick = disconnectDrive;
-    }
-    if (syncBtn) syncBtn.classList.remove("hidden");
+    const pill = document.getElementById("pill-gdrive");
+    if (!pill) return;
+    pill.setAttribute("data-connected", "true");
+    const connect = document.getElementById("pill-gdrive-connect");
+    const sync    = document.getElementById("pill-gdrive-sync");
+    const disc    = document.getElementById("pill-gdrive-disc");
+    if (connect) connect.classList.add("hidden");
+    if (sync)    sync.classList.remove("hidden");
+    if (disc)    disc.classList.remove("hidden");
 }
 
 function _setDriveDisconnected() {
-    const statusEl   = document.getElementById("gdrive-status-text");
-    const btnConnect = document.getElementById("btn-connect-gdrive");
-    const btnDisc    = document.getElementById("btn-disconnect-gdrive");
-    const syncBtn    = document.getElementById("btn-sync-drive");
-    if (statusEl)   { statusEl.textContent = "Not connected"; statusEl.className = "source-status"; }
-    if (btnConnect) { btnConnect.style.display = ""; }
-    if (btnDisc)    { btnDisc.classList.add("hidden"); }
-    if (syncBtn)    { syncBtn.classList.add("hidden"); }
+    const pill = document.getElementById("pill-gdrive");
+    if (!pill) return;
+    pill.setAttribute("data-connected", "false");
+    const connect = document.getElementById("pill-gdrive-connect");
+    const sync    = document.getElementById("pill-gdrive-sync");
+    const disc    = document.getElementById("pill-gdrive-disc");
+    if (connect) connect.classList.remove("hidden");
+    if (sync)    sync.classList.add("hidden");
+    if (disc)    disc.classList.add("hidden");
 }
 
 async function disconnectDrive() {
@@ -415,7 +404,7 @@ async function disconnectDrive() {
 
 async function syncDrive() {
     const banner  = document.getElementById("oauth-banner");
-    const syncBtn = document.getElementById("btn-sync-drive");
+    const syncBtn = document.getElementById("pill-gdrive-sync");
 
     // Disable the sync button to prevent double-clicks
     if (syncBtn) { syncBtn.disabled = true; syncBtn.textContent = "⏳ Syncing..."; }
