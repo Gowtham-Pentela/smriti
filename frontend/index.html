@@ -515,11 +515,11 @@ async function deleteAccount() {
     // showConfirm is defined in app.js (loaded right after this block)
     const confirmed = (typeof showConfirm === 'function')
         ? await showConfirm(
-            'Delete ALL your data?',
-            'This will permanently remove all indexed documents, knowledge objects, graph data, and connector credentials from your workspace. This cannot be undone.',
+            'Delete ALL your indexed data?',
+            'This will permanently remove all indexed documents, knowledge objects, graph data, and connector credentials from your workspace. Your account stays active — you can re-upload documents at any time. This cannot be undone.',
             'Delete permanently'
           )
-        : window.confirm('Delete ALL your data? This cannot be undone.');
+        : window.confirm('Delete ALL your indexed data? This cannot be undone.');
     if (!confirmed) return;
 
     const btn = document.getElementById('btn-delete-account');
@@ -535,9 +535,35 @@ async function deleteAccount() {
         });
 
         if (resp.ok) {
-            await _sb.auth.signOut();
-            alert('All your data has been deleted. You will be signed out.');
-            window.location.replace('/app/auth.html');
+            // Stay signed in — just clear the UI and refresh state
+            if (btn) { btn.disabled = false; btn.textContent = 'Delete data'; }
+
+            // Refresh stats (will show 0 chunks / 0 files)
+            if (typeof updateStats === 'function') updateStats();
+            if (typeof loadFilesList === 'function') {
+                window._sourcesLoaded = false;
+                loadFilesList();
+            }
+            // Clear the chat history
+            const chat = document.getElementById('chat-history');
+            if (chat) {
+                chat.innerHTML = '';
+                const welcome = document.getElementById('welcome-state');
+                if (!welcome) {
+                    // re-show welcome state if it was removed
+                    const w = document.createElement('div');
+                    w.id = 'welcome-state';
+                    w.className = 'welcome-state';
+                    w.innerHTML = '<p style="color:var(--text-secondary);margin-top:48px;">All data cleared. Upload new documents to get started.</p>';
+                    chat.appendChild(w);
+                } else {
+                    welcome.style.display = '';
+                }
+            }
+            // Brief success message (not an alert — doesn't break flow)
+            if (typeof appendSystemMsg === 'function') {
+                appendSystemMsg('✅ All indexed data has been permanently deleted. You can upload new documents to start fresh.');
+            }
         } else {
             const err = await resp.json().catch(() => ({ detail: 'Unknown error' }));
             alert('Delete failed: ' + (err.detail || resp.statusText));
@@ -548,6 +574,7 @@ async function deleteAccount() {
         if (btn) { btn.disabled = false; btn.textContent = 'Delete data'; }
     }
 }
+
 </script>
 <script src="app.js"></script>
 </body>
