@@ -207,7 +207,6 @@ def parse_pdf(file_path: str, source_name: Optional[str] = None) -> list[dict]:
             # Scanned-page detection: few chars but file is large → likely image-only
             if len(text.strip()) < 100 and file_size_kb > 100:
                 scanned_pages.append(page_num + 1)
-                # Don't skip — attempt image extraction below
                 continue
 
             page_chunks = chunk_text(text)
@@ -223,14 +222,18 @@ def parse_pdf(file_path: str, source_name: Optional[str] = None) -> list[dict]:
     except Exception as e:
         print(f"  ✗ Error parsing PDF text in {file_path}: {e}")
 
-    # ── Step 2: Image extraction + processing ─────────────────────────────────
+    # ── Step 2: Image extraction + processing ─────────────────────────────
     try:
-        from backend.image_extractor import extract_images_from_pdf
+        from backend.image_extractor import extract_images_from_pdf, render_scanned_pages
         from backend.vision_processor import process_image
 
         images = extract_images_from_pdf(file_path)
         if images:
             print(f"  → Extracted {len(images)} image(s) from {filename}. Processing...")
+
+        # Track which scanned pages already got covered by an embedded image
+        pages_with_embedded = {img["page"] for img in images}
+
         for img_data in images:
             img_chunks = process_image(
                 image_bytes=img_data["image_bytes"],
@@ -239,6 +242,25 @@ def parse_pdf(file_path: str, source_name: Optional[str] = None) -> list[dict]:
                 source_filename=filename,
             )
             chunks.extend(img_chunks)
+
+        # For scanned pages that had NO embedded images, render the page itself
+        # (scanned PDFs store the whole page as a content stream, not an XObject)
+        uncovered = [p - 1 for p in scanned_pages if (p - 1) not in pages_with_embedded]
+        if uncovered:
+            print(f"  → Rendering {len(uncovered)} scanned page(s) via PyMuPDF for OCR...")
+            rendered = render_scanned_pages(file_path, uncovered, dpi=200)
+            for img_data in rendered:
+                img_chunks = process_image(
+                    image_bytes=img_data["image_bytes"],
+                    page_num=img_data["page"],
+                    img_idx=0,
+                    source_filename=filename,
+                )
+                if img_chunks:
+                    chunks.extend(img_chunks)
+                else:
+                    # OCR found nothing useful — emit a brief notice (not a blocking warning)
+                    print(f"  ℹ Page {img_data['page'] + 1} of '{filename}': OCR returned no text (blank or handwritten?).")
 
     except ImportError:
         if scanned_pages:
@@ -257,7 +279,6 @@ def parse_pdf(file_path: str, source_name: Optional[str] = None) -> list[dict]:
                 "content_type": "warning",
                 "original_page": scanned_pages[0],
             })
-        # No image extraction available — continue with text-only chunks
     except RuntimeError as e:
         # Encrypted PDF — surface clear message
         chunks.append({
@@ -271,8 +292,7 @@ def parse_pdf(file_path: str, source_name: Optional[str] = None) -> list[dict]:
     except Exception as e:
         print(f"  ⚠ Image extraction error for {filename}: {e}")
 
-    # Warn about scanned pages even when image extraction is available
-    # (so user knows those pages went through vision processing)
+    # Inform about scanned pages going through vision/OCR pipeline
     if scanned_pages:
         pages_str = ", ".join(str(p) for p in scanned_pages[:10])
         print(

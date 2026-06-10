@@ -149,6 +149,77 @@ def extract_images_from_pdf(
     return results
 
 
+def render_scanned_pages(
+    pdf_path: str,
+    page_numbers: list[int],
+    dpi: int = 200,
+) -> list[dict]:
+    """
+    Render specific PDF pages as raster images using PyMuPDF.
+
+    Use this for scanned PDFs where get_images() returns nothing — the entire
+    page IS the image (stored as a content stream, not an XObject).
+
+    Args:
+        pdf_path:     Path to the PDF.
+        page_numbers: 0-indexed list of page numbers to render.
+        dpi:          Render resolution (200 is a good balance for OCR quality vs speed).
+
+    Returns the same dict format as extract_images_from_pdf.
+    """
+    if not _HAS_FITZ:
+        raise ImportError("PyMuPDF is required. Install with: pip install pymupdf")
+
+    results = []
+
+    try:
+        doc = fitz.open(pdf_path)
+    except Exception as e:
+        raise RuntimeError(f"Cannot open PDF: {e}") from e
+
+    if doc.is_encrypted:
+        doc.close()
+        raise RuntimeError(f"PDF is encrypted: {pdf_path}")
+
+    zoom = dpi / 72.0  # 72 pts/inch is the PDF baseline
+    matrix = fitz.Matrix(zoom, zoom)
+
+    for page_num in page_numbers:
+        if page_num < 0 or page_num >= len(doc):
+            continue
+        page = doc[page_num]
+        try:
+            pix = page.get_pixmap(matrix=matrix, alpha=False)
+            png_bytes = pix.tobytes("png")
+
+            # Optionally cap size for very large renders
+            if _HAS_PIL:
+                try:
+                    img = Image.open(io.BytesIO(png_bytes))
+                    if img.width > 2048 or img.height > 2048:
+                        img.thumbnail((2048, 2048), Image.LANCZOS)
+                        buf = io.BytesIO()
+                        img.save(buf, format="PNG")
+                        png_bytes = buf.getvalue()
+                except Exception:
+                    pass  # use original bytes
+
+            results.append({
+                "page":          page_num,
+                "index":         0,       # only one "image" per rendered page
+                "width":         pix.width,
+                "height":        pix.height,
+                "estimated_dpi": dpi,
+                "image_bytes":   png_bytes,
+                "ext":           "png",
+            })
+        except Exception as e:
+            print(f"  ⚠ Failed to render page {page_num}: {e}")
+
+    doc.close()
+    return results
+
+
 def _estimate_dpi(page: "fitz.Page", width_px: int, height_px: int) -> float:
     """
     Estimate the DPI of an image by comparing its pixel dimensions to the
