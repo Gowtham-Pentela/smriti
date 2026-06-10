@@ -631,68 +631,65 @@ async function loadFilesList() {
     }
 }
 
-// ── Indexing ──────────────────────────────────────────────────────────
-async function startIndexing() {
-    const path = folderPathInput.value.trim();
-    if (!path) { alert("Enter an absolute folder path."); return; }
+// ── File Upload ───────────────────────────────────────────────────────
+const uploadDropZone  = document.getElementById("upload-drop-zone");
+const uploadFileInput = document.getElementById("upload-file-input");
+const uploadProgressList = document.getElementById("upload-progress-list");
 
-    btnIndex.disabled = true;
-    userCancelled = false;
-    progressContainer.classList.remove("hidden");
-
-    try {
-        const r = await authFetch(`${API_BASE}/index-folder`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ folder_path: path }),
-        });
-        if (r.ok) {
-            indexingInterval = setInterval(pollIndexing, 800);
-        } else {
-            const err = await r.json();
-            alert(`Error: ${err.detail}`);
-            btnIndex.disabled = false;
-            progressContainer.classList.add("hidden");
+if (uploadDropZone) {
+    uploadDropZone.addEventListener("click", () => uploadFileInput && uploadFileInput.click());
+    uploadDropZone.addEventListener("dragover", e => { e.preventDefault(); uploadDropZone.classList.add("drag-over"); });
+    uploadDropZone.addEventListener("dragleave",  () => uploadDropZone.classList.remove("drag-over"));
+    uploadDropZone.addEventListener("drop", e => {
+        e.preventDefault();
+        uploadDropZone.classList.remove("drag-over");
+        if (e.dataTransfer.files.length) uploadFiles(Array.from(e.dataTransfer.files));
+    });
+}
+if (uploadFileInput) {
+    uploadFileInput.addEventListener("change", () => {
+        if (uploadFileInput.files.length) {
+            uploadFiles(Array.from(uploadFileInput.files));
+            uploadFileInput.value = ""; // reset so same file can be re-uploaded
         }
-    } catch (e) {
-        alert(`Backend unreachable: ${e}`);
-        btnIndex.disabled = false;
-        progressContainer.classList.add("hidden");
+    });
+}
+
+async function uploadFiles(files) {
+    for (const file of files) {
+        const row = document.createElement("div");
+        row.className = "upload-row";
+        row.innerHTML = `<span class="upload-row-name">${escHtml(file.name)}</span>
+                         <span class="upload-row-badge uploading"><span class="spin">↻</span> Uploading</span>`;
+        uploadProgressList && uploadProgressList.prepend(row);
+        const badge = row.querySelector(".upload-row-badge");
+
+        try {
+            const form = new FormData();
+            form.append("file", file);
+            const r = await authFetch(`${API_BASE}/ingest`, { method: "POST", body: form });
+            if (r.ok) {
+                const d = await r.json();
+                badge.className = "upload-row-badge done";
+                badge.textContent = `✓ ${d.chunks_indexed} chunks`;
+                updateStats();
+                _sourcesLoaded = false;
+                loadFilesList();
+            } else {
+                const err = await r.json().catch(() => ({ detail: r.statusText }));
+                badge.className = "upload-row-badge error";
+                badge.textContent = `✗ ${err.detail || "Failed"}`;
+            }
+        } catch (e) {
+            badge.className = "upload-row-badge error";
+            badge.textContent = "✗ Network error";
+        }
+
+        // Auto-remove row after 8 seconds
+        setTimeout(() => row.remove(), 8000);
     }
 }
 
-async function pollIndexing() {
-    try {
-        const r = await authFetch(`${API_BASE}/indexing-progress`);
-        if (!r.ok) return;
-        const d = await r.json();
-        if (d.is_indexing) {
-            progressFilename.innerText = `Processing: ${d.current_file || "scanning..."}`;
-            progressPct.innerText      = `${d.progress}%`;
-            progressBar.style.width    = `${d.progress}%`;
-            if (progressTimer) progressTimer.innerText = `${d.elapsed_time || 0}s`;
-        } else {
-            clearInterval(indexingInterval);
-            progressContainer.classList.add("hidden");
-            btnIndex.disabled = false;
-            const t = d.total_time ? ` in ${d.total_time}s` : "";
-            appendSystemMsg(userCancelled
-                ? `Ingestion cancelled${t}. Partial data available.`
-                : `✅ Indexing complete${t} — knowledge base ready.`);
-            userCancelled = false;
-            updateStats();
-            _sourcesLoaded = false;  // force file list reload after indexing
-            loadFilesList();
-        }
-    } catch (e) { console.error("pollIndexing:", e); }
-}
-
-async function cancelIndexing() {
-    btnCancelIndexing.disabled = true;
-    userCancelled = true;
-    try { await authFetch(`${API_BASE}/cancel-indexing`, { method: "POST" }); }
-    catch (e) { console.error("cancel:", e); }
-}
 
 async function clearIndex() {
     const confirmed = await showConfirm(

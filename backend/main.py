@@ -15,7 +15,7 @@ import time
 import httpx
 from contextlib import asynccontextmanager
 from datetime import datetime
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends, Request, status
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends, Request, status, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -23,6 +23,8 @@ from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 import asyncpg
 import uuid
+import tempfile
+import shutil
 
 # ─── File Hash Utility ───────────────────────────────────────────────────────
 
@@ -673,6 +675,47 @@ async def ingest_slack(req: IngestSlackRequest, background_tasks: BackgroundTask
         "status": "started",
         "message": f"Ingesting {len(req.channel_ids)} channel(s) with {req.days_back}-day lookback.",
     }
+
+
+ALLOWED_INGEST_EXTS = {".pdf", ".txt", ".md", ".docx", ".csv"}
+
+@app.post("/ingest")
+async def ingest_file(
+    request: Request,
+    file: UploadFile = File(...),
+    user: UserIdentity = Depends(get_current_user),
+):
+    """
+    Accept a file upload from the browser and index it into the user's knowledge base.
+    Supported: PDF, TXT, MD, DOCX, CSV (up to 50 MB).
+    """
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    if ext not in ALLOWED_INGEST_EXTS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file type '{ext}'. Allowed: {', '.join(sorted(ALLOWED_INGEST_EXTS))}",
+        )
+
+    # Write upload to a temp file (parse_document needs a real path)
+    with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as tmp:
+        shutil.copyfileobj(file.file, tmp)
+        tmp_path = tmp.name
+
+    try:
+        source_name = os.path.basename(file.filename or tmp_path)
+        chunks = parse_document(tmp_path, source_name=source_name)
+        if not chunks:
+            raise HTTPException(status_code=422, detail="No text could be extracted from this file.")
+
+        db_pool = request.app.state.db_pool
+        await pg_ingest_chunks(chunks, db_pool, tenant_id=user.tenant_id)
+        return {
+            "status": "ok",
+            "filename": source_name,
+            "chunks_indexed": len(chunks),
+        }
+    finally:
+        os.unlink(tmp_path)
 
 
 @app.get("/ingest-status")
