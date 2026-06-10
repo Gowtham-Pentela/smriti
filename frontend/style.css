@@ -883,7 +883,6 @@ textarea:disabled { opacity: 0.45; cursor: not-allowed; }
 /* ── Service Pill Chips Row ─────────────────────────────────────────── */
 .service-pills-row {
     padding: 8px 10px 10px;
-    overflow: hidden;
 }
 
 .service-pills-scroll {
@@ -961,14 +960,18 @@ textarea:disabled { opacity: 0.45; cursor: not-allowed; }
 
 /* ── Pill Actions Bar (Sync + Disconnect) ───────────────────────────── */
 .pill-actions {
-    display: none;
+    display: flex;
     align-items: center;
     gap: 8px;
     padding: 8px 2px 2px;
-    animation: fadeUp 0.15s ease;
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition: max-height 0.2s ease, opacity 0.2s ease;
 }
 .pill-actions.visible {
-    display: flex;
+    max-height: 60px;
+    opacity: 1;
 }
 .pill-actions-label {
     font-size: 11px;

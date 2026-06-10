@@ -278,6 +278,20 @@ function _updatePillActions() {
     const bar   = document.getElementById("pill-actions");
     const label = document.getElementById("pill-actions-label");
     if (!bar) return;
+
+    // If no pill is explicitly selected, auto-pick the first connected one
+    if (!_selectedPill) {
+        const firstConnected = Object.keys(PILL_SERVICES).find(k => {
+            const p = document.getElementById(`pill-${k}`);
+            return p && p.getAttribute("data-connected") === "true";
+        });
+        if (firstConnected) {
+            _selectedPill = firstConnected;
+            const p = document.getElementById(`pill-${firstConnected}`);
+            if (p) p.setAttribute("data-selected", "true");
+        }
+    }
+
     if (_selectedPill && PILL_SERVICES[_selectedPill]) {
         if (label) label.textContent = PILL_SERVICES[_selectedPill].label;
         bar.classList.add("visible");
@@ -332,7 +346,14 @@ async function checkSlackConnection() {
 
 function _setSlackConnected() {
     const pill = document.getElementById("pill-slack");
-    if (pill) pill.setAttribute("data-connected", "true");
+    if (!pill) return;
+    pill.setAttribute("data-connected", "true");
+    // Auto-select and show action bar if nothing is already selected
+    if (!_selectedPill) {
+        _selectedPill = "slack";
+        pill.setAttribute("data-selected", "true");
+    }
+    _updatePillActions();
 }
 
 function _setSlackDisconnected() {
@@ -391,7 +412,14 @@ async function checkDriveConnection() {
 
 function _setDriveConnected() {
     const pill = document.getElementById("pill-gdrive");
-    if (pill) pill.setAttribute("data-connected", "true");
+    if (!pill) return;
+    pill.setAttribute("data-connected", "true");
+    // Auto-select and show action bar if nothing is already selected
+    if (!_selectedPill) {
+        _selectedPill = "gdrive";
+        pill.setAttribute("data-selected", "true");
+    }
+    _updatePillActions();
 }
 
 function _setDriveDisconnected() {
