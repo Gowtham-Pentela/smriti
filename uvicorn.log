@@ -1,0 +1,155 @@
+INFO:     Started server process [3945]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+Initializing connection pool → Postgres...
+🚀 DB connection pool established.
+🔄 Sync scheduler started. Interval: 1800s (30 min)
+🔥 Ollama model warm-up complete.
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/index.html HTTP/1.1" 200 OK
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/js/supabase.js HTTP/1.1" 200 OK
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/style.css HTTP/1.1" 200 OK
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/app.js HTTP/1.1" 200 OK
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/images/smriti_logo.png HTTP/1.1" 304 Not Modified
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /auth-config HTTP/1.1" 200 OK
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/auth.html HTTP/1.1" 200 OK
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/images/smriti_logo.png HTTP/1.1" 200 OK
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/js/supabase.js HTTP/1.1" 200 OK
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     23.111.114.116:0 - "GET /lander/gazprom-leadforma-thankspidarasgaz/ HTTP/1.1" 404 Not Found
+INFO:     2a06:98c0:3600::103:0 - "GET /wp-admin/install.php?step=1 HTTP/1.1" 404 Not Found
+INFO:     23.111.114.116:0 - "GET /lander/gazprom-prelandergnidanewkomment-thanksstory2-objv2/ HTTP/1.1" 404 Not Found
+INFO:     34.56.4.1:0 - "GET / HTTP/1.1" 307 Temporary Redirect
+INFO:     34.56.4.1:0 - "GET /app/landing.html HTTP/1.1" 200 OK
+INFO:     2a06:98c0:3600::103:0 - "GET /wp-admin/install.php?step=1 HTTP/1.1" 404 Not Found
+INFO:     2a06:98c0:3600::103:0 - "GET /wp-admin/install.php?step=1 HTTP/1.1" 404 Not Found
+INFO:     106.219.160.2:0 - "GET / HTTP/1.1" 307 Temporary Redirect
+INFO:     106.219.160.2:0 - "GET /app/landing.html HTTP/1.1" 200 OK
+INFO:     106.219.160.2:0 - "GET /app/terms.html HTTP/1.1" 200 OK
+INFO:     106.219.160.2:0 - "GET /app/landing.html HTTP/1.1" 200 OK
+INFO:     106.219.160.2:0 - "GET /app/privacy.html HTTP/1.1" 200 OK
+INFO:     106.219.160.2:0 - "GET /app/auth.html HTTP/1.1" 200 OK
+INFO:     106.219.160.2:0 - "GET / HTTP/1.1" 307 Temporary Redirect
+INFO:     106.219.160.2:0 - "GET /app/landing.html HTTP/1.1" 200 OK
+INFO:     106.219.160.2:0 - "GET /app/terms.html HTTP/1.1" 200 OK
+INFO:     106.219.160.2:0 - "GET /app/landing.html HTTP/1.1" 200 OK
+INFO:     106.219.160.2:0 - "GET /app/privacy.html HTTP/1.1" 200 OK
+INFO:     106.219.164.162:0 - "GET /app/auth.html HTTP/1.1" 200 OK
+INFO:     23.111.114.116:0 - "GET /lander/mod_26/index.php HTTP/1.1" 404 Not Found
+
+🔄 [2026-06-10T09:01:07.395217] Starting sync cycle...
+✅ Sync complete in 0.1s: 0 tenants synced, 0 errors.
+INFO:     2a06:98c0:3600::103:0 - "GET /wp-admin/install.php?step=1 HTTP/1.1" 404 Not Found
+INFO:     2a06:98c0:3600::103:0 - "GET /wp-admin/install.php?step=1 HTTP/1.1" 404 Not Found
+INFO:     216.40.73.209:0 - "GET / HTTP/1.1" 307 Temporary Redirect
+INFO:     216.40.73.209:0 - "GET /app/landing.html HTTP/1.1" 200 OK
+INFO:     2a06:98c0:3600::103:0 - "GET /wp-admin/install.php?step=1 HTTP/1.1" 404 Not Found
+INFO:     2a06:98c0:3600::103:0 - "GET /wp-admin/install.php?step=1 HTTP/1.1" 404 Not Found
+INFO:     2a06:98c0:3600::103:0 - "GET /wp-admin/install.php?step=1 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:50349 - "GET /app/landing.html HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50349 - "GET /app/landing.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50352 - "GET /app/images/img_01_knowledge_silos.png HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50353 - "GET /app/images/img_02_onboarding_friction.png HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50353 - "GET /app/images/img_03_brain_drain.png HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50352 - "GET /app/landing.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50353 - "GET /app/images/smriti_logo.png HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50353 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+
+🔄 [2026-06-10T09:31:07.531572] Starting sync cycle...
+✅ Sync complete in 0.1s: 0 tenants synced, 0 errors.
+INFO:     127.0.0.1:50370 - "GET /app/auth.html HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50370 - "GET /app/images/smriti_logo.png HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50372 - "GET /app/js/supabase.js HTTP/1.1" 200 OK
+INFO:     106.219.165.122:0 - "GET / HTTP/1.1" 307 Temporary Redirect
+INFO:     106.219.165.122:0 - "GET /app/landing.html HTTP/1.1" 200 OK
+INFO:     106.219.165.122:0 - "GET /app/terms.html HTTP/1.1" 200 OK
+INFO:     106.219.165.122:0 - "GET /app/landing.html HTTP/1.1" 200 OK
+INFO:     106.219.165.122:0 - "GET /app/privacy.html HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50417 - "GET /app/landing.html HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50417 - "GET /app/landing.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50420 - "GET /app/images/img_01_knowledge_silos.png HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50421 - "GET /app/images/img_02_onboarding_friction.png HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50420 - "GET /app/images/img_03_brain_drain.png HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50421 - "GET /app/images/img_04_connect_sources.png HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50420 - "GET /app/images/img_05_index_privately.png HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50421 - "GET /app/landing.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50420 - "GET /app/images/smriti_logo.png HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50420 - "GET /app/images/img_06_ask_anything.png HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50420 - "GET /app/images/img_07_slack_teams.png HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50420 - "GET /app/images/img_08_requirements_specs.png HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50420 - "GET /app/images/img_09_release_notes.png HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50420 - "GET /app/images/img_10_meeting_transcripts.png HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50420 - "GET /app/images/img_11_google_drive.png HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50420 - "GET /app/images/img_12_email_threads.png HTTP/1.1" 200 OK
+INFO:     106.219.165.122:0 - "GET /app/auth.html HTTP/1.1" 200 OK
+INFO:     106.219.165.122:0 - "GET / HTTP/1.1" 307 Temporary Redirect
+INFO:     106.219.165.122:0 - "GET /app/landing.html HTTP/1.1" 200 OK
+INFO:     106.219.165.122:0 - "GET /app/terms.html HTTP/1.1" 200 OK
+INFO:     106.219.165.122:0 - "GET /app/landing.html HTTP/1.1" 200 OK
+INFO:     106.219.165.122:0 - "GET /app/privacy.html HTTP/1.1" 200 OK
+INFO:     106.219.165.122:0 - "GET /app/auth.html HTTP/1.1" 200 OK
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET / HTTP/1.1" 307 Temporary Redirect
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET / HTTP/1.1" 307 Temporary Redirect
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/landing.html HTTP/1.1" 200 OK
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/landing.html HTTP/1.1" 200 OK
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/images/img_02_onboarding_friction.png HTTP/1.1" 304 Not Modified
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/images/img_01_knowledge_silos.png HTTP/1.1" 304 Not Modified
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/landing.css HTTP/1.1" 200 OK
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/images/img_02_onboarding_friction.png HTTP/1.1" 200 OK
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/landing.css HTTP/1.1" 200 OK
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/images/img_01_knowledge_silos.png HTTP/1.1" 200 OK
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/images/img_05_index_privately.png HTTP/1.1" 304 Not Modified
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/images/img_04_connect_sources.png HTTP/1.1" 304 Not Modified
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/images/img_03_brain_drain.png HTTP/1.1" 304 Not Modified
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/landing.js HTTP/1.1" 200 OK
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/images/smriti_logo.png HTTP/1.1" 200 OK
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/images/img_08_requirements_specs.png HTTP/1.1" 304 Not Modified
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/images/img_07_slack_teams.png HTTP/1.1" 304 Not Modified
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/images/img_12_email_threads.png HTTP/1.1" 304 Not Modified
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/images/img_10_meeting_transcripts.png HTTP/1.1" 304 Not Modified
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/images/img_09_release_notes.png HTTP/1.1" 304 Not Modified
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/images/img_11_google_drive.png HTTP/1.1" 304 Not Modified
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/images/img_06_ask_anything.png HTTP/1.1" 304 Not Modified
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/images/img_05_index_privately.png HTTP/1.1" 200 OK
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/images/img_03_brain_drain.png HTTP/1.1" 200 OK
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/images/img_04_connect_sources.png HTTP/1.1" 200 OK
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/landing.js HTTP/1.1" 200 OK
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/images/smriti_logo.png HTTP/1.1" 200 OK
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/images/img_06_ask_anything.png HTTP/1.1" 200 OK
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/images/img_07_slack_teams.png HTTP/1.1" 200 OK
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/images/img_08_requirements_specs.png HTTP/1.1" 200 OK
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/images/img_09_release_notes.png HTTP/1.1" 200 OK
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/images/img_10_meeting_transcripts.png HTTP/1.1" 200 OK
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/images/img_12_email_threads.png HTTP/1.1" 200 OK
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/images/img_11_google_drive.png HTTP/1.1" 200 OK
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/images/img_13_data_never_leaves.png HTTP/1.1" 304 Not Modified
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/auth.html HTTP/1.1" 200 OK
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/images/smriti_logo.png HTTP/1.1" 200 OK
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/js/supabase.js HTTP/1.1" 200 OK
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/callback.html HTTP/1.1" 200 OK
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/js/supabase.js HTTP/1.1" 200 OK
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/images/smriti_logo.png HTTP/1.1" 200 OK
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/index.html HTTP/1.1" 200 OK
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/index.html HTTP/1.1" 200 OK
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/style.css HTTP/1.1" 200 OK
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/js/supabase.js HTTP/1.1" 200 OK
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/app.js HTTP/1.1" 200 OK
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/style.css HTTP/1.1" 200 OK
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/js/supabase.js HTTP/1.1" 200 OK
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/app.js HTTP/1.1" 200 OK
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/images/smriti_logo.png HTTP/1.1" 200 OK
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/images/smriti_logo.png HTTP/1.1" 200 OK
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /health HTTP/1.1" 200 OK
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /auth-config HTTP/1.1" 200 OK
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /health HTTP/1.1" 200 OK
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /auth-config HTTP/1.1" 200 OK
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /gdrive/status HTTP/1.1" 200 OK
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /files HTTP/1.1" 200 OK
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /status HTTP/1.1" 200 OK
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /gdrive/status HTTP/1.1" 200 OK
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /status HTTP/1.1" 200 OK
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /files HTTP/1.1" 200 OK
+INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "POST /query HTTP/1.1" 200 OK
+INFO:     2a06:98c0:3600::103:0 - "GET /wp-admin/install.php?step=1 HTTP/1.1" 404 Not Found
+INFO:     2a06:98c0:3600::103:0 - "GET /wp-admin/install.php?step=1 HTTP/1.1" 404 Not Found
+INFO:     2a06:98c0:3600::103:0 - "GET /wp-admin/install.php?step=1 HTTP/1.1" 404 Not Found
