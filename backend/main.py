@@ -800,15 +800,15 @@ async def clear_index(
         async with app.state.db_pool.acquire() as conn:
             async with conn.transaction():
                 await conn.execute(f"SET LOCAL app.current_tenant_id = '{tenant_id}'")
-                tid = uuid.UUID(tenant_id)
+                tid_uuid = uuid.UUID(tenant_id)
                 # graph_edges cascades from graph_nodes via FK; neither has tenant_id column.
                 await conn.execute(
                     f"DELETE FROM {schema}.graph_nodes WHERE external_source_id IN "
                     f"(SELECT DISTINCT author_id FROM {schema}.vector_chunks WHERE tenant_id = $1)",
-                    tid,
+                    tid_uuid,
                 )
-                await conn.execute(f"DELETE FROM {schema}.vector_chunks    WHERE tenant_id = $1", tid)
-                await conn.execute(f"DELETE FROM {schema}.ingestion_hashes WHERE tenant_id = $1", tid)
+                await conn.execute(f"DELETE FROM {schema}.vector_chunks    WHERE tenant_id = $1", tid_uuid)
+                await conn.execute(f"DELETE FROM {schema}.ingestion_hashes WHERE tenant_id = $1", tenant_id)  # TEXT
         _file_hash_cache.clear()
         return {"status": "success", "message": f"Index cleared for user {user.email}."}
     except Exception as e:
@@ -880,18 +880,20 @@ async def delete_account(
         # Set RLS context
         await conn.execute(f"SET LOCAL app.current_tenant_id = '{tenant_id}'")
 
-        tid = uuid.UUID(tenant_id)
+        tid_uuid = uuid.UUID(tenant_id)  # for UUID columns: vector_chunks, tenant_registry
+        # tenant_id is a plain str for TEXT columns: ingestion_hashes, tenant_credentials
+
         # graph_edges cascades from graph_nodes (FK ON DELETE CASCADE).
         # graph_nodes has no tenant_id; delete nodes whose author_id appears in this tenant's chunks.
         await conn.execute(
             f"DELETE FROM {schema}.graph_nodes WHERE external_source_id IN "
             f"(SELECT DISTINCT author_id FROM {schema}.vector_chunks WHERE tenant_id = $1)",
-            tid,
+            tid_uuid,
         )
-        await conn.execute(f"DELETE FROM {schema}.vector_chunks     WHERE tenant_id = $1", tid)
-        await conn.execute(f"DELETE FROM {schema}.ingestion_hashes  WHERE tenant_id = $1", tid)
-        await conn.execute(f"DELETE FROM {schema}.tenant_credentials WHERE tenant_id = $1", tid)
-        await conn.execute("DELETE FROM tenant_registry WHERE tenant_id = $1", tid)
+        await conn.execute(f"DELETE FROM {schema}.vector_chunks     WHERE tenant_id = $1", tid_uuid)
+        await conn.execute(f"DELETE FROM {schema}.ingestion_hashes  WHERE tenant_id = $1", tenant_id)   # TEXT
+        await conn.execute(f"DELETE FROM {schema}.tenant_credentials WHERE tenant_id = $1", tenant_id)  # TEXT
+        await conn.execute("DELETE FROM tenant_registry WHERE tenant_id = $1", tid_uuid)
 
     print(f"✅ Account deleted: tenant={tenant_id}, user={user.email}")
     return {"status": "deleted", "tenant_id": tenant_id, "email": user.email}
