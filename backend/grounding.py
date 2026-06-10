@@ -212,8 +212,11 @@ def validate_response(response_text, retrieved_chunks):
     # Patterns indicating the model is correctly admitting it doesn't know
     _FALLBACK_RE = re.compile(
         r"(cannot find (the answer|this)|unable to find|not find the answer|"
-        r"no information|not mention|not contain|not provided|does not provide|"
-        r"do not know|don't know|no relevant info|cannot find this in)",
+        r"no information|no info|don't have information|don't have info|do not have information|do not have info|"
+        r"don't have that information|do not have that information|not have information on that|"
+        r"not mention|not contain|not provided|does not provide|"
+        r"do not know|don't know|no relevant info|cannot find this in|"
+        r"no relevant organizational history)",
         re.IGNORECASE,
     )
 
@@ -237,7 +240,8 @@ def validate_response(response_text, retrieved_chunks):
             continue
 
         # 2. Keep fallback/cannot-find admissions
-        if _FALLBACK_RE.search(clean):
+        clean_norm = clean.replace("’", "'").replace("`", "'")
+        if _FALLBACK_RE.search(clean_norm):
             validated_sentences.append(s)
             continue
 

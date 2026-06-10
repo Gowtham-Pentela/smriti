@@ -169,7 +169,35 @@ async def _sync_tenant(db_pool: asyncpg.Pool, tenant_id: str, source: str) -> No
             "; ".join(result["errors"]) if result["errors"] else None,
         )
 
-    # Future: add gmail, drive, confluence branches here
+    elif source == "gdrive":
+        from backend import gdrive_oauth
+        from backend import gdrive_connector
+        access_token = await gdrive_oauth.get_valid_token(tenant_id, db_pool)
+        result = await gdrive_connector.ingest_from_gdrive(
+            access_token=access_token,
+            db_pool=db_pool,
+            tenant_id=tenant_id,
+        )
+        await _log_sync(
+            db_pool, tenant_id, source,
+            result["ingested"],
+            "; ".join(result["errors"]) if result["errors"] else None,
+        )
+
+    elif source == "confluence":
+        from backend import confluence_connector
+        result = await confluence_connector.ingest_from_confluence(
+            confluence_url=token_dict["confluence_url"],
+            email=token_dict["email"],
+            api_token=token_dict["api_token"],
+            db_pool=db_pool,
+            tenant_id=tenant_id,
+        )
+        await _log_sync(
+            db_pool, tenant_id, source,
+            result["ingested"],
+            "; ".join(result["errors"]) if result["errors"] else None,
+        )
 
 
 async def _log_sync(

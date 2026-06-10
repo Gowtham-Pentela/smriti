@@ -138,8 +138,10 @@ async def run_tests():
     status = resp.json()
     r.record("indexed_chunks_count" in status, "/status returns indexed_chunks_count",
              f"keys: {list(status.keys())}")
+    resp_files = await client.get("/files")
+    files_data = resp_files.json()
     info(f"Current DB state: {status.get('indexed_chunks_count', '?')} chunks, "
-         f"{len(status.get('indexed_files', []))} files")
+         f"{len(files_data.get('indexed_files', []))} files")
 
     # ────────────────────────────────────────────────────────────────────────────
     head("Test 3 — Clear Existing Index")
@@ -192,7 +194,9 @@ async def run_tests():
         resp = await client.get("/status")
         s = resp.json()
         chunks = s.get("indexed_chunks_count", 0)
-        files  = s.get("indexed_files", [])
+        resp_files = await client.get("/files")
+        s_files = resp_files.json()
+        files  = s_files.get('indexed_files', [])
         r.record(chunks > 0, "Chunks written to DB", f"{chunks} chunks")
         r.record(len(files) > 0, "Files tracked in DB", f"{len(files)} files")
         info(f"Indexed files sample: {files[:5]}")

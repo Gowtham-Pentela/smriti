@@ -1300,3 +1300,216 @@ textarea:disabled { opacity: 0.45; cursor: not-allowed; }
 
 /* Copied flash */
 .copied-flash { color: var(--emerald) !important; }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   RESPONSIVE MOBILE STYLING & DRAWER SYSTEM
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* Sidebar and canvas drawer toggle buttons (hidden on desktop) */
+.topbar-toggle-btn {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    padding: 0;
+}
+.topbar-toggle-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+    border-color: var(--border-soft);
+}
+.topbar-toggle-btn:focus-visible {
+    outline: 2px solid var(--border-accent);
+    outline-offset: 2px;
+}
+
+/* Global drawer backdrop overlay (hidden on desktop) */
+.drawer-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 999;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.drawer-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+@media (max-width: 800px) {
+    /* Show mobile toggle buttons */
+    .topbar-toggle-btn {
+        display: flex;
+    }
+
+    /* Transform Sidebar into left slide-out drawer */
+    .sidebar {
+        position: fixed;
+        top: 0;
+        bottom: 0;
+        left: -260px; /* Hide offscreen */
+        width: 256px;
+        min-width: 256px;
+        z-index: 1000;
+        box-shadow: 0 0 32px rgba(0, 0, 0, 0.5);
+        border-right: 1px solid var(--border);
+        transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.2s;
+    }
+    .sidebar.open {
+        left: 0;
+    }
+
+    /* Transform Canvas Column into right slide-out drawer */
+    .canvas-column {
+        position: fixed;
+        top: 0;
+        bottom: 0;
+        right: -330px; /* Hide offscreen */
+        width: 320px;
+        min-width: 320px;
+        z-index: 1000;
+        box-shadow: 0 0 32px rgba(0, 0, 0, 0.5);
+        border-left: 1px solid var(--border);
+        transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.2s;
+    }
+    .canvas-column.open {
+        right: 0;
+    }
+
+    /* Adjust chat column display on mobile */
+    .chat-column {
+        border-right: none; /* Occupy full screen width */
+    }
+
+    /* Welcome state responsive padding and scaling */
+    .welcome-state {
+        padding: 36px 16px 24px;
+    }
+    .welcome-title {
+        font-size: 18px;
+        margin-top: 10px;
+    }
+    .welcome-sub {
+        font-size: 12px;
+        margin-bottom: 20px;
+    }
+
+    /* Stack example grid to a single column */
+    .example-grid {
+        grid-template-columns: 1fr;
+        gap: 6px;
+    }
+
+    /* Input zone & input bar styling on mobile */
+    .input-zone {
+        padding: 10px 12px 12px;
+    }
+    .input-card {
+        border-radius: 12px;
+    }
+    .input-bar {
+        padding: 10px 10px 8px 12px;
+        gap: 6px;
+    }
+    .input-plus {
+        font-size: 16px;
+    }
+    textarea {
+        font-size: 13px;
+        min-height: 20px;
+    }
+    
+    .input-meta {
+        padding-top: 4px;
+        font-size: 10px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+    .input-hint {
+        display: none; /* Hide key shortcuts on mobile touch screens */
+    }
+
+    .service-pills-row {
+        padding: 6px 8px 8px;
+    }
+    .pill-actions {
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+    
+    /* Topbar padding adjustment */
+    .topbar {
+        padding: 10px 12px;
+    }
+    .topbar-title {
+        font-size: 14px;
+    }
+    .topbar-sub {
+        font-size: 10px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 180px;
+    }
+    
+    /* Message feed bubble padding on mobile */
+    .message-block {
+        padding: 12px 16px;
+    }
+}
+
+/* Workspace Settings styles */
+#settings-members-list tr, #settings-invites-list tr {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    transition: background 0.15s ease;
+}
+#settings-members-list tr:hover, #settings-invites-list tr:hover {
+    background: rgba(255, 255, 255, 0.02);
+}
+#settings-members-list td, #settings-invites-list td {
+    padding: 8px 12px;
+    vertical-align: middle;
+    color: rgba(255, 255, 255, 0.85);
+}
+.settings-action-btn {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.45);
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: all 0.15s ease;
+}
+.settings-action-btn:hover {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.08);
+}
+.settings-copy-btn {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 10px;
+    cursor: pointer;
+    padding: 3px 8px;
+    border-radius: 4px;
+    transition: all 0.15s ease;
+}
+.settings-copy-btn:hover {
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.08);
+}

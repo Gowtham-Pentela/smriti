@@ -149,33 +149,128 @@ async def extract_user_identity(request: Request) -> UserIdentity:
 
 async def get_current_user(request: Request) -> UserIdentity:
     """
-    FastAPI dependency. Extracts identity and attaches a per-user tenant_id
-    to request.state.
+    FastAPI dependency. Extracts identity and resolves the shared org-level tenant_id.
 
     Data isolation model:
-      - Each Supabase user_id UUID is their private data silo (tenant_id).
-      - Documents indexed by User A are never visible to User B.
-      - Upgrading to org-level isolation later is one line: use org_id instead.
-
-    Usage:
-        @app.get("/query")
-        async def query(user: UserIdentity = Depends(get_current_user)):
-            ...
+      - Workspace is shared among users of the same corporate domain.
+      - Public domains (gmail.com, etc.) fall back to isolated private silos.
+      - Invitations override domain-based resolution.
     """
+    import uuid as _uuid
     user = await extract_user_identity(request)
+    db_pool = request.app.state.db_pool
 
-    # Use the Supabase user_id directly as the tenant_id.
-    # This gives strict per-user isolation without any additional DB lookup.
-    # Dev mode generates a deterministic UUID from the dev email so local
-    # testing still works without a real Supabase session.
+    # Determine user email and user_uuid
+    email = user.email
     if user.user_id.startswith("dev:"):
-        import uuid as _uuid
         _NS = _uuid.UUID("a1b2c3d4-e5f6-7890-abcd-ef1234567890")
-        per_user_tenant_id = str(_uuid.uuid5(_NS, user.user_id))
+        user_uuid = _uuid.uuid5(_NS, user.user_id)
     else:
-        per_user_tenant_id = user.user_id  # already a valid UUID from Supabase
+        user_uuid = _uuid.UUID(user.user_id)
 
-    request.state.tenant_id        = per_user_tenant_id
-    request.state.tenant_namespace = per_user_tenant_id
+    resolved_tenant_id = None
+    role = "member"  # default
+
+    async with db_pool.acquire() as conn:
+        # 1. Check if user already has an active membership in user_org_membership
+        row = await conn.fetchrow(
+            "SELECT tenant_id, role FROM public.user_org_membership WHERE user_id = $1",
+            user_uuid
+        )
+        if row:
+            resolved_tenant_id = str(row["tenant_id"])
+            role = row["role"]
+        else:
+            # 2. Check if there is a pending invite in org_invites for this email
+            invite_row = await conn.fetchrow(
+                "SELECT id, tenant_id, role FROM public.org_invites WHERE invited_email = $1 AND accepted_at IS NULL",
+                email
+            )
+            if invite_row:
+                resolved_tenant_id = str(invite_row["tenant_id"])
+                role = invite_row["role"]
+                # Auto-accept the invite: insert membership and set accepted_at
+                async with conn.transaction():
+                    await conn.execute(
+                        """
+                        INSERT INTO public.user_org_membership (user_id, tenant_id, role, email)
+                        VALUES ($1, $2, $3, $4)
+                        ON CONFLICT (user_id) DO UPDATE SET
+                          tenant_id = EXCLUDED.tenant_id,
+                          role = EXCLUDED.role,
+                          email = EXCLUDED.email
+                        """,
+                        user_uuid, invite_row["tenant_id"], role, email
+                    )
+                    await conn.execute(
+                        "UPDATE public.org_invites SET accepted_at = NOW() WHERE id = $1",
+                        invite_row["id"]
+                    )
+            else:
+                # 3. Resolve based on email domain
+                from backend.tenant import get_or_provision_tenant
+                domain = user.domain
+                PUBLIC_DOMAINS = {"gmail.com", "yahoo.com", "hotmail.com", "outlook.com", "icloud.com", "aol.com", "mail.com", "protonmail.com"}
+
+                if domain in PUBLIC_DOMAINS:
+                    # Public domain -> Personal silo (use user_uuid directly to preserve backward compatibility with pre-partitioned data)
+                    personal_tenant_id = user_uuid
+
+                    # Provision personal workspace in tenant_registry
+                    async with conn.transaction():
+                        await conn.execute(
+                            """
+                            INSERT INTO tenant_registry (tenant_id, email_domain, company_name)
+                            VALUES ($1, $2, $3)
+                            ON CONFLICT (email_domain) DO UPDATE SET
+                              company_name = EXCLUDED.company_name
+                            """,
+                            personal_tenant_id, f"personal-{user_uuid}.com", f"Personal ({user.email.split('@')[0]})"
+                        )
+                        await conn.execute(
+                            """
+                            INSERT INTO public.user_org_membership (user_id, tenant_id, role, email)
+                            VALUES ($1, $2, $3, $4)
+                            ON CONFLICT (user_id) DO NOTHING
+                            """,
+                            user_uuid, personal_tenant_id, "admin", email
+                        )
+                    resolved_tenant_id = str(personal_tenant_id)
+                    role = "admin"
+                else:
+                    # Corporate domain -> Shared tenant
+                    tenant_record = await get_or_provision_tenant(domain, db_pool)
+                    resolved_tenant_id = tenant_record.tenant_id
+
+                    # Assign admin to first user, member to subsequent ones
+                    async with conn.transaction():
+                        member_count = await conn.fetchval(
+                            "SELECT count(*) FROM public.user_org_membership WHERE tenant_id = $1::uuid",
+                            _uuid.UUID(resolved_tenant_id)
+                        )
+                        assigned_role = "admin" if member_count == 0 else "member"
+
+                        await conn.execute(
+                            f"SET LOCAL app.current_tenant_id = '{resolved_tenant_id}'"
+                        )
+                        await conn.execute(
+                            """
+                            INSERT INTO public.user_org_membership (user_id, tenant_id, role, email)
+                            VALUES ($1, $2::uuid, $3, $4)
+                            ON CONFLICT (user_id) DO NOTHING
+                            """,
+                            user_uuid, _uuid.UUID(resolved_tenant_id), assigned_role, email
+                        )
+                        # Fetch back final role
+                        db_role = await conn.fetchval(
+                            "SELECT role FROM public.user_org_membership WHERE user_id = $1",
+                            user_uuid
+                        )
+                        if db_role:
+                            role = db_role
+
+    request.state.tenant_id        = resolved_tenant_id
+    request.state.tenant_namespace = resolved_tenant_id
     request.state.user             = user
+    user.is_admin                  = (role == "admin")
     return user

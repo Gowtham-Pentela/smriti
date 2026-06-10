@@ -87,22 +87,12 @@ Q4_K_M quantization retains 95–98% of full-precision quality while reducing me
 
 phi4-mini's reasoning capability is compensated by the grounding firewall: the model's only job is to synthesize and paraphrase retrieved chunks. Factual accuracy is enforced by the grounding layer, not the model weights.
 
-### Multi-Tenant Data Isolation
+### Multi-Tenant & Org-Level Isolation
 
-Each user (or organization) gets its own Postgres schema. Row-level security prevents cross-tenant access.
-
-```sql
--- Chunks table with pgvector embedding column
-CREATE TABLE tenant_{uuid}.vector_chunks (
-    id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    source_id        TEXT NOT NULL,
-    source_type      TEXT NOT NULL,   -- 'slack', 'document', 'gdrive'
-    channel_or_space TEXT,
-    content          TEXT NOT NULL,
-    embedding        vector(768),
-    ingested_at      TIMESTAMPTZ DEFAULT NOW()
-);
-```
+To isolate data across organizations and users, Smriti partitions all indexed files and vector chunks using a tenant UUID:
+1. **Shared Partitioned Table**: All vector chunks are stored in `tenant_redwood_inference_prod.vector_chunks`, secured with `tenant_id` partitioning.
+2. **Access Control**: Queries enforce membership permissions by matching the user's email or domain against the workspace's registry (`public.user_org_membership`).
+3. **Session Context**: Database operations utilize `SET LOCAL app.current_tenant_id` inside scoped transactions to prevent cross-tenant data leakage.
 
 ### Retrieval Pipeline
 
@@ -131,6 +121,16 @@ For every generated sentence:
 6. If all sentences are stripped → fallback: "I cannot find the answer in the provided documents"
 
 A second LLM verification call was considered and rejected: it added 20–90 seconds of latency and blocked the asyncio event loop.
+
+### Answer Quality & Fallback Handling
+
+Smriti implements a multi-stage answer quality filter to prevent hallucination and ensure helpful answers:
+1. **Question Type Detection**: The pipeline analyzes the user query to distinguish between **Factual** (direct questions) and **Exploratory** (summaries, tutorials, comparisons) queries.
+2. **Dynamic Prompt & Parameter Tuning**:
+   - *Factual*: Uses a highly precise system prompt and sets `temperature = 0.0` to enforce strict accuracy.
+   - *Exploratory*: Encourages synthesis and structuring, setting `temperature = 0.3` for detailed explanations.
+3. **Similarity Score Guard**: Queries with a top vector similarity score below `0.51` are rejected immediately to screen out completely unrelated topics.
+4. **Admin Fallback Admission**: If the database contains no relevant documents, or if the grounding verification fails, the response is overridden with: `"I don't have that information from the indexed documents, please contact <admin_email>"`, dynamically resolving the email of the active workspace admin.
 
 ---
 
@@ -363,6 +363,10 @@ smriti/
 │   └── images/              # Logo and section illustrations
 ├── supabase/
 │   └── migrations/          # SQL schema migrations (pgvector, indexes, RLS)
+├── tests/
+│   ├── integration_test.py   # E2E integration test suite
+│   ├── test_org_workspace.py # Organization workspace unit tests
+│   └── test_answer_quality.py # Answer quality unit tests
 ├── requirements.txt          # Python dependencies (all pinned)
 ├── .env.example             # Environment variable reference
 └── README.md

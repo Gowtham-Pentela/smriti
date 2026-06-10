@@ -75,6 +75,7 @@ from backend.transcription import transcribe_video
 from backend.grounding import validate_response, extract_citations, MODEL_NAME
 from backend import slack_connector
 from backend import gdrive_connector as _gdrive_connector
+from backend import confluence_connector as _confluence_connector
 from backend.db import check_and_mark_ingested, save_tenant_credentials, load_tenant_credentials
 from backend.auth import get_current_user, UserIdentity
 from backend import sync_scheduler
@@ -271,10 +272,15 @@ app.add_middleware(
 class IndexRequest(BaseModel):
     folder_path: str
 
+class ChatMessage(BaseModel):
+    role:            str                 # "user" or "assistant"
+    content:         str
+
 class QueryRequest(BaseModel):
     query:           str
     top_k:           int = 6             # number of chunks to retrieve (capped at 10 in route)
     category_filter: Optional[str] = None  # e.g. "deployment", "requirements"
+    history:         Optional[List[ChatMessage]] = None
 
 
 def _sanitize(text: str) -> str:
@@ -296,6 +302,18 @@ class IngestSlackRequest(BaseModel):
     channel_ids: List[str]
     days_back:   int  = 90
     save_token:  bool = False
+
+class ConfluenceConnectRequest(BaseModel):
+    confluence_url: str
+    email:   str
+    api_token: str
+
+class OrgInviteRequest(BaseModel):
+    email: str
+    role:  str
+
+class OrgInfoPatchRequest(BaseModel):
+    company_name: str
 
 # ─── Async Ollama Embedding ───────────────────────────────────────────────────
 
@@ -708,7 +726,8 @@ async def ingest_file(
             raise HTTPException(status_code=422, detail="No text could be extracted from this file.")
 
         db_pool = request.app.state.db_pool
-        await pg_ingest_chunks(chunks, db_pool, tenant_id=user.user_id)
+        tenant_id = getattr(request.state, "tenant_id", None)
+        await pg_ingest_chunks(chunks, db_pool, tenant_id=tenant_id)
         return {
             "status": "ok",
             "filename": source_name,
@@ -849,6 +868,259 @@ async def admin_clear_my_data(
 async def get_me(user: UserIdentity = Depends(get_current_user)):
     """Return the currently authenticated user identity."""
     return {"email": user.email, "domain": user.domain, "is_admin": user.is_admin}
+
+
+@app.get("/org/info")
+async def get_org_info(
+    request: Request,
+    user: UserIdentity = Depends(get_current_user),
+):
+    """Return organization details, members, and pending invites."""
+    tenant_id = getattr(request.state, "tenant_id", None)
+    if not tenant_id:
+        raise HTTPException(status_code=401, detail="No active workspace found.")
+
+    try:
+        tenant_uuid = uuid.UUID(tenant_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid workspace ID.")
+
+    async with app.state.db_pool.acquire() as conn:
+        # 1. Fetch organization details
+        org_row = await conn.fetchrow(
+            "SELECT email_domain, company_name, provisioned_at FROM tenant_registry WHERE tenant_id = $1",
+            tenant_uuid,
+        )
+        if not org_row:
+            company_name = user.domain.split(".")[0].capitalize()
+            email_domain = user.domain
+        else:
+            company_name = org_row["company_name"] or user.domain.split(".")[0].capitalize()
+            email_domain = org_row["email_domain"]
+
+        # 2. Fetch active members
+        member_rows = await conn.fetch(
+            """
+            SELECT user_id, email, role, joined_at 
+            FROM public.user_org_membership 
+            WHERE tenant_id = $1::uuid 
+            ORDER BY joined_at ASC
+            """,
+            tenant_uuid,
+        )
+        members = [
+            {
+                "user_id": str(r["user_id"]),
+                "email": r["email"],
+                "role": r["role"],
+                "joined_at": r["joined_at"].isoformat() if r["joined_at"] else None,
+            }
+            for r in member_rows
+        ]
+
+        # 3. Fetch pending invites
+        invite_rows = await conn.fetch(
+            """
+            SELECT id, invited_email, role, created_at 
+            FROM public.org_invites 
+            WHERE tenant_id = $1::uuid AND accepted_at IS NULL 
+            ORDER BY created_at ASC
+            """,
+            tenant_uuid,
+        )
+        invites = [
+            {
+                "id": str(r["id"]),
+                "email": r["invited_email"],
+                "role": r["role"],
+                "created_at": r["created_at"].isoformat() if r["created_at"] else None,
+                "invite_link": f"https://smriti.one/app/auth.html?invite={r['id']}",
+            }
+            for r in invite_rows
+        ]
+
+    return {
+        "status": "ok",
+        "company_name": company_name,
+        "email_domain": email_domain,
+        "role": "admin" if user.is_admin else "member",
+        "members": members,
+        "invites": invites,
+    }
+
+
+@app.post("/org/invite")
+async def invite_org_member(
+    req: OrgInviteRequest,
+    request: Request,
+    user: UserIdentity = Depends(get_current_user),
+):
+    """Invite a new team member to this organization. restricted to admins."""
+    if not user.is_admin:
+        raise HTTPException(status_code=403, detail="Only workspace admins can invite members.")
+
+    tenant_id = getattr(request.state, "tenant_id", None)
+    if not tenant_id:
+        raise HTTPException(status_code=401, detail="No active workspace found.")
+
+    invited_email = req.email.strip().lower()
+    role = req.role.strip().lower()
+    if role not in ("admin", "member"):
+        raise HTTPException(status_code=400, detail="Invalid role specified. Use 'admin' or 'member'.")
+
+    # Generate deterministic user UUID for the current user for invited_by (needed if in dev mode)
+    if user.user_id.startswith("dev:"):
+        import uuid as _uuid
+        _NS = _uuid.UUID("a1b2c3d4-e5f6-7890-abcd-ef1234567890")
+        user_uuid = _uuid.uuid5(_NS, user.user_id)
+    else:
+        user_uuid = uuid.UUID(user.user_id)
+
+    try:
+        tenant_uuid = uuid.UUID(tenant_id)
+        async with app.state.db_pool.acquire() as conn:
+            # Check if email is already a member
+            existing_member = await conn.fetchval(
+                "SELECT count(*) FROM public.user_org_membership WHERE tenant_id = $1::uuid AND email = $2",
+                tenant_uuid,
+                invited_email,
+            )
+            if existing_member > 0:
+                raise HTTPException(status_code=400, detail="User is already a member of this workspace.")
+
+            # Create or update invite
+            await conn.execute(
+                """
+                INSERT INTO public.org_invites (tenant_id, invited_email, role, invited_by)
+                VALUES ($1::uuid, $2, $3, $4)
+                ON CONFLICT ON CONSTRAINT uq_org_invites_tenant_email
+                DO UPDATE SET
+                    role = EXCLUDED.role,
+                    created_at = NOW(),
+                    accepted_at = NULL
+                """,
+                tenant_uuid,
+                invited_email,
+                role,
+                user_uuid,
+            )
+        return {"status": "ok", "message": f"Invitation successfully created for {invited_email}"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to create invite: {e}")
+
+
+@app.delete("/org/invites/{invite_id}")
+async def cancel_org_invite(
+    invite_id: str,
+    request: Request,
+    user: UserIdentity = Depends(get_current_user),
+):
+    """Revoke a pending team invitation. restricted to admins."""
+    if not user.is_admin:
+        raise HTTPException(status_code=403, detail="Only workspace admins can cancel invites.")
+
+    tenant_id = getattr(request.state, "tenant_id", None)
+    if not tenant_id:
+        raise HTTPException(status_code=401, detail="No active workspace found.")
+
+    try:
+        invite_uuid = uuid.UUID(invite_id)
+        tenant_uuid = uuid.UUID(tenant_id)
+        async with app.state.db_pool.acquire() as conn:
+            deleted = await conn.execute(
+                "DELETE FROM public.org_invites WHERE id = $1 AND tenant_id = $2",
+                invite_uuid,
+                tenant_uuid,
+            )
+        if "DELETE 0" in deleted:
+            raise HTTPException(status_code=404, detail="Invitation not found or already accepted.")
+        return {"status": "ok", "message": "Invitation successfully canceled."}
+    except HTTPException:
+        raise
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid invitation ID format.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to cancel invite: {e}")
+
+
+@app.delete("/org/members/{member_user_id}")
+async def remove_org_member(
+    member_user_id: str,
+    request: Request,
+    user: UserIdentity = Depends(get_current_user),
+):
+    """Remove a user from this organization. restricted to admins."""
+    if not user.is_admin:
+        raise HTTPException(status_code=403, detail="Only workspace admins can remove members.")
+
+    tenant_id = getattr(request.state, "tenant_id", None)
+    if not tenant_id:
+        raise HTTPException(status_code=401, detail="No active workspace found.")
+
+    # Determine caller user_uuid
+    if user.user_id.startswith("dev:"):
+        import uuid as _uuid
+        _NS = _uuid.UUID("a1b2c3d4-e5f6-7890-abcd-ef1234567890")
+        user_uuid = _uuid.uuid5(_NS, user.user_id)
+    else:
+        user_uuid = uuid.UUID(user.user_id)
+
+    try:
+        member_uuid = uuid.UUID(member_user_id)
+        tenant_uuid = uuid.UUID(tenant_id)
+
+        if member_uuid == user_uuid:
+            raise HTTPException(status_code=400, detail="You cannot remove yourself from the workspace.")
+
+        async with app.state.db_pool.acquire() as conn:
+            deleted = await conn.execute(
+                "DELETE FROM public.user_org_membership WHERE user_id = $1 AND tenant_id = $2",
+                member_uuid,
+                tenant_uuid,
+            )
+        if "DELETE 0" in deleted:
+            raise HTTPException(status_code=404, detail="Member not found in this workspace.")
+        return {"status": "ok", "message": "Member successfully removed from workspace."}
+    except HTTPException:
+        raise
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid user ID format.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to remove member: {e}")
+
+
+@app.patch("/org/info")
+async def update_org_info(
+    req: OrgInfoPatchRequest,
+    request: Request,
+    user: UserIdentity = Depends(get_current_user),
+):
+    """Update organization profile details (e.g. company display name). restricted to admins."""
+    if not user.is_admin:
+        raise HTTPException(status_code=403, detail="Only workspace admins can update organization settings.")
+
+    tenant_id = getattr(request.state, "tenant_id", None)
+    if not tenant_id:
+        raise HTTPException(status_code=401, detail="No active workspace found.")
+
+    company_name = req.company_name.strip()
+    if not company_name:
+        raise HTTPException(status_code=400, detail="Company name cannot be empty.")
+
+    try:
+        tenant_uuid = uuid.UUID(tenant_id)
+        async with app.state.db_pool.acquire() as conn:
+            await conn.execute(
+                "UPDATE tenant_registry SET company_name = $1 WHERE tenant_id = $2",
+                company_name,
+                tenant_uuid,
+            )
+        return {"status": "ok", "message": "Workspace settings updated successfully."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update settings: {e}")
+
 
 
 @app.delete("/account")
@@ -1164,6 +1436,161 @@ async def gdrive_disconnect(
         )
 
 
+@app.get("/confluence/status")
+async def confluence_status(
+    request: Request,
+    user: UserIdentity = Depends(get_current_user),
+):
+    """Check whether Confluence is connected for this user."""
+    tenant_id = getattr(request.state, "tenant_id", None)
+    if not tenant_id:
+        return {"connected": False}
+    async with app.state.db_pool.acquire() as conn:
+        creds = await load_tenant_credentials(conn, tenant_id, "confluence")
+    return {
+        "connected":    creds is not None,
+        "connected_at": creds.get("connected_at") if creds else None,
+    }
+
+
+@app.post("/confluence/connect")
+async def confluence_connect(
+    req: ConfluenceConnectRequest,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    user: UserIdentity = Depends(get_current_user),
+):
+    """Connect Confluence with URL + credentials, verify them, and index in background."""
+    tenant_id = getattr(request.state, "tenant_id", None)
+    if not tenant_id:
+        raise HTTPException(status_code=401, detail="Not authenticated.")
+        
+    url = _confluence_connector.normalize_confluence_url(req.confluence_url)
+    
+    # Verify connection
+    is_valid = await _confluence_connector.verify_confluence_credentials(
+        url, req.email, req.api_token
+    )
+    if not is_valid:
+        raise HTTPException(
+            status_code=400,
+            detail="Could not connect to Confluence. Please check URL, email, and API token.",
+        )
+        
+    token_dict = {
+        "confluence_url": url,
+        "email":          req.email,
+        "api_token":      req.api_token,
+        "connected_at":   int(time.time()),
+    }
+    
+    async with app.state.db_pool.acquire() as conn:
+        await save_tenant_credentials(
+            conn=conn,
+            tenant_id=tenant_id,
+            source="confluence",
+            token_dict=token_dict,
+        )
+        
+    print(f"✅ Confluence connected for tenant={tenant_id} by {user.email}")
+    
+    # Auto-trigger indexing in background
+    background_tasks.add_task(
+        _run_confluence_ingest_task, tenant_id, url, req.email, req.api_token
+    )
+    
+    return {"status": "connected", "message": "Confluence connected and indexing started."}
+
+
+async def _run_confluence_ingest_task(tenant_id: str, url: str, email: str, api_token: str):
+    global _connector_status
+    _connector_status.update({
+        "is_running": True,
+        "connector":  "confluence",
+        "ingested":   0,
+        "skipped":    0,
+        "errors":     [],
+        "message":    "running",
+    })
+    try:
+        result = await _confluence_connector.ingest_from_confluence(
+            confluence_url=url,
+            email=email,
+            api_token=api_token,
+            db_pool=app.state.db_pool,
+            tenant_id=tenant_id,
+        )
+        _connector_status.update({
+            "ingested": result["ingested"],
+            "skipped":  result["skipped"],
+            "errors":   result["errors"],
+            "message":  f"completed — {result['files']} pages processed",
+        })
+    except Exception as e:
+        _connector_status["errors"].append(str(e))
+        _connector_status["message"] = f"failed: {e}"
+        print(f"  ✗ Confluence ingest error: {e}")
+    finally:
+        _connector_status["is_running"] = False
+
+
+@app.post("/ingest-confluence")
+async def ingest_confluence(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    user: UserIdentity = Depends(get_current_user),
+):
+    """Manually trigger Confluence background sync."""
+    tenant_id = getattr(request.state, "tenant_id", None)
+    if not tenant_id:
+        raise HTTPException(status_code=401, detail="Not authenticated.")
+    if _connector_status["is_running"]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"A connector is already running: {_connector_status['connector']}",
+        )
+        
+    async with app.state.db_pool.acquire() as conn:
+        creds = await load_tenant_credentials(conn, tenant_id, "confluence")
+        
+    if not creds:
+        raise HTTPException(
+            status_code=400,
+            detail="Confluence is not connected. Connect Confluence first.",
+        )
+        
+    background_tasks.add_task(
+        _run_confluence_ingest_task,
+        tenant_id,
+        creds["confluence_url"],
+        creds["email"],
+        creds["api_token"],
+    )
+    return {"status": "started", "message": "Confluence sync started in the background."}
+
+
+@app.delete("/confluence/disconnect")
+async def confluence_disconnect(
+    request: Request,
+    user: UserIdentity = Depends(get_current_user),
+):
+    """Disconnect Confluence: removes stored credentials."""
+    tenant_id = getattr(request.state, "tenant_id", None)
+    if not tenant_id:
+        raise HTTPException(status_code=401, detail="Not authenticated.")
+    from backend.db import delete_tenant_credentials
+    async with app.state.db_pool.acquire() as conn:
+        deleted = await delete_tenant_credentials(conn, tenant_id, "confluence")
+    if deleted:
+        print(f"✅ Confluence disconnected for tenant={tenant_id} by {user.email}")
+        return {"status": "disconnected", "source": "confluence"}
+    else:
+        raise HTTPException(
+            status_code=404,
+            detail="No Confluence connection found for this tenant.",
+        )
+
+
 
 # ─── Sync Status ─────────────────────────────────────────────────────────────
 
@@ -1184,6 +1611,43 @@ async def trigger_sync_now(
     background_tasks.add_task(sync_scheduler.sync_all_tenants, app.state.db_pool)
     return {"status": "sync triggered"}
 
+
+
+def detect_question_type(query_text: str) -> str:
+    """Classifies the query as 'exploratory' or 'factual'."""
+    q = query_text.lower().strip()
+    
+    # Common exploratory indicators
+    exploratory_indicators = [
+        r"\bexplain\b",
+        r"\bsummarize\b",
+        r"\bsummary\b",
+        r"\bdescribe\b",
+        r"\bcompare\b",
+        r"\bdifference\b",
+        r"\bdifferences\b",
+        r"\bwhy\b",
+        r"\bhow to\b",
+        r"\bhow does\b",
+        r"\bhow do i\b",
+        r"\bhow can i\b",
+        r"\btutorial\b",
+        r"\bguide\b",
+        r"\bwalkthrough\b",
+        r"\boverview\b",
+        r"\banalyze\b",
+        r"\bevaluate\b",
+        r"\bsynthesis\b",
+        r"\bsynthesize\b",
+        r"\bdetail\b",
+        r"\bdetails of\b"
+    ]
+    
+    for pattern in exploratory_indicators:
+        if re.search(pattern, q):
+            return "exploratory"
+            
+    return "factual"
 
 
 @app.post("/query")
@@ -1325,6 +1789,7 @@ async def process_query(
                     "author_id":         r["author_id"],
                     "document_category": r["document_category"],
                     "score":             float(r["combined_score"]),
+                    "semantic_score":    float(r["semantic_score"]),
                 })
 
             # Graph cold-start: if no experts yet, return a descriptive message
@@ -1340,10 +1805,29 @@ async def process_query(
         print(f"Hybrid Postgres query error: {e}")
         raise HTTPException(status_code=500, detail=f"DB transaction failure: {e}")
 
+    # Filter retrieved chunks based on a semantic relevance threshold
+    if retrieved_chunks:
+        max_semantic_score = max(c["semantic_score"] for c in retrieved_chunks)
+        if max_semantic_score < 0.51:
+            print(f"  [query] Top semantic score {max_semantic_score:.4f} < 0.51 threshold. Clearing retrieved chunks.")
+            retrieved_chunks = []
+
     if not retrieved_chunks:
+        admin_email = "admin.smritione@gmail.com"
+        try:
+            async with app.state.db_pool.acquire() as conn:
+                admin_row = await conn.fetchrow(
+                    "SELECT email FROM public.user_org_membership WHERE tenant_id = $1::uuid AND role = 'admin' LIMIT 1",
+                    tenant_id_str,
+                )
+                if admin_row and admin_row["email"]:
+                    admin_email = admin_row["email"]
+        except Exception as e:
+            print(f"Error fetching admin email: {e}")
+
         return {
             "query": req.query,
-            "response": "No relevant organizational history found within the indexed knowledge base.",
+            "response": f"I don't have that information from the indexed documents, please contact {admin_email}",
             "citations": [],
             "retrieved_context": [],
             "experts": experts,
@@ -1376,39 +1860,56 @@ async def process_query(
         )
 
 
-    system_prompt = (
-        "You are Smriti, a friendly and knowledgeable assistant for this organization. "
-        "You have access to the organization's documents and answer questions in a natural, conversational way — "
-        "like a helpful colleague who has read all the docs.\n\n"
-        "RULES:\n"
-        "1. ALWAYS answer from the context provided. If the context contains relevant information, USE IT to give a clear, direct answer. "
-        "Never say 'I cannot find this' when the context blocks contain related content.\n"
-        "2. Be concise and natural. Write like a human, not a document. Example: 'KGF stands for Knowledge Guardian Foundry — "
-        "it's the internal name for this product.' NOT a bullet-point dump.\n"
-        "3. After each factual statement, add an inline citation: [Citation: filename, location]. "
-        "Example: KGF stands for Knowledge Guardian Foundry [Citation: demo_script.md, line 1].\n"
-        "4. Do NOT invent facts not in the context.\n"
-        "5. Only say 'I don't have information on that in the indexed documents' if the context is COMPLETELY unrelated to the question — "
-        "not just because the answer isn't spelled out word-for-word. Use judgment to synthesize.\n"
-        "6. Keep answers brief unless the question asks for detail. One clear paragraph is usually better than a list."
-    )
+    question_type = detect_question_type(query_text)
+    if question_type == "factual":
+        system_prompt = (
+            "You are Smriti, a friendly and knowledgeable assistant for this organization. "
+            "You have access to the organization's documents and answer questions in a natural, conversational way.\n"
+            "This is a FACTUAL query. Be extremely precise, concise, and direct.\n\n"
+            "RULES:\n"
+            "1. ALWAYS answer from the context provided. Focus on answering the question directly and precisely.\n"
+            "2. Keep the response short and to the point. One clear paragraph or a single sentence is preferred. Avoid unnecessary wordiness.\n"
+            "3. After each factual statement, add an inline citation: [Citation: filename, location]. "
+            "Example: KGF stands for Knowledge Guardian Foundry [Citation: demo_script.md, line 1].\n"
+            "4. Do NOT invent facts. If the context does not contain the answer to the question, or is unrelated to the question, you MUST say that you don't have information on that in the indexed documents.\n"
+            "5. Never use bullet-point dumps unless specifically asked. Write naturally like a helpful colleague."
+        )
+        temperature = 0.0
+    else:
+        system_prompt = (
+            "You are Smriti, a friendly and knowledgeable assistant for this organization. "
+            "You have access to the organization's documents and answer questions in a natural, conversational way.\n"
+            "This is an EXPLORATORY query. Provide a clear, comprehensive, and well-structured synthesis or explanation.\n\n"
+            "RULES:\n"
+            "1. Synthesize information from the provided context to explain concepts, processes, or summaries clearly.\n"
+            "2. Organize the answer logically. Use paragraph breaks or clear bullet points/numbered lists if describing steps or multi-part comparisons.\n"
+            "3. Add inline citations when referencing specific facts: [Citation: filename, location].\n"
+            "4. Do NOT invent facts. Stick strictly to the context. If the context does not contain the answer, state clearly that you don't have information on that in the indexed documents.\n"
+            "5. Keep the explanation engaging, comprehensive, and easy for a colleague to understand."
+        )
+        temperature = 0.3
 
     user_message = (
         f"CONTEXT:\n{context_str}\n"
         f"QUESTION: {req.query}"
     )
 
+    # Build message list (system prompt + history + current query)
+    messages = [{"role": "system", "content": system_prompt}]
+    if req.history:
+        # Keep last 6 messages to stay within context window
+        for msg in req.history[-6:]:
+            messages.append({"role": msg.role, "content": msg.content})
+    messages.append({"role": "user", "content": user_message})
+
     # ── 6. LLM generation (chat API) ─────────────────────────────────────────
     async with httpx.AsyncClient() as client:
         chat_payload = {
             "model": MODEL_NAME,
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user",   "content": user_message},
-            ],
+            "messages": messages,
             "stream": False,
             "options": {
-                "temperature": 0.1,
+                "temperature": temperature,
                 "num_ctx": 3072,
                 "num_predict": 512,
             },
@@ -1433,10 +1934,43 @@ async def process_query(
             # ── 7. Grounding firewall ─────────────────────────────────────────
             validated_response = validate_response(raw_response, retrieved_chunks)
 
+            # Check if validation result is fallback / cannot find
+            is_fallback = False
+            normalized_val = validated_response.replace("’", "'").replace("`", "'").strip()
+            if not normalized_val or normalized_val == "I cannot find the answer in the provided documents.":
+                is_fallback = True
+            else:
+                _FALLBACK_RE = re.compile(
+                    r"(cannot find (the answer|this)|unable to find|not find the answer|"
+                    r"no information|no info|don't have information|don't have info|do not have information|do not have info|"
+                    r"don't have that information|do not have that information|not have information on that|"
+                    r"not mention|not contain|not provided|does not provide|"
+                    r"do not know|don't know|no relevant info|cannot find this in|"
+                    r"no relevant organizational history)",
+                    re.IGNORECASE,
+                )
+                if _FALLBACK_RE.search(normalized_val):
+                    is_fallback = True
+
+            if is_fallback:
+                # Fetch admin email
+                admin_email = "admin.smritione@gmail.com"
+                try:
+                    async with app.state.db_pool.acquire() as conn:
+                        admin_row = await conn.fetchrow(
+                            "SELECT email FROM public.user_org_membership WHERE tenant_id = $1::uuid AND role = 'admin' LIMIT 1",
+                            tenant_id_str,
+                        )
+                        if admin_row and admin_row["email"]:
+                            admin_email = admin_row["email"]
+                except Exception as e:
+                    print(f"Error fetching admin email: {e}")
+                validated_response = f"I don't have that information from the indexed documents, please contact {admin_email}"
+
             accessed_files = [c["source"] for c in retrieved_chunks]
             write_audit_log(user_email, req.query, accessed_files)
 
-            citations = extract_citations(validated_response)
+            citations = [] if is_fallback else extract_citations(validated_response)
 
             payload = {
                 "query": req.query,

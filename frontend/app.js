@@ -102,17 +102,84 @@ const connectionStatus  = document.getElementById("connection-status");
 const citationTooltip   = document.getElementById("citation-tooltip");
 const expertList        = document.getElementById("expert-list");
 const sourcesList       = document.getElementById("sources-list");
+const btnClearChat      = document.getElementById("btn-clear-chat");
+const btnToggleSidebar  = document.getElementById("btn-toggle-sidebar");
+const btnToggleCanvas   = document.getElementById("btn-toggle-canvas");
+const drawerOverlay     = document.getElementById("drawer-overlay");
+const sidebar           = document.getElementById("sidebar");
+const canvasColumn      = document.getElementById("canvas-column");
+
+// Workspace Settings Refs
+const btnShowSettings   = document.getElementById("btn-show-settings");
+const settingsModal     = document.getElementById("settings-modal");
+const settingsClose     = document.getElementById("settings-close");
+const btnEditOrgName    = document.getElementById("btn-edit-org-name");
+const settingsOrgName   = document.getElementById("settings-org-name");
+const settingsOrgDomain = document.getElementById("settings-org-domain");
+const settingsOrgInput  = document.getElementById("settings-org-input");
+const settingsOrgEditRow = document.getElementById("settings-org-edit-row");
+const settingsOrgSave   = document.getElementById("settings-org-save");
+const settingsOrgCancel = document.getElementById("settings-org-cancel");
+const settingsInviteSection = document.getElementById("settings-invite-section");
+const settingsInviteEmail = document.getElementById("settings-invite-email");
+const settingsInviteRole = document.getElementById("settings-invite-role");
+const btnSendInvite     = document.getElementById("btn-send-invite");
+const settingsMembersList = document.getElementById("settings-members-list");
+const settingsInvitesList = document.getElementById("settings-invites-list");
 
 let indexingInterval     = null;
 let userCancelled        = false;
 let lastRetrievedContext = [];  // stored for citation tooltip lookups
 let lastQuery            = "";  // stored for regenerate
+let conversationHistory  = [];  // stored for multi-turn chat memory
 
 // ── Init ──────────────────────────────────────────────────────────────
 window.addEventListener("DOMContentLoaded", async () => {
     // Unauthenticated calls — fire immediately, no session needed
     checkBackendConnection();
     updateStats();
+
+    // Drawer toggle logic
+    if (btnToggleSidebar && sidebar && drawerOverlay) {
+        btnToggleSidebar.addEventListener("click", () => {
+            sidebar.classList.toggle("open");
+            if (canvasColumn) canvasColumn.classList.remove("open");
+            if (sidebar.classList.contains("open")) {
+                drawerOverlay.classList.add("active");
+            } else {
+                drawerOverlay.classList.remove("active");
+            }
+        });
+    }
+
+    if (btnToggleCanvas && canvasColumn && drawerOverlay) {
+        btnToggleCanvas.addEventListener("click", () => {
+            canvasColumn.classList.toggle("open");
+            if (sidebar) sidebar.classList.remove("open");
+            if (canvasColumn.classList.contains("open")) {
+                drawerOverlay.classList.add("active");
+            } else {
+                drawerOverlay.classList.remove("active");
+            }
+        });
+    }
+
+    if (drawerOverlay) {
+        drawerOverlay.addEventListener("click", () => {
+            if (sidebar) sidebar.classList.remove("open");
+            if (canvasColumn) canvasColumn.classList.remove("open");
+            drawerOverlay.classList.remove("active");
+        });
+    }
+
+    // Close drawers when clicking index options or upload components
+    const uploadDropZone = document.getElementById("upload-drop-zone");
+    if (uploadDropZone) {
+        uploadDropZone.addEventListener("click", () => {
+            if (sidebar) sidebar.classList.remove("open");
+            if (drawerOverlay) drawerOverlay.classList.remove("active");
+        });
+    }
 
     // Wait for the auth gate in index.html to confirm the session
     // (auth gate does: fetch /auth-config → getSession → sets window.sbSession)
@@ -124,10 +191,49 @@ window.addEventListener("DOMContentLoaded", async () => {
     loadFilesList();
     checkSlackConnection();
     checkDriveConnection();
+    checkConfluenceConnection();
     checkOAuthUrlParams();
+    loadWorkspaceProfile();
+
+    // Workspace Settings Modal bindings
+    if (btnShowSettings) btnShowSettings.addEventListener("click", showSettingsModal);
+    if (settingsClose) settingsClose.addEventListener("click", closeSettingsModal);
+    if (settingsModal) {
+        settingsModal.addEventListener("click", (e) => {
+            if (e.target === settingsModal) closeSettingsModal();
+        });
+    }
+    if (btnEditOrgName) btnEditOrgName.addEventListener("click", editOrgName);
+    if (settingsOrgName) settingsOrgName.addEventListener("dblclick", editOrgName);
+    if (settingsOrgSave) settingsOrgSave.addEventListener("click", saveOrgName);
+    if (settingsOrgCancel) settingsOrgCancel.addEventListener("click", cancelEditOrgName);
+    if (btnSendInvite) btnSendInvite.addEventListener("click", inviteMember);
+    if (settingsInviteEmail) {
+        settingsInviteEmail.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") inviteMember();
+        });
+    }
+
+    const btnConfCancel = document.getElementById("conf-cancel");
+    const btnConfConnect = document.getElementById("conf-connect");
+    if (btnConfCancel) btnConfCancel.addEventListener("click", closeConfluenceModal);
+    if (btnConfConnect) btnConfConnect.addEventListener("click", connectConfluence);
 
     btnClear.addEventListener("click", clearIndex);
     btnSend.addEventListener("click", sendQuery);
+    if (btnClearChat) {
+        btnClearChat.addEventListener("click", () => {
+            conversationHistory = [];
+            const welcome = document.getElementById("welcome-state");
+            chatHistory.innerHTML = "";
+            if (welcome) {
+                welcome.style.display = "";
+                chatHistory.appendChild(welcome);
+            }
+            renderExperts([]);
+            renderSources([]);
+        });
+    }
 
     queryInput.addEventListener("keydown", (e) => {
         if (e.key === "Enter" && !e.shiftKey) {
@@ -234,6 +340,12 @@ const PILL_SERVICES = {
         sync:       () => syncDrive(),
         disconnect: () => disconnectDrive(),
         label:      "Google Drive",
+    },
+    confluence: {
+        connect:    () => showConfluenceModal(),
+        sync:       () => syncConfluence(),
+        disconnect: () => disconnectConfluence(),
+        label:      "Confluence",
     },
 };
 
@@ -712,6 +824,11 @@ async function sendQuery(overrideQuery) {
     const query = overrideQuery || queryInput.value.trim();
     if (!query) return;
 
+    // Close drawers on mobile when sending query
+    if (sidebar) sidebar.classList.remove("open");
+    if (canvasColumn) canvasColumn.classList.remove("open");
+    if (drawerOverlay) drawerOverlay.classList.remove("active");
+
     lastQuery = query;
     _hideWelcome();
 
@@ -732,7 +849,7 @@ async function sendQuery(overrideQuery) {
         const r = await authFetch(`${API_BASE}/query`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ query }),
+            body: JSON.stringify({ query, history: conversationHistory }),
         });
 
         // Stream log: step 2
@@ -750,6 +867,10 @@ async function sendQuery(overrideQuery) {
             // Clear log, render telemetry in header
             logEl.innerHTML = "";
             _setTelemetry(headerEl, latencyMs, data.model || "phi4-mini · Q4_K_M");
+
+            // Add to conversation history
+            conversationHistory.push({ role: "user", content: query });
+            conversationHistory.push({ role: "assistant", content: data.response });
 
             lastRetrievedContext = data.retrieved_context || [];
             const body = formatResponse(data.response, lastRetrievedContext);
@@ -938,8 +1059,10 @@ function setupCiteEvents(container, blockEl) {
 
         // Hover → tooltip
         badge.addEventListener("mouseenter", (e) => {
+            const link = _getSourceLink(source, location);
+            const linkHtml = link ? ` <a href="${link}" target="_blank" class="tooltip-link" style="color:var(--color-primary);margin-left:8px;text-decoration:underline;font-weight:600;">Open ↗</a>` : "";
             citationTooltip.innerHTML = `
-                <div class="tooltip-src">[${num}] ${escHtml(source)} — ${escHtml(location)}</div>
+                <div class="tooltip-src">[${num}] ${escHtml(source)} — ${escHtml(location)}${linkHtml}</div>
                 <div class="tooltip-text">"${escHtml(snippet)}"</div>
             `;
             citationTooltip.classList.remove("hidden");
@@ -968,6 +1091,29 @@ function highlightSourceCard(num) {
     if (!card) return;
     card.classList.add("active", "expanded");
     card.scrollIntoView({ behavior: "smooth", block: "nearest" });
+
+    // Auto-open canvas drawer on mobile when citation is highlighted
+    if (window.innerWidth <= 800) {
+        if (canvasColumn) canvasColumn.classList.add("open");
+        if (sidebar) sidebar.classList.remove("open");
+        if (drawerOverlay) drawerOverlay.classList.add("active");
+    }
+}
+
+function _getSourceLink(source, location) {
+    if (!source) return null;
+    if (source.startsWith("gdrive_")) {
+        const fileId = source.substring(7);
+        return `https://drive.google.com/open?id=${fileId}`;
+    }
+    if (source.startsWith("slack_")) {
+        const parts = source.split("_");
+        if (parts.length >= 2) {
+            const channelId = parts[1];
+            return `https://slack.com/app_redirect?channel=${channelId}`;
+        }
+    }
+    return null;
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -1001,11 +1147,17 @@ function renderSources(chunks) {
         const card = document.createElement("div");
         card.className = "source-card";
         card.dataset.num = num;
+        
+        const link = _getSourceLink(sourceName, location);
+        const nameHtml = link
+            ? `<a href="${link}" target="_blank" class="source-link-anchor" style="color:var(--color-primary);text-decoration:none;font-weight:600;display:inline-flex;align-items:center;gap:4px;">${typeIcon} ${escHtml(truncate(sourceName, 32))} <svg viewBox="0 0 24 24" fill="none" width="10" height="10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg></a>`
+            : `${typeIcon} ${escHtml(truncate(sourceName, 32))}`;
+
         card.innerHTML = `
             <div class="source-card-header">
                 <div class="source-num">${num}</div>
                 <div class="source-card-meta">
-                    <div class="source-card-name">${typeIcon} ${escHtml(truncate(sourceName, 32))}</div>
+                    <div class="source-card-name">${nameHtml}</div>
                     <div class="source-card-loc">${escHtml(location)}</div>
                 </div>
                 <div class="source-card-score">${score}%</div>
@@ -1092,3 +1244,473 @@ function escHtml(s) {
 }
 function escAttr(s) { return String(s).replace(/"/g, "&quot;"); }
 function truncate(s, n) { return s && s.length > n ? s.substring(0, n) + "…" : s; }
+
+
+// ── Confluence connection ──────────────────────────────────────────────
+function showConfluenceModal() {
+    const modal = document.getElementById("confluence-modal");
+    if (modal) modal.style.display = "flex";
+}
+
+function closeConfluenceModal() {
+    const modal = document.getElementById("confluence-modal");
+    if (modal) modal.style.display = "none";
+    
+    const urlInput = document.getElementById("conf-url");
+    const emailInput = document.getElementById("conf-email");
+    const tokenInput = document.getElementById("conf-token");
+    if (urlInput) urlInput.value = "";
+    if (emailInput) emailInput.value = "";
+    if (tokenInput) tokenInput.value = "";
+}
+
+async function connectConfluence() {
+    const urlInput = document.getElementById("conf-url");
+    const emailInput = document.getElementById("conf-email");
+    const tokenInput = document.getElementById("conf-token");
+    const btn = document.getElementById("conf-connect");
+    
+    if (!urlInput || !emailInput || !tokenInput) return;
+    
+    const url = urlInput.value.trim();
+    const email = emailInput.value.trim();
+    const token = tokenInput.value.trim();
+    
+    if (!url || !email || !token) {
+        alert("Please fill in all fields (URL, email, and API token).");
+        return;
+    }
+    
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = "Connecting...";
+    }
+    
+    try {
+        const resp = await authFetch(`${API_BASE}/confluence/connect`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                confluence_url: url,
+                email: email,
+                api_token: token
+            })
+        });
+        
+        if (resp.ok) {
+            closeConfluenceModal();
+            _setConfluenceConnected();
+            const banner = document.getElementById("oauth-banner");
+            if (banner) {
+                banner.className = "oauth-toast success";
+                banner.innerHTML = "✅ Confluence connected! Ingestion started in the background. Check back in a few minutes.";
+                banner.classList.remove("hidden");
+            }
+            _pollConfluenceSyncStatus();
+        } else {
+            const err = await resp.json().catch(() => ({ detail: "Connection failed" }));
+            alert(`Error: ${err.detail}`);
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = "Connect & Sync";
+            }
+        }
+    } catch (e) {
+        alert("Network error connecting to Confluence.");
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = "Connect & Sync";
+        }
+    }
+}
+
+async function checkConfluenceConnection() {
+    try {
+        const resp = await authFetch(`${API_BASE}/confluence/status`);
+        if (!resp.ok) { _setConfluenceDisconnected(); return; }
+        const data = await resp.json();
+        if (data.connected) _setConfluenceConnected();
+        else _setConfluenceDisconnected();
+    } catch { /* backend offline */ }
+}
+
+function _setConfluenceConnected() {
+    const pill = document.getElementById("pill-confluence");
+    if (!pill) return;
+    pill.setAttribute("data-connected", "true");
+    
+    // Auto-select and show action bar if nothing is already selected
+    if (!_selectedPill) {
+        _selectedPill = "confluence";
+        pill.setAttribute("data-selected", "true");
+    }
+    _updatePillActions();
+}
+
+function _setConfluenceDisconnected() {
+    const pill = document.getElementById("pill-confluence");
+    if (!pill) return;
+    pill.setAttribute("data-connected", "false");
+    pill.removeAttribute("data-selected");
+    if (_selectedPill === "confluence") { _selectedPill = null; _updatePillActions(); }
+}
+
+async function syncConfluence() {
+    const banner = document.getElementById("oauth-banner");
+    const syncBtn = document.getElementById("pill-action-sync");
+    
+    if (syncBtn) { syncBtn.disabled = true; syncBtn.textContent = "Syncing..."; }
+    
+    try {
+        const resp = await authFetch(`${API_BASE}/ingest-confluence`, {
+            method: "POST"
+        });
+        
+        if (resp.ok) {
+            if (banner) {
+                banner.className = "oauth-toast success";
+                banner.innerHTML = "🔄 Confluence sync started in the background.";
+                banner.classList.remove("hidden");
+            }
+            _pollConfluenceSyncStatus();
+        } else {
+            const err = await resp.json().catch(() => ({ detail: "Sync failed" }));
+            if (banner) {
+                banner.className = "oauth-toast error";
+                banner.innerHTML = `❌ Confluence sync failed: ${err.detail}`;
+                banner.classList.remove("hidden");
+                setTimeout(() => banner.classList.add("hidden"), 8000);
+            }
+            if (syncBtn) { syncBtn.disabled = false; syncBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" width="13" height="13"><path d="M4 4v5h5M20 20v-5h-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 9a8 8 0 0 0-14.93-2M4 15a8 8 0 0 0 14.93 2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg> Sync Data`; }
+        }
+    } catch (e) {
+        if (banner) {
+            banner.className = "oauth-toast error";
+            banner.innerHTML = "❌ Network error starting Confluence sync.";
+            banner.classList.remove("hidden");
+            setTimeout(() => banner.classList.add("hidden"), 8000);
+        }
+        if (syncBtn) { syncBtn.disabled = false; syncBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" width="13" height="13"><path d="M4 4v5h5M20 20v-5h-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 9a8 8 0 0 0-14.93-2M4 15a8 8 0 0 0 14.93 2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg> Sync Data`; }
+    }
+}
+
+async function disconnectConfluence() {
+    const confirmed = await showConfirm(
+        "Disconnect Confluence?",
+        "Your stored Confluence credentials will be removed. " +
+        "Indexed wiki data stays in your database — clear it separately using the Clear Index button.",
+        "Disconnect"
+    );
+    if (!confirmed) return;
+    
+    const btnDisc = document.getElementById("pill-action-disc");
+    if (btnDisc) { btnDisc.disabled = true; btnDisc.textContent = "Disconnecting..."; }
+    
+    try {
+        const resp = await authFetch(`${API_BASE}/confluence/disconnect`, { method: "DELETE" });
+        if (resp.ok) {
+            _setConfluenceDisconnected();
+            const banner = document.getElementById("oauth-banner");
+            if (banner) {
+                banner.className = "oauth-toast success";
+                banner.innerHTML = "Confluence disconnected. You can reconnect at any time.";
+                banner.classList.remove("hidden");
+                setTimeout(() => banner.classList.add("hidden"), 6000);
+            }
+        } else {
+            const err = await resp.json().catch(() => ({ detail: "Disconnect failed" }));
+            alert(`Error: ${err.detail}`);
+            if (btnDisc) { btnDisc.disabled = false; btnDisc.innerHTML = `<svg viewBox="0 0 24 24" fill="none" width="13" height="13"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg> Disconnect`; }
+        }
+    } catch (e) {
+        alert("Network error disconnecting.");
+        if (btnDisc) { btnDisc.disabled = false; btnDisc.innerHTML = `<svg viewBox="0 0 24 24" fill="none" width="13" height="13"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg> Disconnect`; }
+    }
+}
+
+function _pollConfluenceSyncStatus() {
+    const banner = document.getElementById("oauth-banner");
+    const syncBtn = document.getElementById("pill-action-sync");
+    let pollCount = 0;
+    const interval = setInterval(async () => {
+        pollCount++;
+        try {
+            const r = await authFetch(`${API_BASE}/ingest-status`);
+            if (!r.ok) { clearInterval(interval); return; }
+            const s = await r.json();
+            if (banner && !banner.classList.contains("hidden")) {
+                if (s.is_running && s.connector === "confluence") {
+                    banner.innerHTML = `⏳ Indexing Confluence... ${s.ingested || 0} pages/chunks added so far.`;
+                } else if (!s.is_running) {
+                    banner.className = "oauth-toast success";
+                    banner.innerHTML = `✅ Confluence sync complete — ${s.ingested || 0} chunks added.`;
+                    setTimeout(() => banner.classList.add("hidden"), 10000);
+                    if (syncBtn) { syncBtn.disabled = false; syncBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" width="13" height="13"><path d="M4 4v5h5M20 20v-5h-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 9a8 8 0 0 0-14.93-2M4 15a8 8 0 0 0 14.93 2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg> Sync Data`; }
+                    if (typeof loadFilesList === "function") loadFilesList();
+                    clearInterval(interval);
+                }
+            }
+        } catch { /* ignore */ }
+        if (pollCount >= 120) {
+            clearInterval(interval);
+            if (syncBtn) { syncBtn.disabled = false; syncBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" width="13" height="13"><path d="M4 4v5h5M20 20v-5h-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 9a8 8 0 0 0-14.93-2M4 15a8 8 0 0 0 14.93 2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg> Sync Data`; }
+        }
+    }, 5000);
+}
+
+// ── Workspace Settings Functions ──────────────────────────────────────────────
+function showSettingsModal() {
+    if (settingsModal) settingsModal.style.display = "flex";
+    loadOrgInfo();
+}
+
+function closeSettingsModal() {
+    if (settingsModal) settingsModal.style.display = "none";
+    cancelEditOrgName();
+}
+
+async function loadWorkspaceProfile() {
+    try {
+        const resp = await authFetch(`${API_BASE}/org/info`);
+        if (resp.ok) {
+            const data = await resp.json();
+            const userDmEl = document.getElementById("user-domain");
+            if (userDmEl && data.company_name) {
+                userDmEl.textContent = data.company_name;
+            }
+        }
+    } catch (e) {
+        console.log("Error loading workspace profile:", e);
+    }
+}
+
+async function loadOrgInfo() {
+    try {
+        const resp = await authFetch(`${API_BASE}/org/info`);
+        if (!resp.ok) {
+            console.error("Failed to fetch organization settings.");
+            return;
+        }
+        const data = await resp.json();
+        
+        // Populate display info
+        if (settingsOrgName) settingsOrgName.textContent = data.company_name || "";
+        if (settingsOrgDomain) settingsOrgDomain.textContent = data.email_domain || "";
+        if (settingsOrgInput) settingsOrgInput.value = data.company_name || "";
+        
+        // Update user domain in sidebar footer
+        const userDmEl = document.getElementById("user-domain");
+        if (userDmEl && data.company_name) {
+            userDmEl.textContent = data.company_name;
+        }
+
+        const isAdmin = data.role === "admin";
+        
+        // Show/hide admin-only sections
+        if (btnEditOrgName) btnEditOrgName.style.display = isAdmin ? "inline-block" : "none";
+        if (settingsInviteSection) settingsInviteSection.style.display = isAdmin ? "flex" : "none";
+
+        // Render member table rows
+        const currentUserEmail = (document.getElementById('user-email')?.textContent || window.sbSession?.user?.email || '').trim().toLowerCase();
+        
+        if (settingsMembersList) {
+            if (!data.members || data.members.length === 0) {
+                settingsMembersList.innerHTML = `<tr><td colspan="3" style="text-align:center;color:rgba(255,255,255,0.4);padding:12px;">No members found</td></tr>`;
+            } else {
+                settingsMembersList.innerHTML = data.members.map(member => {
+                    const emailNormalized = (member.email || "").trim().toLowerCase();
+                    const isSelf = emailNormalized === currentUserEmail;
+                    const canRemove = isAdmin && !isSelf;
+                    return `
+                        <tr>
+                            <td>${escapeHtml(member.email)} ${isSelf ? '<span style="color:rgba(255,255,255,0.4);font-size:10px;">(you)</span>' : ''}</td>
+                            <td style="text-transform: capitalize;">${escapeHtml(member.role)}</td>
+                            <td style="text-align: right;">
+                                ${canRemove ? `<button class="settings-action-btn" onclick="removeWorkspaceMember('${member.user_id}', '${escapeHtml(member.email)}')">Remove</button>` : ''}
+                            </td>
+                        </tr>
+                    `;
+                }).join("");
+            }
+        }
+
+        // Render invite table rows
+        if (settingsInvitesList) {
+            if (!data.invites || data.invites.length === 0) {
+                settingsInvitesList.innerHTML = `<tr><td colspan="3" style="text-align:center;color:rgba(255,255,255,0.4);padding:12px;">No pending invitations</td></tr>`;
+            } else {
+                settingsInvitesList.innerHTML = data.invites.map(invite => {
+                    return `
+                        <tr>
+                            <td>${escapeHtml(invite.email)}</td>
+                            <td>
+                                <button class="settings-copy-btn" onclick="copyInviteLink(this, '${escapeHtml(invite.invite_link)}')">Copy Link</button>
+                            </td>
+                            <td style="text-align: right;">
+                                ${isAdmin ? `<button class="settings-action-btn" onclick="cancelWorkspaceInvite('${invite.id}', '${escapeHtml(invite.email)}')">Cancel</button>` : ''}
+                            </td>
+                        </tr>
+                    `;
+                }).join("");
+            }
+        }
+    } catch (e) {
+        console.error("Error loading workspace info:", e);
+    }
+}
+
+function editOrgName() {
+    if (settingsOrgEditRow) {
+        settingsOrgEditRow.style.display = "flex";
+        if (settingsOrgInput && settingsOrgName) {
+            settingsOrgInput.value = settingsOrgName.textContent;
+            settingsOrgInput.focus();
+        }
+    }
+}
+
+function cancelEditOrgName() {
+    if (settingsOrgEditRow) settingsOrgEditRow.style.display = "none";
+    if (settingsOrgInput) settingsOrgInput.value = "";
+}
+
+async function saveOrgName() {
+    if (!settingsOrgInput) return;
+    const newName = settingsOrgInput.value.trim();
+    if (!newName) {
+        alert("Organization name cannot be empty.");
+        return;
+    }
+    
+    try {
+        const resp = await authFetch(`${API_BASE}/org/info`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ company_name: newName })
+        });
+        if (resp.ok) {
+            cancelEditOrgName();
+            loadOrgInfo();
+            showBannerToast("✅ Workspace name updated successfully.");
+        } else {
+            const err = await resp.json().catch(() => ({ detail: "Failed to update workspace name" }));
+            alert(`Error: ${err.detail}`);
+        }
+    } catch (e) {
+        alert("Network error updating workspace name.");
+    }
+}
+
+async function inviteMember() {
+    if (!settingsInviteEmail || !settingsInviteRole) return;
+    const email = settingsInviteEmail.value.trim();
+    const role = settingsInviteRole.value;
+    if (!email) {
+        alert("Please enter an email address.");
+        return;
+    }
+    
+    try {
+        const resp = await authFetch(`${API_BASE}/org/invite`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, role })
+        });
+        if (resp.ok) {
+            settingsInviteEmail.value = "";
+            loadOrgInfo();
+            showBannerToast(`✅ Invitation successfully created for ${email}`);
+        } else {
+            const err = await resp.json().catch(() => ({ detail: "Failed to invite member" }));
+            alert(`Error: ${err.detail}`);
+        }
+    } catch (e) {
+        alert("Network error inviting member.");
+    }
+}
+
+async function cancelWorkspaceInvite(inviteId, email) {
+    const confirmed = await showConfirm(
+        "Cancel Invitation", 
+        `Are you sure you want to cancel the invitation for ${email}?`, 
+        "Cancel Invite", 
+        true
+    );
+    if (!confirmed) return;
+    
+    try {
+        const resp = await authFetch(`${API_BASE}/org/invites/${inviteId}`, {
+            method: "DELETE"
+        });
+        if (resp.ok) {
+            loadOrgInfo();
+            showBannerToast("✅ Invitation successfully canceled.");
+        } else {
+            const err = await resp.json().catch(() => ({ detail: "Failed to cancel invitation" }));
+            alert(`Error: ${err.detail}`);
+        }
+    } catch (e) {
+        alert("Network error canceling invitation.");
+    }
+}
+
+async function removeWorkspaceMember(userId, email) {
+    const confirmed = await showConfirm(
+        "Remove Member", 
+        `Are you sure you want to remove ${email} from this workspace?`, 
+        "Remove Member", 
+        true
+    );
+    if (!confirmed) return;
+    
+    try {
+        const resp = await authFetch(`${API_BASE}/org/members/${userId}`, {
+            method: "DELETE"
+        });
+        if (resp.ok) {
+            loadOrgInfo();
+            showBannerToast("✅ Member successfully removed.");
+        } else {
+            const err = await resp.json().catch(() => ({ detail: "Failed to remove member" }));
+            alert(`Error: ${err.detail}`);
+        }
+    } catch (e) {
+        alert("Network error removing member.");
+    }
+}
+
+function copyInviteLink(btn, url) {
+    if (!btn || !url) return;
+    navigator.clipboard.writeText(url).then(() => {
+        const oldText = btn.textContent;
+        btn.textContent = "Copied!";
+        setTimeout(() => {
+            btn.textContent = oldText;
+        }, 2000);
+    }).catch(err => {
+        console.error("Failed to copy text: ", err);
+    });
+}
+
+function showBannerToast(msg, isSuccess = true) {
+    const banner = document.getElementById("oauth-banner");
+    if (!banner) return;
+    banner.className = isSuccess ? "oauth-toast success" : "oauth-toast error";
+    banner.innerHTML = msg;
+    banner.classList.remove("hidden");
+    setTimeout(() => banner.classList.add("hidden"), 8000);
+}
+
+function escapeHtml(str) {
+    if (!str) return "";
+    return str
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+window.removeWorkspaceMember = removeWorkspaceMember;
+window.cancelWorkspaceInvite = cancelWorkspaceInvite;
+window.copyInviteLink = copyInviteLink;
