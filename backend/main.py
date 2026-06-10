@@ -822,38 +822,28 @@ async def admin_clear_my_data(
 ):
     """
     Flush ALL data for the calling user and reset their file-hash cache.
-    Use t    tid = uuid.UUID(tenant_id)  # asyncpg needs a UUID object
-
-    async with app.state.db_pool.acquire() as conn:
-        # Set RLS context
-        await conn.execute(f"SET LOCAL app.current_tenant_id = '{tenant_id}'")
-
-        # graph_edges has no tenant_id — it cascades from graph_nodes via FK.
-        # graph_nodes has no tenant_id — linked via author_id in vector_chunks.
-        # Delete graph_nodes for authors belonging to this tenant first
-        # (graph_edges cascade automatically via ON DELETE CASCADE).
-        await conn.execute(
-            f"""
-            DELETE FROM {schema}.graph_nodes
-            WHERE external_source_id IN (
-                SELECT DISTINCT author_id FROM {schema}.vector_chunks
-                WHERE tenant_id = $1
-            )
-            """,
-            tid,
-        )
-
-        # Delete all tenant vector data
-        await conn.execute(f"DELETE FROM {schema}.vector_chunks    WHERE tenant_id = $1", tid)
-        await conn.execute(f"DELETE FROM {schema}.ingestion_hashes WHERE tenant_id = $1", tid)
-        await conn.execute(f"DELETE FROM {schema}.tenant_credentials WHERE tenant_id = $1", tid)
-
-        # Remove from tenant registry
-        await conn.execute("DELETE FROM tenant_registry WHERE tenant_id = $1", tid)
-
-    print(f"✅ Account deleted: tenant={tenant_id}, user={user.email}")
-    return {"status": "deleted", "tenant_id": tenant_id, "email": user.email}
-─────────────────────────────
+    Useful during development; production users should use DELETE /account.
+    """
+    tenant_id = getattr(request.state, "tenant_id", None)
+    if not tenant_id:
+        raise HTTPException(status_code=401, detail="Could not resolve user tenant.")
+    schema = "tenant_redwood_inference_prod"
+    tid = uuid.UUID(tenant_id)
+    try:
+        async with app.state.db_pool.acquire() as conn:
+            async with conn.transaction():
+                await conn.execute(f"SET LOCAL app.current_tenant_id = '{tenant_id}'")
+                await conn.execute(
+                    f"DELETE FROM {schema}.graph_nodes WHERE external_source_id IN "
+                    f"(SELECT DISTINCT author_id FROM {schema}.vector_chunks WHERE tenant_id = $1)",
+                    tid,
+                )
+                await conn.execute(f"DELETE FROM {schema}.vector_chunks    WHERE tenant_id = $1", tid)
+                await conn.execute(f"DELETE FROM {schema}.ingestion_hashes WHERE tenant_id = $1", tid)
+        _file_hash_cache.clear()
+        return {"status": "ok", "message": f"Data cleared for {user.email}"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to clear: {e}")
 
 @app.get("/me")
 async def get_me(user: UserIdentity = Depends(get_current_user)):
