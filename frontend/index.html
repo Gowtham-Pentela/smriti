@@ -223,65 +223,60 @@
                     <div class="service-pills-row">
                         <div class="service-pills-scroll" id="service-pills-scroll">
 
-                            <!-- Slack pill -->
-                            <div class="service-pill" id="pill-slack" data-connected="false">
-                                <div class="pill-inner" id="pill-slack-inner">
-                                    <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
-                                    <span>Slack</span>
-                                    <div class="pill-status-dot" id="pill-slack-dot"></div>
-                                </div>
-                                <div class="pill-menu" id="pill-slack-menu">
-                                    <button class="pill-menu-btn" id="pill-slack-connect" onclick="startSlackOAuth()">Connect</button>
-                                    <button class="pill-menu-btn pill-menu-sync hidden" id="pill-slack-sync" onclick="alert('Slack syncs automatically every 30 min')">Sync Now</button>
-                                    <button class="pill-menu-btn pill-menu-disc hidden" id="pill-slack-disc" onclick="disconnectSlack()">Disconnect</button>
-                                </div>
-                            </div>
+                            <!-- Slack pill: click = connect if not connected, select if connected -->
+                            <button class="service-pill" id="pill-slack" data-connected="false" onclick="handlePillClick('slack')" aria-label="Slack">
+                                <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+                                <span>Slack</span>
+                                <div class="pill-status-dot" id="pill-slack-dot"></div>
+                            </button>
 
                             <!-- Google Drive pill -->
-                            <div class="service-pill" id="pill-gdrive" data-connected="false">
-                                <div class="pill-inner" id="pill-gdrive-inner">
-                                    <svg viewBox="0 0 87.3 78" width="14" height="14" xmlns="http://www.w3.org/2000/svg">
-                                        <path d="M6.6 66.85l3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8H0c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/>
-                                        <path d="M43.65 25L29.9 1.2C28.55 2 27.4 3.1 26.6 4.5L1.2 49.5A9 9 0 000 54h27.5z" fill="#00ac47"/>
-                                        <path d="M73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5H60l5.85 10.6z" fill="#ea4335"/>
-                                        <path d="M43.65 25L57.4 1.2C56.05.45 54.5 0 52.85 0H34.45c-1.65 0-3.2.45-4.55 1.2z" fill="#00832d"/>
-                                        <path d="M60 54H27.5L13.75 77.8c1.35.75 2.9 1.2 4.55 1.2h50c1.65 0 3.2-.45 4.55-1.2z" fill="#2684fc"/>
-                                        <path d="M73.4 27.5l-12.6-21.8c-1.35-.8-2.9-1.2-4.55-1.2H43.65L60 54h27.5c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/>
-                                    </svg>
-                                    <span>Google Drive</span>
-                                    <div class="pill-status-dot" id="pill-gdrive-dot"></div>
-                                </div>
-                                <div class="pill-menu" id="pill-gdrive-menu">
-                                    <button class="pill-menu-btn" id="pill-gdrive-connect" onclick="startDriveOAuth()">Connect</button>
-                                    <button class="pill-menu-btn pill-menu-sync hidden" id="pill-gdrive-sync" onclick="syncDrive()">Sync Now</button>
-                                    <button class="pill-menu-btn pill-menu-disc hidden" id="pill-gdrive-disc" onclick="disconnectDrive()">Disconnect</button>
-                                </div>
-                            </div>
+                            <button class="service-pill" id="pill-gdrive" data-connected="false" onclick="handlePillClick('gdrive')" aria-label="Google Drive">
+                                <svg viewBox="0 0 87.3 78" width="14" height="14" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M6.6 66.85l3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8H0c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/>
+                                    <path d="M43.65 25L29.9 1.2C28.55 2 27.4 3.1 26.6 4.5L1.2 49.5A9 9 0 000 54h27.5z" fill="#00ac47"/>
+                                    <path d="M73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5H60l5.85 10.6z" fill="#ea4335"/>
+                                    <path d="M43.65 25L57.4 1.2C56.05.45 54.5 0 52.85 0H34.45c-1.65 0-3.2.45-4.55 1.2z" fill="#00832d"/>
+                                    <path d="M60 54H27.5L13.75 77.8c1.35.75 2.9 1.2 4.55 1.2h50c1.65 0 3.2-.45 4.55-1.2z" fill="#2684fc"/>
+                                    <path d="M73.4 27.5l-12.6-21.8c-1.35-.8-2.9-1.2-4.55-1.2H43.65L60 54h27.5c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/>
+                                </svg>
+                                <span>Google Drive</span>
+                                <div class="pill-status-dot" id="pill-gdrive-dot"></div>
+                            </button>
 
                             <!-- Coming soon pills -->
                             <div class="service-pill pill-coming-soon" title="Coming soon">
-                                <div class="pill-inner">
-                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#6366f1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                                    <span>Confluence</span>
-                                </div>
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#6366f1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                <span>Confluence</span>
                             </div>
                             <div class="service-pill pill-coming-soon" title="Coming soon">
-                                <div class="pill-inner">
-                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" stroke="#888" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                                    <span>GitHub</span>
-                                </div>
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" stroke="#888" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                <span>GitHub</span>
                             </div>
                             <div class="service-pill pill-coming-soon" title="Coming soon">
-                                <div class="pill-inner">
-                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none"><rect x="2" y="3" width="20" height="18" rx="2" stroke="#888" stroke-width="1.5"/><path d="M8 10h8M8 14h5" stroke="#888" stroke-width="1.5" stroke-linecap="round"/></svg>
-                                    <span>Notion</span>
-                                </div>
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none"><rect x="2" y="3" width="20" height="18" rx="2" stroke="#888" stroke-width="1.5"/><path d="M8 10h8M8 14h5" stroke="#888" stroke-width="1.5" stroke-linecap="round"/></svg>
+                                <span>Notion</span>
                             </div>
 
+                        </div>
+
+                        <!-- Action buttons — shown below when a connected service is selected -->
+                        <div class="pill-actions" id="pill-actions">
+                            <span class="pill-actions-label" id="pill-actions-label">Google Drive</span>
+                            <button class="pill-action-btn pill-action-sync" id="pill-action-sync" onclick="pillSyncSelected()">
+                                <svg viewBox="0 0 24 24" fill="none" width="13" height="13"><path d="M4 4v5h5M20 20v-5h-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 9a8 8 0 0 0-14.93-2M4 15a8 8 0 0 0 14.93 2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                                Sync Data
+                            </button>
+                            <button class="pill-action-btn pill-action-disc" id="pill-action-disc" onclick="pillDisconnectSelected()">
+                                <svg viewBox="0 0 24 24" fill="none" width="13" height="13"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                                Disconnect
+                            </button>
                         </div>
                     </div>
 
                 </div>
+
+
                 <div class="input-meta">
                     <span class="input-hint"><kbd>↵</kbd> send · <kbd>Shift+↵</kbd> newline</span>
                     <span class="input-privacy">

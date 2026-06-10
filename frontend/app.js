@@ -231,7 +231,66 @@ async function startSlackOAuth() {
     }
 }
 
+// ── Pill chip controller ──────────────────────────────────────────────────
+const PILL_SERVICES = {
+    slack: {
+        connect:    () => startSlackOAuth(),
+        sync:       () => alert("Slack syncs automatically every 30 min"),
+        disconnect: () => disconnectSlack(),
+        label:      "Slack",
+    },
+    gdrive: {
+        connect:    () => startDriveOAuth(),
+        sync:       () => syncDrive(),
+        disconnect: () => disconnectDrive(),
+        label:      "Google Drive",
+    },
+};
+
+let _selectedPill = null;
+
+function handlePillClick(key) {
+    const pill = document.getElementById(`pill-${key}`);
+    if (!pill) return;
+
+    if (pill.getAttribute("data-connected") !== "true") {
+        // Not yet connected — start OAuth immediately
+        PILL_SERVICES[key]?.connect();
+        return;
+    }
+
+    // Toggle selection on connected pill
+    const alreadySelected = pill.getAttribute("data-selected") === "true";
+    Object.keys(PILL_SERVICES).forEach(k => {
+        const p = document.getElementById(`pill-${k}`);
+        if (p) p.removeAttribute("data-selected");
+    });
+    if (!alreadySelected) {
+        pill.setAttribute("data-selected", "true");
+        _selectedPill = key;
+    } else {
+        _selectedPill = null;
+    }
+    _updatePillActions();
+}
+
+function _updatePillActions() {
+    const bar   = document.getElementById("pill-actions");
+    const label = document.getElementById("pill-actions-label");
+    if (!bar) return;
+    if (_selectedPill && PILL_SERVICES[_selectedPill]) {
+        if (label) label.textContent = PILL_SERVICES[_selectedPill].label;
+        bar.classList.add("visible");
+    } else {
+        bar.classList.remove("visible");
+    }
+}
+
+function pillSyncSelected()       { if (_selectedPill) PILL_SERVICES[_selectedPill]?.sync(); }
+function pillDisconnectSelected() { if (_selectedPill) PILL_SERVICES[_selectedPill]?.disconnect(); }
+
 async function startDriveOAuth() {
+
     const btn = document.getElementById("btn-connect-gdrive");
     if (btn) { btn.disabled = true; btn.textContent = "Connecting..."; }
     try {
@@ -271,28 +330,17 @@ async function checkSlackConnection() {
     } catch { statusEl.textContent = "Backend offline"; }
 }
 
-function _setSlackConnected(connectedAt) {
+function _setSlackConnected() {
     const pill = document.getElementById("pill-slack");
-    if (!pill) return;
-    pill.setAttribute("data-connected", "true");
-    const connect = document.getElementById("pill-slack-connect");
-    const sync    = document.getElementById("pill-slack-sync");
-    const disc    = document.getElementById("pill-slack-disc");
-    if (connect) connect.classList.add("hidden");
-    if (sync)    sync.classList.remove("hidden");
-    if (disc)    disc.classList.remove("hidden");
+    if (pill) pill.setAttribute("data-connected", "true");
 }
 
 function _setSlackDisconnected() {
     const pill = document.getElementById("pill-slack");
     if (!pill) return;
     pill.setAttribute("data-connected", "false");
-    const connect = document.getElementById("pill-slack-connect");
-    const sync    = document.getElementById("pill-slack-sync");
-    const disc    = document.getElementById("pill-slack-disc");
-    if (connect) connect.classList.remove("hidden");
-    if (sync)    sync.classList.add("hidden");
-    if (disc)    disc.classList.add("hidden");
+    pill.removeAttribute("data-selected");
+    if (_selectedPill === "slack") { _selectedPill = null; _updatePillActions(); }
 }
 
 async function disconnectSlack() {
@@ -332,40 +380,26 @@ async function disconnectSlack() {
 
 // ── Google Drive connection ──────────────────────────────────────────────
 async function checkDriveConnection() {
-    const statusEl = document.getElementById("gdrive-status-text");
-    const btnEl    = document.getElementById("btn-connect-gdrive");
-    if (!statusEl || !btnEl) return;
     try {
         const resp = await authFetch(`${API_BASE}/gdrive/status`);
         if (!resp.ok) { _setDriveDisconnected(); return; }
         const data = await resp.json();
         if (data.connected) _setDriveConnected(data.connected_at);
         else _setDriveDisconnected();
-    } catch { statusEl.textContent = "Backend offline"; }
+    } catch { /* backend offline, ignore */ }
 }
 
-function _setDriveConnected(connectedAt) {
+function _setDriveConnected() {
     const pill = document.getElementById("pill-gdrive");
-    if (!pill) return;
-    pill.setAttribute("data-connected", "true");
-    const connect = document.getElementById("pill-gdrive-connect");
-    const sync    = document.getElementById("pill-gdrive-sync");
-    const disc    = document.getElementById("pill-gdrive-disc");
-    if (connect) connect.classList.add("hidden");
-    if (sync)    sync.classList.remove("hidden");
-    if (disc)    disc.classList.remove("hidden");
+    if (pill) pill.setAttribute("data-connected", "true");
 }
 
 function _setDriveDisconnected() {
     const pill = document.getElementById("pill-gdrive");
     if (!pill) return;
     pill.setAttribute("data-connected", "false");
-    const connect = document.getElementById("pill-gdrive-connect");
-    const sync    = document.getElementById("pill-gdrive-sync");
-    const disc    = document.getElementById("pill-gdrive-disc");
-    if (connect) connect.classList.remove("hidden");
-    if (sync)    sync.classList.add("hidden");
-    if (disc)    disc.classList.add("hidden");
+    pill.removeAttribute("data-selected");
+    if (_selectedPill === "gdrive") { _selectedPill = null; _updatePillActions(); }
 }
 
 async function disconnectDrive() {

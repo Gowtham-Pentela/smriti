@@ -896,35 +896,60 @@ textarea:disabled { opacity: 0.45; cursor: not-allowed; }
 }
 .service-pills-scroll::-webkit-scrollbar { display: none; }
 
-/* Each chip */
+/* Each chip — now a <button> */
 .service-pill {
     position: relative;
     flex-shrink: 0;
-}
-
-.pill-inner {
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 5px 11px 5px 9px;
+    padding: 5px 12px 5px 10px;
     background: var(--bg-surface);
     border: 1px solid var(--border);
     border-radius: 20px;
     font-size: 12px;
     font-weight: 500;
+    font-family: 'Inter', sans-serif;
     color: var(--text-secondary);
     cursor: pointer;
-    transition: background 0.15s, border-color 0.15s, color 0.15s;
+    transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s;
     white-space: nowrap;
     user-select: none;
+    text-align: left;
 }
-.pill-inner:hover {
+.service-pill:hover {
     background: var(--bg-hover);
     border-color: var(--border-accent);
     color: var(--text-primary);
 }
 
-/* Connected state — green dot indicator */
+/* Connected state — green dot + green border */
+.service-pill[data-connected="true"] .pill-status-dot {
+    background: var(--emerald);
+    box-shadow: 0 0 5px var(--emerald);
+}
+.service-pill[data-connected="true"] {
+    border-color: rgba(16,185,129,0.3);
+    color: var(--text-primary);
+}
+
+/* Selected/active connected pill */
+.service-pill[data-selected="true"] {
+    border-color: var(--emerald) !important;
+    background: var(--emerald-dim) !important;
+    color: var(--emerald) !important;
+    box-shadow: 0 0 0 2px rgba(16,185,129,0.12);
+}
+
+/* Coming soon dimmed pills */
+.pill-coming-soon {
+    opacity: 0.42;
+    cursor: default;
+    pointer-events: none;
+}
+.pill-coming-soon span { font-style: italic; }
+
+/* Connected status dot inside pill */
 .pill-status-dot {
     width: 6px;
     height: 6px;
@@ -933,69 +958,57 @@ textarea:disabled { opacity: 0.45; cursor: not-allowed; }
     transition: background 0.2s;
     flex-shrink: 0;
 }
-.service-pill[data-connected="true"] .pill-status-dot {
-    background: var(--emerald);
-    box-shadow: 0 0 5px var(--emerald);
-}
-.service-pill[data-connected="true"] .pill-inner {
-    border-color: rgba(16,185,129,0.3);
-    color: var(--text-primary);
-}
 
-/* Coming soon dimmed pills */
-.pill-coming-soon .pill-inner {
-    opacity: 0.42;
-    cursor: default;
-    pointer-events: none;
-}
-.pill-coming-soon .pill-inner span {
-    font-style: italic;
-}
-
-/* Dropdown menu below each pill */
-.pill-menu {
+/* ── Pill Actions Bar (Sync + Disconnect) ───────────────────────────── */
+.pill-actions {
     display: none;
-    position: absolute;
-    top: calc(100% + 6px);
-    left: 0;
-    background: var(--bg-surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 4px;
-    z-index: 999;
-    min-width: 130px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+    align-items: center;
+    gap: 8px;
+    padding: 8px 2px 2px;
     animation: fadeUp 0.15s ease;
 }
-.service-pill:hover .pill-menu,
-.service-pill:focus-within .pill-menu {
+.pill-actions.visible {
     display: flex;
-    flex-direction: column;
-    gap: 2px;
 }
-
-.pill-menu-btn {
+.pill-actions-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-right: 4px;
+    font-family: 'JetBrains Mono', monospace;
+}
+.pill-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
     font-size: 12px;
     font-weight: 500;
     font-family: 'Inter', sans-serif;
-    color: var(--text-secondary);
-    background: none;
-    border: none;
-    border-radius: 6px;
-    padding: 7px 10px;
+    border-radius: 8px;
+    padding: 5px 12px;
     cursor: pointer;
-    text-align: left;
-    transition: background 0.12s, color 0.12s;
+    border: 1px solid;
+    transition: background 0.12s, color 0.12s, border-color 0.12s;
     white-space: nowrap;
 }
-.pill-menu-btn:hover {
-    background: var(--bg-hover);
-    color: var(--text-primary);
+.pill-action-sync {
+    color: var(--emerald);
+    background: var(--emerald-dim);
+    border-color: rgba(16,185,129,0.25);
 }
-.pill-menu-sync { color: var(--emerald) !important; }
-.pill-menu-sync:hover { background: var(--emerald-dim) !important; }
-.pill-menu-disc { color: #f87171 !important; }
-.pill-menu-disc:hover { background: rgba(239,68,68,0.08) !important; }
+.pill-action-sync:hover {
+    background: rgba(16,185,129,0.18);
+    border-color: rgba(16,185,129,0.4);
+}
+.pill-action-disc {
+    color: #f87171;
+    background: rgba(239,68,68,0.06);
+    border-color: rgba(239,68,68,0.2);
+}
+.pill-action-disc:hover {
+    background: rgba(239,68,68,0.12);
+    border-color: rgba(239,68,68,0.35);
+}
 
 /* ── Input meta bar ─────────────────────────────────────────────────── */
 .input-meta {
