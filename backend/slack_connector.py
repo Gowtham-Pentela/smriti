@@ -8,6 +8,15 @@ via the Slack WebClient, normalises every message into the existing
 Common Event Schema, deduplicates via Postgres, and feeds the output
 into the shared pg_ingest_chunks() pipeline.
 
+Chunking strategy (Phase 3 alignment):
+  - Messages are grouped by thread_ts into cohesive thread blocks.
+  - Each thread block is formatted as:
+      [Slack / #channel / @author / YYYY-MM-DD]
+      @user: message text\n@user2: reply...
+  - Threads ≤ 800 chars: ingested as a single atomic chunk.
+  - Threads > 800 chars: split with 600-char window / 100-char overlap.
+  This matches the benchmark pipeline chunking in rag_bench/run_comprehensive_eval.py.
+
 Design decisions (locked):
   - Uses slack_sdk.WebClient (synchronous) wrapped in asyncio.to_thread()
     so FastAPI's async event loop is never blocked.
@@ -22,7 +31,9 @@ import asyncio
 import datetime
 import hashlib
 import os
+import time
 import uuid
+from collections import defaultdict
 from typing import Optional
 
 import asyncpg
@@ -35,6 +46,11 @@ from backend.db import check_and_mark_ingested
 SCHEMA = "tenant_redwood_inference_prod"
 OLLAMA_EMBED_URL = os.getenv("OLLAMA_EMBED_URL", "http://localhost:11434/api/embeddings")
 MODEL_NAME_EMBED = "nomic-embed-text"
+
+# ── Chunking constants (must match benchmark pipeline) ────────────────────
+SLACK_THREAD_MAX_CHARS = 800
+SLACK_CHUNK_SIZE = 600
+SLACK_CHUNK_OVERLAP = 100
 
 # ── PII scrub patterns (mirrors parser.py) ────────────────────────────────────
 import re
@@ -52,6 +68,80 @@ def _scrub_pii(text: str) -> str:
     for pattern in _PII_PATTERNS:
         text = pattern.sub("[REDACTED]", text)
     return text
+
+
+# ── Thread-level chunking (matches benchmark pipeline) ───────────────────────
+
+def _chunk_slack_thread(
+    messages: list[dict],
+    channel_name: str,
+    source_id_prefix: str,
+) -> list[dict]:
+    """
+    Converts a list of related Slack messages (a thread) into one or more
+    chunk dicts suitable for DB insertion.
+
+    Format:
+        [Slack / #channel / @author / YYYY-MM-DD]
+        @user1: message text
+        @user2: reply text
+    """
+    if not messages:
+        return []
+
+    lines = []
+    for msg in messages:
+        author = msg.get("user") or msg.get("username") or "unknown"
+        text = _scrub_pii(str(msg.get("text") or "").strip())
+        if text:
+            lines.append(f"@{author}: {text}")
+
+    if not lines:
+        return []
+
+    # Date from first message timestamp
+    first_ts = messages[0].get("ts", "0")
+    try:
+        date_str = time.strftime("%Y-%m-%d", time.gmtime(float(first_ts)))
+    except Exception:
+        date_str = "unknown-date"
+
+    participants = list({
+        msg.get("user") or msg.get("username") or "unknown"
+        for msg in messages
+        if msg.get("user") or msg.get("username")
+    })
+    primary_author = participants[0] if participants else "unknown"
+
+    meta_prefix = f"[Slack / #{channel_name} / @{primary_author} / {date_str}]\n"
+    full_text = meta_prefix + "\n".join(lines)
+
+    def _make_chunk(content: str, idx: int) -> dict:
+        return {
+            "event_id": str(uuid.uuid4()),
+            "source_id": f"{source_id_prefix}_chunk{idx}",
+            "source_type": "slack",
+            "author_id": primary_author.lower().replace(" ", "_"),
+            "channel_or_space": channel_name,
+            "content": content,
+        }
+
+    # Short thread: single atomic chunk
+    if len(full_text) <= SLACK_THREAD_MAX_CHARS:
+        return [_make_chunk(full_text, 0)]
+
+    # Long thread: overlapping splits
+    chunks = []
+    start = 0
+    idx = 0
+    while start < len(full_text):
+        end = min(start + SLACK_CHUNK_SIZE, len(full_text))
+        content = full_text[start:end].strip()
+        if content:
+            chunks.append(_make_chunk(content, idx))
+        start += SLACK_CHUNK_SIZE - SLACK_CHUNK_OVERLAP
+        idx += 1
+    return chunks
 
 
 # ── Embedding helper ──────────────────────────────────────────────────────────
@@ -143,7 +233,7 @@ async def _ingest_channel(
     tenant_namespace_uuid: str,
     cutoff_ts: float,
 ) -> dict:
-    """Ingest a single channel's history."""
+    """Ingest a single channel's history using thread-level chunking."""
     summary = {"ingested": 0, "skipped": 0}
     cursor = None
     channel_name = channel_id  # fallback; resolved below
@@ -157,6 +247,8 @@ async def _ingest_channel(
 
     print(f"  → Ingesting #{channel_name} ({channel_id})...")
 
+    # ── Step 1: Collect all messages (with pagination) ────────────────────────
+    all_messages: list[dict] = []
     while True:
         kwargs: dict = {
             "channel": channel_id,
@@ -165,51 +257,61 @@ async def _ingest_channel(
         }
         if cursor:
             kwargs["cursor"] = cursor
-
         try:
             result = await asyncio.to_thread(client.conversations_history, **kwargs)
         except SlackApiError as e:
             raise RuntimeError(f"conversations_history failed: {e.response['error']}")
 
-        messages = result.get("messages", [])
-
-        for msg in messages:
+        for msg in result.get("messages", []):
             # Skip bot messages and non-user messages
             if msg.get("bot_id") or msg.get("subtype"):
                 continue
-
-            text = msg.get("text", "").strip()
-            if not text:
+            if not str(msg.get("text", "")).strip():
                 continue
+            all_messages.append(msg)
 
-            # Normalise to Common Event Schema
-            ts = msg.get("ts", "0")
-            source_id = f"slack_{channel_id}_{ts}"
-            author_id = msg.get("user", "unknown")
-            cleaned = _scrub_pii(text)
+        response_metadata = result.get("response_metadata", {})
+        cursor = response_metadata.get("next_cursor")
+        if not cursor:
+            break
 
-            async with db_pool.acquire() as conn:
-                await conn.execute(
-                    f"SET app.current_tenant_id = '{tenant_id}'"
-                )
+    # ── Step 2: Group messages by thread_ts ───────────────────────────────
+    threads: dict[str, list[dict]] = defaultdict(list)
+    for msg in all_messages:
+        # thread_ts is set for replies; for top-level messages, use ts as thread key
+        thread_key = msg.get("thread_ts") or msg.get("ts", str(uuid.uuid4()))
+        threads[thread_key].append(msg)
 
-                # Dedup check (Postgres-backed, crash-safe)
+    # Sort messages within each thread by ts
+    for thread_key in threads:
+        threads[thread_key].sort(key=lambda m: float(m.get("ts", 0)))
+
+    print(f"    Grouped {len(all_messages)} messages into {len(threads)} threads.")
+
+    # ── Step 3: Chunk and ingest each thread ─────────────────────────────
+    async with db_pool.acquire() as conn:
+        await conn.execute(f"SET app.current_tenant_id = '{tenant_id}'")
+
+        for thread_key, thread_msgs in threads.items():
+            source_id_prefix = f"slack_{channel_id}_{thread_key}"
+            thread_chunks = _chunk_slack_thread(thread_msgs, channel_name, source_id_prefix)
+
+            for chunk in thread_chunks:
+                # Dedup check using the chunk's source_id (thread + chunk index)
                 already_ingested = await check_and_mark_ingested(
                     conn=conn,
                     tenant_id=tenant_id,
                     source="slack",
-                    source_id=source_id,
-                    raw_content=cleaned,
+                    source_id=chunk["source_id"],
+                    raw_content=chunk["content"],
                 )
                 if already_ingested:
                     summary["skipped"] += 1
                     continue
 
-                # Generate embedding
-                embedding = await _embed(cleaned, http_client)
+                embedding = await _embed(chunk["content"], http_client)
                 emb_str = f"[{','.join(map(str, embedding))}]"
 
-                # Insert into vector_chunks
                 event_id = uuid.uuid4()
                 try:
                     await conn.execute(
@@ -223,10 +325,10 @@ async def _ingest_channel(
                         """,
                         event_id,
                         tenant_namespace_uuid,
-                        source_id,
+                        chunk["source_id"],
                         "slack",
                         channel_name,
-                        cleaned,
+                        chunk["content"],
                         emb_str,
                         [],
                         [],
@@ -234,12 +336,6 @@ async def _ingest_channel(
                     )
                     summary["ingested"] += 1
                 except Exception as e:
-                    print(f"    ⚠ DB insert failed for {source_id}: {e}")
-
-        # Pagination
-        response_metadata = result.get("response_metadata", {})
-        cursor = response_metadata.get("next_cursor")
-        if not cursor:
-            break
+                    print(f"    ⚠ DB insert failed for {chunk['source_id']}: {e}")
 
     return summary

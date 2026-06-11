@@ -1,8 +1,27 @@
 import os
 import json
+import math
 import numpy as np
 import requests
 import re
+
+# ── Cross-Encoder Reranker (lazy-loaded) ─────────────────────────────────────
+RERANKER_MODEL = "cross-encoder/ms-marco-MiniLM-L6-v2"
+_reranker = None
+
+def get_reranker():
+    """Lazy-load cross-encoder. Falls back gracefully if not installed."""
+    global _reranker
+    if _reranker is None:
+        try:
+            from sentence_transformers import CrossEncoder
+            _reranker = CrossEncoder(RERANKER_MODEL, max_length=512, device='cpu')
+            print(f"[vector_store] Reranker loaded: {RERANKER_MODEL}")
+        except Exception as e:
+            print(f"[vector_store] Reranker unavailable ({e}); using hybrid score fallback.")
+            _reranker = False  # sentinel: tried and failed
+    return _reranker if _reranker is not False else None
+
 
 OLLAMA_URL = "http://localhost:11434/api/embeddings"
 EMBED_MODEL = "nomic-embed-text"
@@ -180,65 +199,71 @@ class LocalVectorStore:
             # BM25 IDF formula with smoothing to avoid log(0) and negative values
             idf[q_word] = math.log((N - df + 0.5) / (df + 0.5) + 1.0)
 
-        # Hybrid Search: Retrieve candidates from a wider pool (top 100)
+        # ── Stage 1: Semantic & Keyword candidate selection ──────────
         candidate_limit = min(100, len(self.chunks))
-        candidate_indices = np.argsort(similarities)[::-1][:candidate_limit]
-
-        candidates = []
-        for idx in candidate_indices:
-            semantic_score = float(similarities[idx])
-            if semantic_score < 0.15:
-                continue
-            
-            chunk = self.chunks[idx]
-            # Calculate word-overlap keyword score
-            keyword_score = compute_keyword_score(query_text, chunk, idf)
-            
-            # Combine scores: 70% Semantic Vector + 30% Keyword Matching
-            combined_score = (0.7 * semantic_score) + (0.3 * keyword_score)
-            
-            chunk_with_score = chunk.copy()
-            chunk_with_score["score"] = combined_score
-            chunk_with_score["embedding"] = self.embeddings[idx] # Keep embedding for deduplication
-            candidates.append(chunk_with_score)
-
-        # Re-rank and sort by the combined hybrid score
-        candidates.sort(key=lambda x: x["score"], reverse=True)
-
-        # Deduplicate highly identical boilerplate/disclaimer pages using cosine similarity
-        selected_chunks = []
-        similarity_threshold = 0.95
+        sem_indices = np.argsort(similarities)[::-1][:candidate_limit]
         
-        for cand in candidates:
-            if len(selected_chunks) >= top_k:
+        # Calculate keyword scores for all chunks
+        kw_scores = np.array([compute_keyword_score(query_text, c, idf) for c in self.chunks])
+        kw_indices = np.argsort(kw_scores)[::-1][:candidate_limit]
+
+        # ── RRF-style dual ranking ────────────────────────────────────────────
+        RRF_K = 60
+        scores_map = {}
+        
+        for sem_rank, idx in enumerate(sem_indices):
+            if float(similarities[idx]) < 0.10:
+                continue
+            scores_map[idx] = {"sem_rank": sem_rank, "kw_rank": candidate_limit}
+            
+        for kw_rank, idx in enumerate(kw_indices):
+            if float(kw_scores[idx]) == 0.0:
+                continue
+            if idx not in scores_map:
+                scores_map[idx] = {"sem_rank": candidate_limit, "kw_rank": kw_rank}
+            else:
+                scores_map[idx]["kw_rank"] = kw_rank
+                
+        candidates_raw = []
+        for idx, ranks in scores_map.items():
+            chunk = self.chunks[idx].copy()
+            chunk["sem_rank"] = ranks["sem_rank"]
+            chunk["kw_rank"] = ranks["kw_rank"]
+            chunk["embedding"] = self.embeddings[idx]
+            chunk["rrf_score"] = (1.0 / (RRF_K + ranks["sem_rank"])) + (1.0 / (RRF_K + ranks["kw_rank"]))
+            candidates_raw.append(chunk)
+
+        # Sort by RRF score, deduplicate by source filename
+        candidates_raw.sort(key=lambda x: x["rrf_score"], reverse=True)
+        seen_sources: set = set()
+        unique_candidates = []
+        for c in candidates_raw:
+            src = c.get("source", "")
+            if src not in seen_sources:
+                seen_sources.add(src)
+                unique_candidates.append(c)
+            if len(unique_candidates) >= min(20, candidate_limit):
                 break
-                
-            is_duplicate = False
-            cand_emb = np.array(cand["embedding"])
-            cand_norm = np.linalg.norm(cand_emb)
-            if cand_norm == 0:
-                cand_norm = 1.0
-            cand_emb_norm = cand_emb / cand_norm
+
+        # ── Stage 2: Cross-encoder reranking ──────────────────────────────────
+        reranker = get_reranker()
+        if reranker is not None and unique_candidates:
+            pairs = [(query_text, c["content"][:512]) for c in unique_candidates]
+            scores = reranker.predict(pairs)
+            for i, c in enumerate(unique_candidates):
+                c["reranker_score"] = float(scores[i])
             
-            for sel in selected_chunks:
-                sel_emb = np.array(sel["embedding"])
-                sel_norm = np.linalg.norm(sel_emb)
-                if sel_norm == 0:
-                    sel_norm = 1.0
-                sel_emb_norm = sel_emb / sel_norm
-                
-                cos_sim = np.dot(cand_emb_norm, sel_emb_norm)
-                if cos_sim > similarity_threshold:
-                    is_duplicate = True
-                    break
-                    
-            if not is_duplicate:
-                selected_chunks.append(cand)
-                
-        # Strip the embedding key from returned chunks for network efficiency
-        final_chunks = []
-        for chunk in selected_chunks:
-            clean_chunk = {k: v for k, v in chunk.items() if k != "embedding"}
-            final_chunks.append(clean_chunk)
-            
+            unique_candidates = [c for c in unique_candidates if c.get("reranker_score", 0.0) > 0.0]
+            unique_candidates.sort(key=lambda x: x.get("reranker_score", 0.0), reverse=True)
+
+        selected_chunks = unique_candidates[:top_k]
+
+        # Strip internal-only keys before returning
+        strip_keys = {"embedding", "sem_rank", "kw_rank", "keyword_score",
+                      "rrf_score", "reranker_score"}
+        final_chunks = [
+            {k: v for k, v in chunk.items() if k not in strip_keys}
+            for chunk in selected_chunks
+        ]
+
         return final_chunks

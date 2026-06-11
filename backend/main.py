@@ -84,6 +84,39 @@ from backend import gdrive_oauth as _gdrive_oauth
 from backend.doc_classifier import classify_document
 from backend.sutra_reconciler import run_sutra_pipeline, compile_action_plan, distribute_action_plan
 
+# ─── ONNX Reranker ────────────────────────────────────────────────────────────
+RERANKER_MODEL = "cross-encoder/ms-marco-MiniLM-L6-v2"
+USE_RERANKER = True
+_reranker = None
+
+class ONNXReranker:
+    def __init__(self, model_name):
+        from transformers import AutoTokenizer
+        from optimum.onnxruntime import ORTModelForSequenceClassification
+        import logging
+        logging.getLogger("optimum").setLevel(logging.ERROR)
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        self.model = ORTModelForSequenceClassification.from_pretrained(model_name, export=True)
+
+    def predict(self, pairs):
+        inputs = self.tokenizer(pairs, padding=True, truncation=True, max_length=512, return_tensors="pt")
+        outputs = self.model(**inputs)
+        logits = outputs.logits.detach().cpu().numpy()
+        if logits.ndim > 1 and logits.shape[1] == 1:
+            return logits.squeeze(-1)
+        return logits
+
+def get_reranker():
+    global _reranker
+    if _reranker is None and USE_RERANKER:
+        try:
+            print(f"  [reranker] Loading {RERANKER_MODEL} via ONNX...")
+            _reranker = ONNXReranker(RERANKER_MODEL)
+            print(f"  [reranker] Loaded ONNX model.")
+        except Exception as e:
+            print(f"  [reranker] Failed to load ONNX model: {e}")
+            _reranker = None
+    return _reranker
 
 DB_URL = os.getenv(
     "DATABASE_URL", "postgresql://postgres:postgres@127.0.0.1:54322/postgres"
@@ -170,7 +203,7 @@ async def lifespan(app: FastAPI):
     # Wire the DB pool into the auth dependency (avoids circular import)
     get_current_user._db_pool = app.state.db_pool
 
-    # ── Ollama warmup ───────────────────────────────────────────────────────────
+    # ── Ollama & Reranker warmup ───────────────────────────────────────────────────────────
     # Send a warm-up embedding request so the model is loaded before the first
     # real query. Prevents the 30-60s cold-start timeout during a live demo.
     # Runs as a background task so it doesn't block server startup.
@@ -186,6 +219,9 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             print(f"⚠️  Ollama warm-up failed (non-fatal): {e}")
             print("    Run: ollama pull nomic-embed-text && ollama serve")
+            
+        print("🔥 Pre-loading ONNX Cross-Encoder Reranker...")
+        get_reranker()
 
     _warmup_task = asyncio.create_task(_warmup_ollama())
 
@@ -1734,38 +1770,7 @@ async def process_query(
     # Clamp top_k to a safe range — context window budget allows up to 10 chunks at 700 chars each
     effective_top_k = max(1, min(req.top_k, 10))
 
-    opt_hybrid_sql = f"""
-        WITH candidates AS (
-            SELECT
-                source_id,
-                source_type,
-                channel_or_space,
-                content,
-                author_id,
-                document_category,
-                (1 - (embedding <=> $1::vector)) AS semantic_score
-            FROM tenant_redwood_inference_prod.vector_chunks
-            WHERE {permission_clause}
-            {category_clause}
-            ORDER BY embedding <=> $1::vector ASC
-            LIMIT 50
-        )
-        SELECT
-            source_id,
-            source_type,
-            channel_or_space,
-            content,
-            author_id,
-            document_category,
-            semantic_score,
-            ({text_score_expr}) AS text_score,
-            (0.7 * semantic_score + 0.3 * ({text_score_expr})) AS combined_score
-        FROM candidates
-        ORDER BY combined_score DESC
-        LIMIT {effective_top_k};
-    """
-
-    # ── 4. Execute retrieval + graph expert query ─────────────────────────────────────
+    # ── 4. Execute retrieval + RRF + Reranker + graph expert query ────────────────
     retrieved_chunks = []
     experts = []
 
@@ -1773,25 +1778,92 @@ async def process_query(
         async with app.state.db_pool.acquire() as conn:
             # CRITICAL: Use SET LOCAL inside a transaction so the tenant_id
             # resets automatically when the connection is returned to the pool.
-            # Using bare SET causes the value to persist across pooled connection
-            # reuse — a Tenant A context bleeds into Tenant B’s query (data breach).
-            # Graph expert injection — inside the same transaction / tenant context.
             async with conn.transaction():
                 await conn.execute(f"SET LOCAL app.current_tenant_id = '{tenant_id}'")
-                rows = await conn.fetch(opt_hybrid_sql, *query_params)
+                
+                sem_sql = f"""
+                    SELECT source_id, source_type, channel_or_space, content, author_id, document_category,
+                           (1 - (embedding <=> $1::vector)) AS semantic_score,
+                           ROW_NUMBER() OVER (ORDER BY embedding <=> $1::vector ASC) AS sem_rank
+                    FROM tenant_redwood_inference_prod.vector_chunks
+                    WHERE {permission_clause}
+                    {category_clause}
+                    LIMIT 60
+                """
+                
+                if not keywords:
+                    kw_rows = []
+                else:
+                    kw_sql = f"""
+                        WITH kw_scored AS (
+                            SELECT source_id, source_type, channel_or_space, content, author_id, document_category,
+                                   (1 - (embedding <=> $1::vector)) AS semantic_score,
+                                   ({text_score_expr}) AS text_score
+                            FROM tenant_redwood_inference_prod.vector_chunks
+                            WHERE {permission_clause}
+                            {category_clause}
+                            ORDER BY text_score DESC
+                            LIMIT 60
+                        )
+                        SELECT *, ROW_NUMBER() OVER (ORDER BY text_score DESC) AS kw_rank
+                        FROM kw_scored
+                    """
+
+                async def fetch_sem():
+                    return await conn.fetch(sem_sql, *query_params_base)
+                
+                async def fetch_kw():
+                    if not keywords: return []
+                    return await conn.fetch(kw_sql, *query_params)
+                
+                sem_rows = await fetch_sem()
+                kw_rows = await fetch_kw()
+                
+                # RRF Fusion
+                scores = {}
+                row_map = {}
+                k = 60
+                for r in sem_rows:
+                    sid = r["source_id"]
+                    scores[sid] = scores.get(sid, 0) + 1.0 / (k + r["sem_rank"])
+                    if sid not in row_map:
+                        row_map[sid] = dict(r)
+                for r in kw_rows:
+                    sid = r["source_id"]
+                    scores[sid] = scores.get(sid, 0) + 1.0 / (k + r["kw_rank"])
+                    if sid not in row_map:
+                        row_map[sid] = dict(r)
+                        
+                # Sort by RRF score
+                candidates = []
+                for sid, score in sorted(scores.items(), key=lambda x: x[1], reverse=True)[:20]:
+                    c = row_map[sid]
+                    candidates.append({
+                        "source":             c["source_id"],
+                        "type":              c["source_type"],
+                        "location":          c["channel_or_space"],
+                        "content":           c["content"],
+                        "author_id":         c["author_id"],
+                        "document_category": c["document_category"],
+                        "score":             score,
+                        "semantic_score":    float(c.get("semantic_score", 0)),
+                    })
+
                 experts_raw = await fetch_top_experts(conn, top_n=3)
 
-            for r in rows:
-                retrieved_chunks.append({
-                    "source":             r["source_id"],
-                    "type":              r["source_type"],
-                    "location":          r["channel_or_space"],
-                    "content":           r["content"],
-                    "author_id":         r["author_id"],
-                    "document_category": r["document_category"],
-                    "score":             float(r["combined_score"]),
-                    "semantic_score":    float(r["semantic_score"]),
-                })
+            # Reranker phase
+            reranker = get_reranker()
+            if reranker and candidates:
+                pairs = [[req.query, c["content"]] for c in candidates]
+                logits = reranker.predict(pairs)
+                if not hasattr(logits, "__iter__"):
+                    logits = [logits]
+                for c, logit in zip(candidates, logits):
+                    c["score"] = float(logit) # overwrite score with reranker score
+                candidates.sort(key=lambda x: x["score"], reverse=True)
+            
+            # Final top_k
+            retrieved_chunks = candidates[:effective_top_k]
 
             # Graph cold-start: if no experts yet, return a descriptive message
             # instead of an empty panel (which looks like a broken feature).
@@ -1809,8 +1881,8 @@ async def process_query(
     # Filter retrieved chunks based on a semantic relevance threshold
     if retrieved_chunks:
         max_semantic_score = max(c["semantic_score"] for c in retrieved_chunks)
-        if max_semantic_score < 0.51:
-            print(f"  [query] Top semantic score {max_semantic_score:.4f} < 0.51 threshold. Clearing retrieved chunks.")
+        if max_semantic_score < 0.40:
+            print(f"  [query] Top semantic score {max_semantic_score:.4f} < 0.40 threshold. Clearing retrieved chunks.")
             retrieved_chunks = []
 
     if not retrieved_chunks:

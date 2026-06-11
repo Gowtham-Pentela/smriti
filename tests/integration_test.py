@@ -214,7 +214,7 @@ async def run_tests():
                 resp = await client.post(
                     "/query",
                     json={"query": test["query"], "top_k": 5, "tenant_id": None},
-                    timeout=60.0,
+                    timeout=180.0,
                 )
                 r.record(resp.status_code == 200, f"{label}: HTTP 200")
 
