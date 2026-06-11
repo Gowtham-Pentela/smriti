@@ -169,7 +169,7 @@
 - [ ] Google Drive API verification (submit to Google for non-test users)
 - [x] Add `python-dotenv` to `requirements.txt` (currently installed but not pinned)
 - [ ] Email connector (Gmail / Outlook)
-- [ ] Meeting transcript ingestion (Zoom / Google Meet)
+- [x] Meeting transcript ingestion (Zoom / Google Meet)
 - [ ] Mobile-responsive UI tweaks
 - [ ] Rate limiting on `/query` endpoint
 - [ ] Proper logging/monitoring (Sentry or similar)

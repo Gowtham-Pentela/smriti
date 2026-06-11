@@ -15,7 +15,7 @@ import time
 import httpx
 from contextlib import asynccontextmanager
 from datetime import datetime
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends, Request, status, UploadFile, File
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends, Request, status, UploadFile, File, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -82,6 +82,7 @@ from backend import sync_scheduler
 from backend import slack_oauth as _slack_oauth
 from backend import gdrive_oauth as _gdrive_oauth
 from backend.doc_classifier import classify_document
+from backend.sutra_reconciler import run_sutra_pipeline, compile_action_plan, distribute_action_plan
 
 
 DB_URL = os.getenv(
@@ -1999,3 +2000,207 @@ async def process_query(
                 status_code=500,
                 detail=f"Generation pipeline error: {e}",
             )
+
+
+# ─── Sutra Meeting Bot & Reconciler Endpoints ─────────────────────────────────
+
+class ScheduleMeetingRequest(BaseModel):
+    title: str
+    scheduled_start: str  # ISO-8601 string
+    attendees: List[str]
+    meeting_url: Optional[str] = None
+
+ACTIVE_TRANSCRIPTS: Dict[str, List[str]] = {}
+
+@app.post("/api/meetings/schedule")
+async def schedule_meeting(
+    req: ScheduleMeetingRequest,
+    request: Request,
+    user: UserIdentity = Depends(get_current_user)
+):
+    """Schedules a new meeting in the database for the active tenant."""
+    tenant_id_str = getattr(request.state, "tenant_id", None) or TENANT_NAMESPACE_UUID
+    try:
+        tenant_uuid = uuid.UUID(tenant_id_str)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid tenant ID.")
+
+    try:
+        scheduled_dt = datetime.fromisoformat(req.scheduled_start.replace("Z", "+00:00"))
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid scheduled_start format. Must be ISO-8601.",
+        )
+
+    async with app.state.db_pool.acquire() as conn:
+        row = await conn.fetchrow(
+            """
+            INSERT INTO public.meetings (tenant_id, title, scheduled_start, attendees, status, meeting_url)
+            VALUES ($1, $2, $3, $4, 'scheduled', $5)
+            RETURNING id, tenant_id, title, scheduled_start, attendees, status, meeting_url
+            """,
+            tenant_uuid, req.title, scheduled_dt, req.attendees, req.meeting_url
+        )
+        return {
+            "id": str(row["id"]),
+            "tenant_id": str(row["tenant_id"]),
+            "title": row["title"],
+            "scheduled_start": row["scheduled_start"].isoformat(),
+            "attendees": row["attendees"],
+            "status": row["status"],
+            "meeting_url": row["meeting_url"]
+        }
+
+@app.get("/api/meetings/active")
+async def get_active_meetings(
+    request: Request,
+    user: UserIdentity = Depends(get_current_user)
+):
+    """Retrieve all active meetings for the active tenant."""
+    tenant_id_str = getattr(request.state, "tenant_id", None) or TENANT_NAMESPACE_UUID
+    try:
+        tenant_uuid = uuid.UUID(tenant_id_str)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid tenant ID.")
+
+    async with app.state.db_pool.acquire() as conn:
+        rows = await conn.fetch(
+            """
+            SELECT id, title, scheduled_start, attendees, status, meeting_url
+            FROM public.meetings
+            WHERE tenant_id = $1::uuid AND status = 'active'
+            ORDER BY scheduled_start DESC
+            """,
+            tenant_uuid
+        )
+        return [
+            {
+                "id": str(row["id"]),
+                "title": row["title"],
+                "scheduled_start": row["scheduled_start"].isoformat(),
+                "attendees": row["attendees"],
+                "status": row["status"],
+                "meeting_url": row["meeting_url"]
+            }
+            for row in rows
+        ]
+
+@app.post("/api/meetings/{meeting_id}/end")
+async def end_meeting(
+    meeting_id: str,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    user: UserIdentity = Depends(get_current_user)
+):
+    """Manually ends a meeting and triggers compilation/extraction."""
+    tenant_id_str = getattr(request.state, "tenant_id", None) or TENANT_NAMESPACE_UUID
+    try:
+        m_uuid = uuid.UUID(meeting_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid meeting ID format.")
+
+    async with app.state.db_pool.acquire() as conn:
+        meeting = await conn.fetchrow(
+            "SELECT status, tenant_id FROM public.meetings WHERE id = $1::uuid",
+            m_uuid
+        )
+        if not meeting:
+            raise HTTPException(status_code=404, detail="Meeting not found.")
+
+        # Set status to completed
+        await conn.execute(
+            "UPDATE public.meetings SET status = 'completed' WHERE id = $1::uuid",
+            m_uuid
+        )
+
+    # Pop transcript from active transcripts
+    turns = ACTIVE_TRANSCRIPTS.pop(meeting_id, None)
+    if turns:
+        full_transcript = "\n".join(turns)
+        background_tasks.add_task(
+            run_sutra_pipeline,
+            full_transcript,
+            meeting_id,
+            str(meeting["tenant_id"]),
+            app.state.db_pool
+        )
+        return {"status": "success", "message": "Meeting ended. Synthesis queued in background."}
+    
+    return {"status": "success", "message": "Meeting ended. No transcript was recorded."}
+
+@app.websocket("/api/meetings/{meeting_id}/stream")
+async def websocket_stream_endpoint(websocket: WebSocket, meeting_id: str):
+    """WebSocket endpoint to ingest real-time captions from Playwright Sutra Bot."""
+    await websocket.accept()
+    print(f"[WebSocket] Bot connected for meeting {meeting_id}")
+    
+    # Initialize transcription queue for this meeting
+    ACTIVE_TRANSCRIPTS[meeting_id] = []
+    
+    # Update meeting status to active
+    try:
+        m_uuid = uuid.UUID(meeting_id)
+        async with app.state.db_pool.acquire() as conn:
+            await conn.execute(
+                "UPDATE public.meetings SET status = 'active' WHERE id = $1::uuid",
+                m_uuid
+            )
+    except Exception as e:
+        print(f"[WebSocket] Error updating meeting status to active: {e}")
+
+    try:
+        while True:
+            data = await websocket.receive_text()
+            try:
+                turn = json.loads(data)
+                speaker = turn.get("speaker", "Unknown Speaker")
+                text = turn.get("text", "")
+                timestamp = turn.get("timestamp", datetime.utcnow().isoformat())
+                
+                if not text.strip():
+                    continue
+                
+                turn_info = f"[{timestamp}] {speaker}: {text}"
+                ACTIVE_TRANSCRIPTS[meeting_id].append(turn_info)
+                print(f"[Sutra WS Turn] {meeting_id} | {speaker}: {text}")
+                
+            except json.JSONDecodeError:
+                print(f"[WebSocket] JSON parse error on message: {data}")
+    except WebSocketDisconnect:
+        print(f"[WebSocket] Bot disconnected for meeting {meeting_id}")
+    except Exception as e:
+        print(f"[WebSocket] Error in stream: {e}")
+    finally:
+        # Schedule auto-synthesis on disconnect after 5 seconds buffer
+        # (gives lobby/temporary disconnects a chance, or handles immediate completion)
+        await asyncio.sleep(5)
+        turns = ACTIVE_TRANSCRIPTS.pop(meeting_id, None)
+        if turns:
+            full_transcript = "\n".join(turns)
+            print(f"[WebSocket] Processing final transcript for meeting {meeting_id} ({len(turns)} turns)")
+            
+            try:
+                m_uuid = uuid.UUID(meeting_id)
+                async with app.state.db_pool.acquire() as conn:
+                    meeting = await conn.fetchrow(
+                        "SELECT tenant_id FROM public.meetings WHERE id = $1::uuid",
+                        m_uuid
+                    )
+                    if meeting:
+                        # Update status to completed
+                        await conn.execute(
+                            "UPDATE public.meetings SET status = 'completed' WHERE id = $1::uuid",
+                            m_uuid
+                        )
+                        # Trigger background processing pipeline
+                        asyncio.create_task(
+                            run_sutra_pipeline(
+                                full_transcript,
+                                meeting_id,
+                                str(meeting["tenant_id"]),
+                                app.state.db_pool
+                            )
+                        )
+            except Exception as e:
+                print(f"[WebSocket] Failed to trigger background processing: {e}")
