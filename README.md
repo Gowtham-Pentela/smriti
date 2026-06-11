@@ -182,6 +182,15 @@ Required bot token scopes: `channels:history`, `channels:read`, `users:read`, `c
 
 **OAuth flow:** HMAC-signed CSRF state → Slack authorization → bot token Fernet-encrypted at rest → 30-minute auto-sync
 
+### Sutra Meeting Bot & Reconciler
+
+Sutra is Smriti's automated meeting assistant designed to join team meetings, transcribe discussions, extract decisions, and identify semantic conflicts against your central database.
+
+* **Live Caption Crawler (`sutra_bot.js`):** Powered by Playwright, the bot automatically joins scheduled Google Meet or MS Teams links, bypasses lobbies, disables its camera/microphone, enables live closed-captions, and streams speaker turns via WebSockets directly to the backend.
+* **Decision Extraction & pgvector Similarity Search:** After the meeting closes, the backend prompts local `phi4-mini` to extract structured decisions in JSON format. For each decision, we generate a 768-dimensional embedding using `nomic-embed-text` and perform a pgvector similarity search against historical decisions.
+* **Semantic Conflict Resolution:** Related historical decisions are evaluated using `phi4-mini` to classify relationships: `contradicts`, `depends_on`, or `supersedes`. Contradicting decisions are flagged instantly.
+* **Automated Post-Meeting Action Plans:** Compiles a markdown Action Plan containing executive summaries, action item tables, and conflict alert checklists. This report is wrapped in a responsive, styled email and distributed to attendees.
+
 ---
 
 ## Privacy
