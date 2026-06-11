@@ -53,7 +53,7 @@ async def main():
             meeting_uuid,
             uuid.UUID(tenant_id),
             datetime.datetime.now(datetime.timezone.utc),
-            ["gowtham@company.com", "cto@company.com"],
+            ["gowtham@company.com", "sutra@company.com"],
         )
         print(f"[Verify] Scheduled meeting with ID: {meeting_uuid}")
         
@@ -65,11 +65,11 @@ async def main():
         async with websockets.connect(ws_url) as ws:
             turns = [
                 {"speaker": "gowtham@company.com", "text": "Hi everyone, let's start the security meeting."},
-                {"speaker": "cto@company.com", "text": "Thanks. We need to decide on the login mechanism."},
+                {"speaker": "sutra@company.com", "text": "Thanks. As the CTO, I think we need to decide on the login mechanism."},
                 {"speaker": "gowtham@company.com", "text": "I think we should deprecate password login in favor of OAuth2 by July 1st. Password login is insecure."},
-                {"speaker": "cto@company.com", "text": "I agree completely. Let's make the decision: Deprecate password login entirely by July 1st, 2026."},
+                {"speaker": "sutra@company.com", "text": "I agree completely. Let's make the decision: Deprecate password login entirely by July 1st, 2026."},
                 {"speaker": "gowtham@company.com", "text": "Excellent. I will take ownership of this action item."},
-                {"speaker": "cto@company.com", "text": "Great, meeting adjourned."}
+                {"speaker": "sutra@company.com", "text": "Great, meeting adjourned."}
             ]
             
             for turn in turns:
