@@ -173,14 +173,36 @@ async def get_current_user(request: Request) -> UserIdentity:
 
     async with db_pool.acquire() as conn:
         # 1. Check if user already has an active membership in user_org_membership
-        row = await conn.fetchrow(
-            "SELECT tenant_id, role FROM public.user_org_membership WHERE user_id = $1",
-            user_uuid
-        )
+        row = None
+        if user.user_id.startswith("dev:"):
+            # Dev bypass: map to real production UUID/tenant by email
+            row = await conn.fetchrow(
+                "SELECT user_id, tenant_id, role FROM public.user_org_membership WHERE email = $1",
+                email
+            )
+            if row and "user_id" in row:
+                user_uuid = row["user_id"] # Override dev uuid with real DB uuid
+
+        if not row:
+            row = await conn.fetchrow(
+                "SELECT tenant_id, role FROM public.user_org_membership WHERE user_id = $1",
+                user_uuid
+            )
+
+        # Flag to check if we should look for pending invites
+        check_invite = False
         if row:
-            resolved_tenant_id = str(row["tenant_id"])
-            role = row["role"]
+            # If it's a personal workspace, check if there's a pending invite to join a real workspace
+            is_personal = str(row["tenant_id"]) == str(user_uuid)
+            if is_personal:
+                check_invite = True
+            else:
+                resolved_tenant_id = str(row["tenant_id"])
+                role = row["role"]
         else:
+            check_invite = True
+
+        if check_invite:
             # 2. Check if there is a pending invite in org_invites for this email
             invite_row = await conn.fetchrow(
                 "SELECT id, tenant_id, role FROM public.org_invites WHERE invited_email = $1 AND accepted_at IS NULL",
@@ -189,7 +211,7 @@ async def get_current_user(request: Request) -> UserIdentity:
             if invite_row:
                 resolved_tenant_id = str(invite_row["tenant_id"])
                 role = invite_row["role"]
-                # Auto-accept the invite: insert membership and set accepted_at
+                # Auto-accept the invite: insert/update membership and set accepted_at
                 async with conn.transaction():
                     await conn.execute(
                         """
@@ -206,6 +228,10 @@ async def get_current_user(request: Request) -> UserIdentity:
                         "UPDATE public.org_invites SET accepted_at = NOW() WHERE id = $1",
                         invite_row["id"]
                     )
+            elif row:
+                # Fall back to personal workspace if no invite found
+                resolved_tenant_id = str(row["tenant_id"])
+                role = row["role"]
             else:
                 # 3. Resolve based on email domain
                 from backend.tenant import get_or_provision_tenant

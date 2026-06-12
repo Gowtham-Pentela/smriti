@@ -167,14 +167,39 @@ def chunk_code(text: str, filename: str) -> list[dict]:
             })
     return chunks
 
-
-def chunk_text(text: str, chunk_size: int = 2500, overlap: int = 400) -> list[str]:
-    chunks, start = [], 0
-    while start < len(text):
-        chunk = text[start : start + chunk_size]
+def chunk_text(text: str, chunk_size: int = 1000, overlap: int = 200) -> list[str]:
+    """
+    Split text into overlapping chunks, aligning chunk boundaries to line breaks (\n)
+    to preserve readability of code blocks, tables, and lists.
+    """
+    chunks = []
+    text_len = len(text)
+    start = 0
+    while start < text_len:
+        end = min(start + chunk_size, text_len)
+        
+        # Try to find a newline in the last 20% of the chunk to split cleanly
+        if end < text_len:
+            last_newline = text.rfind('\n', start + int(chunk_size * 0.8), end)
+            if last_newline != -1:
+                end = last_newline + 1
+        
+        chunk = text[start:end]
         if chunk.strip():
             chunks.append(chunk)
-        start += chunk_size - overlap
+            
+        # Move start pointer back by overlap
+        next_start = end - overlap
+        if next_start <= start:
+            next_start = start + chunk_size // 2  # avoid infinite loop
+            
+        # Try to align the next start pointer to the beginning of a line
+        if next_start < text_len:
+            next_line = text.find('\n', next_start, next_start + 200)
+            if next_line != -1:
+                next_start = next_line + 1
+                
+        start = next_start
     return chunks
 
 

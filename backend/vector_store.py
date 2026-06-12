@@ -161,7 +161,7 @@ class LocalVectorStore:
                 self.embeddings = []
                 self.file_hashes = {}
 
-    def query(self, query_text, top_k=5):
+    def query(self, query_text, top_k=8):
         if not self.chunks or not self.embeddings:
             return []
 

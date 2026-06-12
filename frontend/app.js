@@ -1509,6 +1509,8 @@ async function loadOrgInfo() {
         // Show/hide admin-only sections
         if (btnEditOrgName) btnEditOrgName.style.display = isAdmin ? "inline-block" : "none";
         if (settingsInviteSection) settingsInviteSection.style.display = isAdmin ? "flex" : "none";
+        const settingsAdminSection = document.getElementById("settings-admin-section");
+        if (settingsAdminSection) settingsAdminSection.style.display = isAdmin ? "flex" : "none";
 
         // Render member table rows
         const currentUserEmail = (document.getElementById('user-email')?.textContent || window.sbSession?.user?.email || '').trim().toLowerCase();

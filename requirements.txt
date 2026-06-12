@@ -20,3 +20,5 @@ google-api-python-client==2.197.0
 pillow==12.2.0
 PyMuPDF==1.27.2.3
 pytesseract==0.3.13
+psutil
+

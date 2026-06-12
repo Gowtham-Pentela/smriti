@@ -20,7 +20,24 @@ if [ ! -f .env ]; then
     echo -e "${RED}❌ .env file missing. Run setup first.${NC}"
     exit 1
 fi
-export $(grep -v '^#\|^$' .env | xargs)
+# Load env variables, handling spaces and comments robustly
+while IFS= read -r line || [ -n "$line" ]; do
+    # Skip comments and empty lines
+    if [[ "$line" =~ ^[[:space:]]*# ]] || [[ -z "$line" ]]; then
+        continue
+    fi
+    # Match key=value structure (allowing spaces around =)
+    if [[ "$line" =~ ^[[:space:]]*([a-zA-Z_][a-zA-Z0-9_]*)[[:space:]]*=[[:space:]]*(.*)$ ]]; then
+        key="${BASH_REMATCH[1]}"
+        val="${BASH_REMATCH[2]}"
+        # Strip surrounding quotes if present
+        val="${val%\"}"
+        val="${val#\"}"
+        val="${val%\'}"
+        val="${val#\'}"
+        export "$key=$val"
+    fi
+done < .env
 echo -e "${GREEN}✅ Environment loaded${NC}"
 
 # ── 2. Check Supabase ────────────────────────────────────────────────────────
@@ -45,12 +62,12 @@ if curl -s --max-time 3 http://localhost:11434/api/tags > /dev/null 2>&1; then
         echo -e "${YELLOW}Pulling nomic-embed-text...${NC}"
         ollama pull nomic-embed-text
     fi
-    echo -n "   Checking mistral:7b... "
-    if curl -s http://localhost:11434/api/tags | grep -q "mistral"; then
+    echo -n "   Checking phi4-mini:latest... "
+    if curl -s http://localhost:11434/api/tags | grep -q "phi4-mini"; then
         echo -e "${GREEN}✅ Ready${NC}"
     else
-        echo -e "${YELLOW}Pulling mistral:7b (this takes a few minutes)...${NC}"
-        ollama pull mistral:7b
+        echo -e "${YELLOW}Pulling phi4-mini:latest (this takes a few minutes)...${NC}"
+        ollama pull phi4-mini:latest
     fi
 else
     echo -e "${RED}❌ Ollama not running${NC}"

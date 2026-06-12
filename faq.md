@@ -77,9 +77,41 @@ Maintenance is low: the stack runs containerized (via Docker Compose) and databa
 
 * **Product Roadmap:**
   - **CI/CD Architectural Policy Guard:** Integrations for GitHub/GitLab actions to check pull requests and fail builds if new code contradicts decisions captured by Sutra.
-  - **Native Calendar Syncing:** Automatic scheduling integrations with Google Calendar and Microsoft Outlook API webhooks.
   - **Enterprise Meeting Clients:** Native desktop bot wrappers for Zoom, Microsoft Teams, and Webex.
 * **Support System:**
   - **Admin Fallback Routing:** When Smriti cannot resolve a query, it routes the user to their designated internal IT/Workspace admin email.
   - **Local Health Dashboard:** Exposes endpoints like `/health` and `/status` for server health monitoring.
   - **Private Enterprise SLA:** Premium support contracts provide direct developer support, hotfixes, and custom data connector integrations.
+
+---
+
+### 7. How do workspace invitations work, and how does the email notification get sent?
+
+When an administrator invites a user via their email address (e.g. at `/org/invite`), Smriti:
+* Generates a unique, secure invitation token stored in the database.
+* Constructs a join URL pointing to `https://smriti.one/app/auth.html?invite={invite_id}`.
+* **SMTP Dispatch:** If SMTP settings are configured in `.env`, Smriti sends a styled HTML invitation email directly to the recipient's inbox.
+* **Manual Fallback:** If SMTP settings are not configured, the invite is still created successfully and recorded as pending. The administrator can copy the link from the UI and send it to the colleague manually.
+* When the invitee opens the link and authenticates, Smriti automatically links their new profile to the organization workspace.
+
+---
+
+### 8. What is the IMAP Email Connector, and how does it index our emails?
+
+To safely sync and query team email history without using cloud-hosted Google OAuth APIs or paying for third-party security audits, Smriti supports an **on-premise IMAP connector**:
+* **Connection & Security:** Connects to any standard mail server (Gmail, Outlook, local Exchange, postfix) via standard IMAP over TLS/SSL (usually port 993) using credentials configured locally in `.env`.
+* **Private Tenant Resolution:** As unread emails are fetched, Smriti determines which workspace they belong to by matching the sender's email or domain against active memberships (`public.user_org_membership`). Unresolved senders default to a private tenant silo, ensuring user isolation.
+* **PII & Data Sanitization:** Email bodies are processed through a local regex scrubbing layer to redact credentials, phone numbers, and typical personal identifiers before they are saved.
+* **Contextual Chunking:** Emails are split into overlapping character-based chunks. Each chunk is prefixed with the sender's email and the email subject to preserve RAG context.
+* **Local Vectors:** Chunks are embedded locally using `nomic-embed-text` and stored in `public.vector_chunks` on your pgvector instance.
+
+---
+
+### 9. How does the Sutra Meeting Bot automatically discover scheduled meetings?
+
+Instead of relying on Google Calendar webhooks or service accounts, the Sutra Meeting Bot uses **ICS calendar invite auto-discovery** via IMAP:
+* **The Invite Flow:** When a user schedules a meeting on their calendar (Google Calendar, Microsoft Outlook, Apple Calendar) and adds the bot as an invitee, their calendar system automatically sends a standard email invitation to the bot's inbox.
+* **ICS Processing:** The background IMAP worker polls the bot's mailbox for unread messages. If it detects a calendar invite (either a `text/calendar` body type or a `.ics` file attachment), it parses the raw iCalendar data.
+* **Meeting Registration:** The parser extracts the event title, start time, attendee emails, and the virtual meeting URL (Google Meet, MS Teams, Zoom, or Webex link) and automatically inserts a new row in `public.meetings` with a `scheduled` status.
+* When the scheduled time arrives, the background scheduler fires up the headless Playwright crawler (`sutra_bot.js`) to join the meeting and stream the caption transcript.
+

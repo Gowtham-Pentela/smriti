@@ -95,6 +95,7 @@ class TestAnswerQuality(unittest.TestCase):
         # Return mock chunk
         self.conn.fetch.return_value = [
             {
+                "event_id": "00000000-0000-0000-0000-000000000000",
                 "source_id": "manual.md",
                 "source_type": "file",
                 "channel_or_space": "docs",
@@ -102,7 +103,9 @@ class TestAnswerQuality(unittest.TestCase):
                 "author_id": "user1",
                 "document_category": "docs",
                 "combined_score": 0.8,
-                "semantic_score": 0.8
+                "semantic_score": 0.8,
+                "sem_rank": 1,
+                "kw_rank": 1
             }
         ]
 
@@ -143,6 +146,7 @@ class TestAnswerQuality(unittest.TestCase):
 
         self.conn.fetch.return_value = [
             {
+                "event_id": "00000000-0000-0000-0000-000000000000",
                 "source_id": "manual.md",
                 "source_type": "file",
                 "channel_or_space": "docs",
@@ -150,7 +154,9 @@ class TestAnswerQuality(unittest.TestCase):
                 "author_id": "user1",
                 "document_category": "docs",
                 "combined_score": 0.8,
-                "semantic_score": 0.8
+                "semantic_score": 0.8,
+                "sem_rank": 1,
+                "kw_rank": 1
             }
         ]
 

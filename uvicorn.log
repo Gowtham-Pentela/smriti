@@ -1,37 +1,34 @@
-INFO:     Started server process [19192]
+INFO:     Started server process [27308]
 INFO:     Waiting for application startup.
-INFO:     Application startup complete.
-INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
 Initializing connection pool → Postgres...
 🚀 DB connection pool established.
 🔄 Sync scheduler started. Interval: 1800s (30 min)
+🔄 IMAP background poller active. Check interval: 300s
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
 🔥 Ollama model warm-up complete.
-INFO:     127.0.0.1:53978 - "GET /org/info HTTP/1.1" 200 OK
-INFO:     127.0.0.1:53980 - "POST /org/invite HTTP/1.1" 200 OK
-INFO:     127.0.0.1:53982 - "GET /org/info HTTP/1.1" 200 OK
-INFO:     127.0.0.1:53985 - "GET /me HTTP/1.1" 200 OK
-INFO:     127.0.0.1:53987 - "GET /org/info HTTP/1.1" 200 OK
-INFO:     127.0.0.1:53989 - "PATCH /org/info HTTP/1.1" 200 OK
-INFO:     127.0.0.1:53991 - "GET /org/info HTTP/1.1" 200 OK
-INFO:     127.0.0.1:53993 - "POST /org/invite HTTP/1.1" 403 Forbidden
-INFO:     127.0.0.1:53995 - "DELETE /org/members/90806940-0794-5713-9c19-b5123351d87a HTTP/1.1" 403 Forbidden
-INFO:     127.0.0.1:53997 - "DELETE /org/members/8fa65f25-00ee-5dc7-827e-caeb4a2fd9af HTTP/1.1" 200 OK
-INFO:     127.0.0.1:53999 - "GET /org/info HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54035 - "GET /auth-config HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54035 - "GET /status HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54035 - "GET /files HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54035 - "POST /clear HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54035 - "GET /status HTTP/1.1" 200 OK
+🔥 Pre-loading ONNX Cross-Encoder Reranker...
+  [reranker] Loading cross-encoder/ms-marco-MiniLM-L6-v2 via ONNX...
+`torch_dtype` is deprecated! Use `dtype` instead!
+/Users/gowtham/local-assistant/venv/lib/python3.14/site-packages/transformers/modeling_attn_mask_utils.py:196: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
+  inverted_mask = torch.tensor(1.0, dtype=dtype) - expanded_mask
+  [reranker] Loaded ONNX model.
+[IMAP Sync] Connector not fully configured in .env. Skipping execution.
+INFO:     127.0.0.1:53747 - "GET /auth-config HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53747 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53747 - "GET /files HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53747 - "POST /clear HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53747 - "GET /status HTTP/1.1" 200 OK
 Found 42 files to index in /Users/gowtham/Desktop/Projects/portfolio.
-  → Embedding & inserting 1 chunks into Postgres...
-INFO:     127.0.0.1:54035 - "POST /index-folder HTTP/1.1" 200 OK
-  → Embedding & inserting 1 chunks into Postgres...
   → Embedding & inserting 2 chunks into Postgres...
+INFO:     127.0.0.1:53747 - "POST /index-folder HTTP/1.1" 200 OK
   → Embedding & inserting 1 chunks into Postgres...
+  → Embedding & inserting 6 chunks into Postgres...
+  → Embedding & inserting 2 chunks into Postgres...
   → Embedding & inserting 23 chunks into Postgres...
-INFO:     127.0.0.1:54035 - "GET /indexing-progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53747 - "GET /indexing-progress HTTP/1.1" 200 OK
   → Embedding & inserting 1 chunks into Postgres...
-  → Embedding & inserting 1 chunks into Postgres...
+  → Embedding & inserting 2 chunks into Postgres...
   → Embedding & inserting 1 chunks into Postgres...
   → Embedding & inserting 1 chunks into Postgres...
   → Embedding & inserting 1 chunks into Postgres...
@@ -44,199 +41,89 @@ INFO:     127.0.0.1:54035 - "GET /indexing-progress HTTP/1.1" 200 OK
   → Embedding & inserting 2 chunks into Postgres...
   → Embedding & inserting 1 chunks into Postgres...
   → Embedding & inserting 2 chunks into Postgres...
+INFO:     127.0.0.1:53747 - "GET /indexing-progress HTTP/1.1" 200 OK
   → Embedding & inserting 2 chunks into Postgres...
-INFO:     127.0.0.1:54035 - "GET /indexing-progress HTTP/1.1" 200 OK
   → Embedding & inserting 2 chunks into Postgres...
   → Embedding & inserting 1 chunks into Postgres...
   → Embedding & inserting 1 chunks into Postgres...
   → Embedding & inserting 2 chunks into Postgres...
-  → Embedding & inserting 7 chunks into Postgres...
-  → Embedding & inserting 10 chunks into Postgres...
-INFO:     127.0.0.1:54035 - "GET /indexing-progress HTTP/1.1" 200 OK
+  → Embedding & inserting 18 chunks into Postgres...
+  → Embedding & inserting 26 chunks into Postgres...
+INFO:     127.0.0.1:53747 - "GET /indexing-progress HTTP/1.1" 200 OK
   → Embedding & inserting 1 chunks into Postgres...
   → Embedding & inserting 2 chunks into Postgres...
 Indexing completed in 11s.
-INFO:     127.0.0.1:54035 - "GET /indexing-progress HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54035 - "GET /status HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54035 - "GET /files HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54035 - "GET /status HTTP/1.1" 200 OK
-  [grounding] stripped unsupported claim: 'The deployment is done through Vercel which supports both front-end hosting as w'
-  [grounding] stripped unsupported claim: '[1] Source: README.md | Location: Section 2'
-INFO:     127.0.0.1:54035 - "POST /query HTTP/1.1" 200 OK
-  [grounding] stripped unsupported claim: 'These can be found within `frontend/src/components/`.'
-INFO:     127.0.0.1:54035 - "POST /query HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54035 - "POST /query HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53747 - "GET /indexing-progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53747 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53747 - "GET /files HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53747 - "GET /status HTTP/1.1" 200 OK
+  [query] Retrieved chunks passing to LLM:
+    [1] Source: README.md | Score: -4.922161102294922 | SemScore: 0.7148972538592944 | Content: '# Gowtham Pentela — Portfolio\n\nPersonal portfolio site for **Gowtham Pentela**, Applied AI Engineer.'
+    [2] Source: package.json | Score: -8.472000122070312 | SemScore: 0.5556245282728121 | Content: '{\n  "name": "gowtham-portfolio",\n  "version": "1.0.0",\n  "private": true,\n  "type": "module",\n  "scr'
+    [3] Source: frontend/package.json | Score: -8.512359619140625 | SemScore: 0.5555630127959015 | Content: '{\n  "name": "gowtham-portfolio-frontend",\n  "private": true,\n  "version": "1.0.0",\n  "type": "module'
+    [4] Source: src/data/content.js | Score: -8.741667747497559 | SemScore: 0.48324496657703997 | Content: "export const META = {\n  name: 'Gowtham Pentela',\n  title: 'Applied AI Engineer',\n  tagline: 'Availab"
+    [5] Source: frontend/src/components/Experience.jsx | Score: -8.807167053222656 | SemScore: 0.5232524285492159 | Content: "import styles from './Experience.module.css'\n\nconst jobs = [\n  {\n    period:  'Nov 2025 — Present',\n"
 INFO:     2a06:98c0:3600::103:0 - "GET /wp-admin/install.php?step=1 HTTP/1.1" 404 Not Found
-  [grounding] stripped unsupported claim: 'The backend technology used here includes FastAPI written in Python.'
-  [grounding] stripped unsupported claim: 'For deployment purposes, this portfolio utilizes Vercel for both serving its fro'
-  [grounding] stripped unsupported claim: "This setup allows Gowtham Pentela's personal website and associated backend serv"
-  [grounding] stripped unsupported claim: 'The deployment strategy is not explicitly detailed within this context; however,'
-  [grounding] stripped unsupported claim: 'This would typically be done using a continuous integration/continuous deploymen'
-  [grounding] stripped unsupported claim: 'For more detailed deployment instructions or configurations that might be used b'
-INFO:     127.0.0.1:54035 - "POST /query HTTP/1.1" 200 OK
-  [grounding] stripped unsupported claim: 'This implies that there is an application layer (`frontend`) separate from a pot'
-  [grounding] stripped unsupported claim: 'The project also includes deployment instructions for Vercel, indicating it may '
-INFO:     127.0.0.1:54035 - "POST /query HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54035 - "GET /me HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54035 - "GET /connections HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54035 - "POST /clear HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54035 - "GET /status HTTP/1.1" 200 OK
-INFO:     216.73.216.41:0 - "GET /sitemap.xml HTTP/1.1" 404 Not Found
-INFO:     127.0.0.1:54197 - "GET /app/index.html HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54197 - "GET /app/style.css HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54199 - "GET /app/js/supabase.js HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54203 - "GET /app/app.js HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54199 - "GET /app/images/smriti_logo.png HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54199 - "GET /auth-config HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54199 - "GET /app/auth.html HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54199 - "GET /app/images/smriti_logo.png HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54203 - "GET /app/js/supabase.js HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54219 - "GET /app/index.html HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54219 - "GET /app/style.css HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54221 - "GET /app/js/supabase.js HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54223 - "GET /app/app.js HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54221 - "GET /app/images/smriti_logo.png HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54221 - "GET /auth-config HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54221 - "GET /app/auth.html HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54221 - "GET /app/images/smriti_logo.png HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54223 - "GET /app/js/supabase.js HTTP/1.1" 200 OK
-INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET / HTTP/1.1" 307 Temporary Redirect
-INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/landing.html HTTP/1.1" 200 OK
-INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/images/img_02_onboarding_friction.png HTTP/1.1" 200 OK
-INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/landing.css HTTP/1.1" 200 OK
-INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/images/img_01_knowledge_silos.png HTTP/1.1" 304 Not Modified
-INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/images/img_08_requirements_specs.png HTTP/1.1" 200 OK
-INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/images/img_12_email_threads.png HTTP/1.1" 200 OK
-INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/images/img_03_brain_drain.png HTTP/1.1" 200 OK
-INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/images/smriti_logo.png HTTP/1.1" 200 OK
-INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/images/img_05_index_privately.png HTTP/1.1" 200 OK
-INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/images/img_09_release_notes.png HTTP/1.1" 200 OK
-INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/images/img_04_connect_sources.png HTTP/1.1" 200 OK
-INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/landing.js HTTP/1.1" 200 OK
-INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/images/img_06_ask_anything.png HTTP/1.1" 200 OK
-INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/images/img_11_google_drive.png HTTP/1.1" 304 Not Modified
-INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/images/img_07_slack_teams.png HTTP/1.1" 200 OK
-INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/images/img_10_meeting_transcripts.png HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54253 - "GET /app/index.html HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54254 - "GET /app/js/supabase.js HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54253 - "GET /app/style.css HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54256 - "GET /app/app.js HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54256 - "GET /app/images/smriti_logo.png HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54256 - "GET /auth-config HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54256 - "GET /health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54254 - "GET /status HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54254 - "GET /files HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54256 - "GET /gdrive/status HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54253 - "GET /confluence/status HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54259 - "GET /org/info HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54264 - "GET /org/info HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54295 - "GET /auth-config HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54295 - "GET /status HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54295 - "GET /files HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54295 - "POST /clear HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54295 - "GET /status HTTP/1.1" 200 OK
-Found 42 files to index in /Users/gowtham/Desktop/Projects/portfolio.
-  → Embedding & inserting 1 chunks into Postgres...
-INFO:     127.0.0.1:54295 - "POST /index-folder HTTP/1.1" 200 OK
-  → Embedding & inserting 1 chunks into Postgres...
-  → Embedding & inserting 2 chunks into Postgres...
-  → Embedding & inserting 1 chunks into Postgres...
-  → Embedding & inserting 23 chunks into Postgres...
-INFO:     127.0.0.1:54295 - "GET /indexing-progress HTTP/1.1" 200 OK
-  → Embedding & inserting 1 chunks into Postgres...
-  → Embedding & inserting 1 chunks into Postgres...
-  → Embedding & inserting 1 chunks into Postgres...
-  → Embedding & inserting 1 chunks into Postgres...
-  → Embedding & inserting 1 chunks into Postgres...
-  → Embedding & inserting 1 chunks into Postgres...
-  → Embedding & inserting 2 chunks into Postgres...
-  → Embedding & inserting 1 chunks into Postgres...
-  → Embedding & inserting 1 chunks into Postgres...
-  → Embedding & inserting 2 chunks into Postgres...
-  → Embedding & inserting 1 chunks into Postgres...
-INFO:     127.0.0.1:54295 - "GET /indexing-progress HTTP/1.1" 200 OK
-  → Embedding & inserting 2 chunks into Postgres...
-  → Embedding & inserting 1 chunks into Postgres...
-  → Embedding & inserting 2 chunks into Postgres...
-  → Embedding & inserting 2 chunks into Postgres...
-  → Embedding & inserting 2 chunks into Postgres...
-  → Embedding & inserting 1 chunks into Postgres...
-  → Embedding & inserting 1 chunks into Postgres...
-  → Embedding & inserting 2 chunks into Postgres...
-  → Embedding & inserting 7 chunks into Postgres...
-INFO:     127.0.0.1:54295 - "GET /indexing-progress HTTP/1.1" 200 OK
-  → Embedding & inserting 10 chunks into Postgres...
-INFO:     127.0.0.1:54295 - "GET /indexing-progress HTTP/1.1" 200 OK
-  → Embedding & inserting 1 chunks into Postgres...
-  → Embedding & inserting 2 chunks into Postgres...
-Indexing completed in 13s.
-INFO:     127.0.0.1:54295 - "GET /indexing-progress HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54295 - "GET /status HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54295 - "GET /files HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54295 - "GET /status HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54295 - "POST /query HTTP/1.1" 200 OK
-  [grounding] stripped unsupported claim: 'These can be found within `frontend/src/components/`.'
-INFO:     127.0.0.1:54295 - "POST /query HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54295 - "POST /query HTTP/1.1" 200 OK
-  [grounding] stripped unsupported claim: 'The stack used comprises React with CSS Modules on the front end; FastAPI in Pyt'
-  [grounding] stripped unsupported claim: 'This setup allows Gowtham Pentela to showcase his work and skills effectively th'
-INFO:     127.0.0.1:54295 - "POST /query HTTP/1.1" 200 OK
-  [grounding] stripped unsupported claim: 'Within this, there are two main subdirectories named `frontend` and `backend`, w'
-  [grounding] stripped unsupported claim: '[1] Source: README.md | Location: Section 2'
-  [grounding] stripped unsupported claim: '[3] Source: tools/project_mapper.py | Location: Block 23'
-  [grounding] stripped unsupported claim: '[5] Source: tools/project_mapper.py | Location: Block 20'
-INFO:     127.0.0.1:54295 - "POST /query HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54295 - "GET /me HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54295 - "GET /connections HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54295 - "POST /clear HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54295 - "GET /status HTTP/1.1" 200 OK
-INFO:     2a06:98c0:3600::103:0 - "GET /wp-admin/install.php?step=1 HTTP/1.1" 404 Not Found
-INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/callback.html HTTP/1.1" 200 OK
-INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/images/smriti_logo.png HTTP/1.1" 200 OK
-INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/js/supabase.js HTTP/1.1" 200 OK
-INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/index.html HTTP/1.1" 200 OK
-INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/js/supabase.js HTTP/1.1" 200 OK
-INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/style.css HTTP/1.1" 200 OK
-INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/app.js HTTP/1.1" 200 OK
-INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/images/smriti_logo.png HTTP/1.1" 200 OK
-INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /auth-config HTTP/1.1" 200 OK
-INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /health HTTP/1.1" 200 OK
-INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /confluence/status HTTP/1.1" 200 OK
-INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /gdrive/status HTTP/1.1" 200 OK
-INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /files HTTP/1.1" 200 OK
-INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /org/info HTTP/1.1" 200 OK
-INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /status HTTP/1.1" 200 OK
-INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /org/info HTTP/1.1" 200 OK
-INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /org/info HTTP/1.1" 200 OK
-INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "PATCH /org/info HTTP/1.1" 200 OK
-INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /org/info HTTP/1.1" 200 OK
-INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /org/info HTTP/1.1" 200 OK
-INFO:     45.92.87.192:0 - "GET / HTTP/1.1" 307 Temporary Redirect
-INFO:     45.92.87.192:0 - "GET /app/landing.html HTTP/1.1" 200 OK
-INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "DELETE /org/members/90806940-0794-5713-9c19-b5123351d87a HTTP/1.1" 500 Internal Server Error
-INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "DELETE /org/members/90806940-0794-5713-9c19-b5123351d87a HTTP/1.1" 500 Internal Server Error
-INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /org/info HTTP/1.1" 200 OK
-INFO:     2a06:98c0:3600::103:0 - "GET /wp-admin/install.php?step=1 HTTP/1.1" 404 Not Found
-INFO:     2a06:98c0:3600::103:0 - "GET /wp-admin/install.php?step=1 HTTP/1.1" 404 Not Found
+  [query] Raw response:
+The portfolio uses React for the frontend and FastAPI in Python as its backend. It is deployed using Vercel [Citation: README.md, Section 1; package.json (frontend), Location: Section 1].
 
-🔄 [2026-06-10T17:50:21.653869] Starting sync cycle...
-✅ Sync complete in 0.1s: 0 tenants synced, 0 errors.
-INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/index.html HTTP/1.1" 200 OK
-INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/style.css HTTP/1.1" 200 OK
-INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/app.js HTTP/1.1" 200 OK
-INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/js/supabase.js HTTP/1.1" 200 OK
-INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /app/images/smriti_logo.png HTTP/1.1" 200 OK
-INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /auth-config HTTP/1.1" 200 OK
-INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /health HTTP/1.1" 200 OK
-INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /status HTTP/1.1" 200 OK
-INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /confluence/status HTTP/1.1" 200 OK
-INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /gdrive/status HTTP/1.1" 200 OK
-INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /files HTTP/1.1" 200 OK
-INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /org/info HTTP/1.1" 200 OK
-INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /favicon.ico HTTP/1.1" 404 Not Found
-INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "GET /org/info HTTP/1.1" 200 OK
-INFO:     2601:248:8501:3360:908b:3a88:866f:5d72:0 - "DELETE /org/members/90806940-0794-5713-9c19-b5123351d87a HTTP/1.1" 500 Internal Server Error
-INFO:     Shutting down
-INFO:     Waiting for application shutdown.
-INFO:     Application shutdown complete.
-INFO:     Finished server process [19192]
+  [grounding] stripped unverified cited claim: 'It is deployed using Vercel .'
+INFO:     127.0.0.1:53747 - "POST /query HTTP/1.1" 200 OK
+  [query] Retrieved chunks passing to LLM:
+    [1] Source: docs/PROJECT_MAP.md | Score: 3.472513198852539 | SemScore: 0.6702304564795137 | Content: '- Lines: `117`\n- Local dependencies:\n  - `frontend/src/components/Projects.module.css`\n- Functions: '
+    [2] Source: docs/PROJECT_MAP.md | Score: 3.1809182167053223 | SemScore: 0.6709122101859428 | Content: '- `frontend/src/components/Nav.jsx` uses `frontend/src/components/Nav.module.css`\n- `frontend/src/co'
+    [3] Source: docs/project_map.json | Score: 2.9420628547668457 | SemScore: 0.6808728520305012 | Content: '    ],\n    [\n      "frontend/src/components/Nav.jsx",\n      "frontend/src/components/Nav.module.css"'
+    [4] Source: docs/PROJECT_MAP.md | Score: 2.765758991241455 | SemScore: 0.6734220696606839 | Content: '- Lines: `78`\n- Local dependencies:\n  - `frontend/src/components/About.module.css`\n- Functions: Abou'
+    [5] Source: docs/PROJECT_MAP.md | Score: 2.659609079360962 | SemScore: 0.6784233313868298 | Content: '  - Reads, writes, or processes JSON-like data.\n\n### `frontend/src/components/Hero.module.css`\n\n- Ro'
+  [query] Raw response:
+The following components exist on the front end:
+
+1. Projects (Projects.module.css)
+2. Stats (Stats.jsx, Stats.module.css)
+3. Nav (Nav.jsx, Nav.module.css)
+4. About (About.jsx, About.module.css) [Citation: PROJECT_MAP.md, Section 7]
+5. Contact (Contact.jsx, Contact.module.css) [Citation: PROJECT_MAP_MD, Section 11]
+
+INFO:     127.0.0.1:53747 - "POST /query HTTP/1.1" 200 OK
+  [query] Retrieved chunks passing to LLM:
+    [1] Source: docs/project_map.json | Score: -8.155989646911621 | SemScore: 0.4714941794688947 | Content: '      "size_bytes": 5492,\n      "line_count": 86,\n      "role_guess": "Frontend component",\n      "i'
+    [2] Source: frontend/src/App.jsx | Score: -8.866366386413574 | SemScore: 0.47552073483862056 | Content: "import { useEffect } from 'react'\nimport Cursor     from './components/Cursor'\nimport Loader     fro"
+    [3] Source: docs/PROJECT_MAP.md | Score: -8.907357215881348 | SemScore: 0.5115966370927426 | Content: '    N2["frontend/src/components/About.jsx"] --> N12["frontend/src/components/About.module.css"]\n    '
+    [4] Source: README.md | Score: -9.156961441040039 | SemScore: 0.5356428884468705 | Content: "\n```js\n{\n  num:   '04 / 04',\n  title: 'My New Project',\n  sub:   'Short tagline',\n  desc:  'Descript"
+    [5] Source: docs/PROJECT_MAP.md | Score: -9.399477005004883 | SemScore: 0.5079935039878123 | Content: '\n```mermaid\ngraph TD\n    N1["frontend/src/App.jsx"] --> N2["frontend/src/components/About.jsx"]\n    '
+[IMAP Sync] Connector not fully configured in .env. Skipping execution.
+  [query] Raw response:
+The "Experience" section shows a job listing with details such as title, tagline, description, tags (Python and FastAPI), GitHub link for more information or to view source code. It also includes an optional live URL where someone can see it in action [Citation: README.md, Section 5].
+
+  [grounding] stripped unverified cited claim: 'It also includes an optional live URL where someone can see it in action .'
+INFO:     127.0.0.1:53747 - "POST /query HTTP/1.1" 200 OK
+  [query] Retrieved chunks passing to LLM:
+    [1] Source: README.md | Score: -0.4979921281337738 | SemScore: 0.5276445537916801 | Content: 'pip install -r requirements.txt\ncp .env.example .env          # Fill in your SMTP credentials\nuvicor'
+    [2] Source: README.md | Score: -3.8842570781707764 | SemScore: 0.6741945254004935 | Content: '# Gowtham Pentela — Portfolio\n\nPersonal portfolio site for **Gowtham Pentela**, Applied AI Engineer.'
+    [3] Source: backend/main.py | Score: -7.975687503814697 | SemScore: 0.4648649042100733 | Content: 'def health():\n    return {"status": "ok"}\n\n# ── Contact form ───────────────────────────────────────'
+    [4] Source: frontend/package.json | Score: -8.47420883178711 | SemScore: 0.5766073127554455 | Content: '{\n  "name": "gowtham-portfolio-frontend",\n  "private": true,\n  "version": "1.0.0",\n  "type": "module'
+    [5] Source: package.json | Score: -8.643793106079102 | SemScore: 0.573615704046623 | Content: '{\n  "name": "gowtham-portfolio",\n  "version": "1.0.0",\n  "private": true,\n  "type": "module",\n  "scr'
+  [query] Raw response:
+The portfolio can be deployed using Vercel, either through the Vercel CLI (Option A) or by importing it into your GitHub repository and setting up deployment via the [vercel.com](https://vercel.com) dashboard (Option B). Both options will build both frontend and backend. The stack includes React 18 + Vite for front-end development, FastAPI in Python as a server-side language choice with an optional contact form that requires SMTP credentials to function correctly.
+
+[Citation: README.md, Section 3]
+[Citation: package.json | Location: Section 1]
+
+INFO:     127.0.0.1:53747 - "POST /query HTTP/1.1" 200 OK
+  [query] Retrieved chunks passing to LLM:
+    [1] Source: docs/PROJECT_MAP.md | Score: -7.030414581298828 | SemScore: 0.6513423807723607 | Content: '- `src/main.jsx` uses `src/index.css`\n\n## Maintenance Notes\n\nRegenerate this file whenever the proje'
+    [2] Source: tools/project_mapper.py | Score: -9.435952186584473 | SemScore: 0.6227935993074144 | Content: 'def main() -> None:\n    args = parse_args()\n    root = Path(args.root).resolve()\n    output_dir = ro'
+    [3] Source: docs/PROJECT_MAP.md | Score: -9.516338348388672 | SemScore: 0.5893887240606597 | Content: '# Project Map\n\nThis file was generated automatically by `project_mapper.py`.\nUse it to help AI codin'
+    [4] Source: tools/project_mapper.py | Score: -9.711793899536133 | SemScore: 0.5617435271276928 | Content: '    def detect_python_package_roots(self, files: List[Path]) -> Set[Path]:\n        """Find directori'
+    [5] Source: tools/project_mapper.py | Score: -9.94687557220459 | SemScore: 0.5997957973498507 | Content: '#!/usr/bin/env python3\n"""\nProject Mapper\n\nScans a local project folder and generates AI-friendly pr'
+  [query] Raw response:
+The root or entry point for this project's codebase appears to be `/Users/gowtham/Desktop/portfolio` [Citation: docs/PROJECT_MAP.md, Section 1].
+
+INFO:     127.0.0.1:53747 - "POST /query HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53747 - "GET /me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53747 - "GET /connections HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53747 - "POST /clear HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53747 - "GET /status HTTP/1.1" 200 OK
+INFO:     185.130.227.201:0 - "GET / HTTP/1.1" 307 Temporary Redirect
+INFO:     185.130.227.201:0 - "GET /app/landing.html HTTP/1.1" 200 OK
+[IMAP Sync] Connector not fully configured in .env. Skipping execution.

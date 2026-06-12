@@ -1,6 +1,6 @@
 # 🏆 Enterprise RAG Benchmark Results (v3)
 
-**Date Executed:** 2026-06-11 18:25:27
+**Date Executed:** 2026-06-11 19:01:41
 **Total Chunks:** 3135
 **Architecture Configuration:**
 - **Retrieval:** Dual-Pass (Dense `HNSW` + Keyword `BM25`)
@@ -16,10 +16,10 @@
 
 | Scenario | Q | R@1 | R@3 | R@5 | **R@10** | **P@3** | **P@5** | P@10 | MRR | NDCG@10 | Hit@1 | Hit@3 | Hit@5 |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| **Slack** | 79 | 54.50% | 66.16% | 67.56% | **68.83%** | 27.85% | 17.22% | 8.73% | 0.760 | 0.653 | 69.62% | 82.28% | 83.54% |
-| **Confluence** | 114 | 40.19% | 57.62% | 64.32% | **72.42%** | 40.94% | 29.82% | 17.89% | 0.823 | 0.679 | 72.81% | 89.47% | 92.98% |
-| **Google Drive** | 60 | 67.07% | 70.86% | 76.35% | **78.02%** | 30.56% | 20.00% | 10.17% | 0.882 | 0.759 | 85.00% | 88.33% | 95.00% |
-| **Combined** | 224 | 44.89% | 56.47% | 60.28% | **65.66%** | 26.93% | 17.77% | 10.04% | 0.630 | 0.590 | 56.70% | 67.86% | 70.54% |
+| **Slack** | 79 | 48.80% | 62.23% | 63.77% | **65.03%** | 26.16% | 16.46% | 8.35% | 0.710 | 0.608 | 63.29% | 78.48% | 79.75% |
+| **Confluence** | 116 | 39.37% | 57.52% | 63.50% | **71.34%** | 39.94% | 28.97% | 17.65% | 0.794 | 0.664 | 69.83% | 87.93% | 92.24% |
+| **Google Drive** | 61 | 69.25% | 73.00% | 76.74% | **77.56%** | 31.15% | 20.00% | 10.16% | 0.898 | 0.772 | 86.89% | 90.16% | 95.08% |
+| **Combined** | 227 | 48.91% | 66.38% | 71.08% | **78.43%** | 35.10% | 24.23% | 14.39% | 0.752 | 0.705 | 66.96% | 81.94% | 85.46% |
 
 ---
 
@@ -27,10 +27,10 @@
 
 | Stage | Slack p50 / p95 | Confluence p50 / p95 | Drive p50 / p95 | Combined p50 / p95 |
 | :--- | :---: | :---: | :---: | :---: |
-| **Query Embedding** | 60.2ms / 127.2ms | 58.0ms / 110.9ms | 51.4ms / 102.6ms | 116.7ms / 1161.1ms |
-| **HNSW Retrieval** | 107.3ms / 273.3ms | 414.4ms / 705.0ms | 167.1ms / 302.9ms | 608.2ms / 5565.6ms |
-| **Cross-Encoder Rerank** | 858.4ms / 1596.9ms | 728.2ms / 1181.7ms | 746.1ms / 1364.5ms | 1004.4ms / 5394.2ms |
-| **Total (Retrieval Stack)** | **1017.9ms / 1827.9ms** | **1230.5ms / 1844.2ms** | **956.7ms / 1595.9ms** | **1883.9ms / 14243.3ms** |
+| **Query Embedding** | 84.8ms / 3174.7ms | 60.2ms / 99.0ms | 49.4ms / 68.3ms | 60.5ms / 907.3ms |
+| **HNSW Retrieval** | 408.0ms / 26930.7ms | 1231.1ms / 1643.0ms | 306.8ms / 484.1ms | 1471.7ms / 6782.1ms |
+| **Cross-Encoder Rerank** | 2078.1ms / 16407.4ms | 973.9ms / 1826.3ms | 720.7ms / 1114.6ms | 961.3ms / 6280.2ms |
+| **Total (Retrieval Stack)** | **2632.7ms / 43233.3ms** | **2280.5ms / 3253.9ms** | **1115.2ms / 1570.0ms** | **2497.7ms / 14398.0ms** |
 
 > LLM generation and grounding verification time are measured separately in the production pipeline.
 
@@ -40,9 +40,9 @@
 
 | Source | Isolated Recall@10 | Combined Recall@10 | Delta |
 | :--- | :---: | :---: | :---: |
-| Slack | 68.83% | 52.62% | -16.21% |
-| Confluence | 72.42% | 55.31% | -17.11% |
-| Google Drive | 78.02% | 87.17% | +9.15% |
+| Slack | 65.03% | 72.43% | +7.40% |
+| Confluence | 71.34% | 75.75% | +4.41% |
+| Google Drive | 77.56% | 85.74% | +8.18% |
 
 ---
 
@@ -67,7 +67,7 @@
 
 ## 📋 Methodology Notes
 
-### On the 92.4% vs. 68.83% Slack Recall Discrepancy
+### On the 92.4% vs. 65.03% Slack Recall Discrepancy
 
 A prior session reported **92.4% Slack hit rate**. The current figure reflects the **full
 EnterpriseRAG-Bench 224-question corpus** (cross-connector, harder ground truth). The prior

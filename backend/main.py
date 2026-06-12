@@ -230,17 +230,29 @@ async def lifespan(app: FastAPI):
         sync_scheduler.start_sync_loop(app.state.db_pool)
     )
 
+    # ── Background IMAP sync loop ──────────────────────────────────────────────────
+    from backend.imap_connector import start_imap_sync_loop
+    _imap_sync_task = asyncio.create_task(
+        start_imap_sync_loop(app.state.db_pool)
+    )
+
     yield  # ← app is running here
 
     # Shutdown
     _sync_task.cancel()
+    _imap_sync_task.cancel()
     _warmup_task.cancel()
     try:
         await _sync_task
     except asyncio.CancelledError:
         pass
+    try:
+        await _imap_sync_task
+    except asyncio.CancelledError:
+        pass
     await app.state.db_pool.close()
     print("🛑 DB connection pool closed.")
+
 
 
 
@@ -303,8 +315,138 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*", "X-Dev-User-Email"],
 )
+# ─── Stats and Rate Limiting monitoring ───────────────────────────────────────
+import threading
+import psutil
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request as StarletteRequest
+
+class TokenBucketRateLimiter:
+    def __init__(self, capacity: int, leak_rate: float):
+        self.capacity = capacity
+        self.leak_rate = leak_rate
+        self.buckets = {}  # ip: {"tokens": float, "last_update": float}
+        self.lock = threading.Lock()
+
+    def is_allowed(self, ip: str) -> bool:
+        with self.lock:
+            now = time.time()
+            if ip not in self.buckets:
+                self.buckets[ip] = {
+                    "tokens": float(self.capacity) - 1.0,
+                    "last_update": now
+                }
+                return True
+
+            bucket = self.buckets[ip]
+            elapsed = now - bucket["last_update"]
+            bucket["tokens"] = min(
+                float(self.capacity),
+                bucket["tokens"] + elapsed * self.leak_rate
+            )
+            bucket["last_update"] = now
+
+            if bucket["tokens"] >= 1.0:
+                bucket["tokens"] -= 1.0
+                return True
+            else:
+                return False
+
+# 100 requests per minute limit for general routes
+global_limiter = TokenBucketRateLimiter(capacity=100, leak_rate=100/60.0)
+# 10 requests per minute limit for query, ingestion, etc.
+heavy_limiter = TokenBucketRateLimiter(capacity=10, leak_rate=10/60.0)
+
+
+class StatsTracker:
+    def __init__(self):
+        self.lock = threading.Lock()
+        # endpoint_stats format: {endpoint: {calls: X, total_latency_ms: Y, status_codes: {200: Z, ...}, errors: W}}
+        self.endpoint_stats = {}
+        self.recent_errors = []
+
+    def record_request(self, endpoint: str, latency_ms: float, status_code: int, error_msg: str = None):
+        with self.lock:
+            if endpoint not in self.endpoint_stats:
+                self.endpoint_stats[endpoint] = {
+                    "calls": 0,
+                    "total_latency_ms": 0.0,
+                    "status_codes": {},
+                    "errors": 0
+                }
+            stats = self.endpoint_stats[endpoint]
+            stats["calls"] += 1
+            stats["total_latency_ms"] += latency_ms
+            
+            sc_str = str(status_code)
+            stats["status_codes"][sc_str] = stats["status_codes"].get(sc_str, 0) + 1
+            
+            if status_code >= 400 or error_msg:
+                stats["errors"] += 1
+                if error_msg:
+                    self.recent_errors.append({
+                        "timestamp": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+                        "endpoint": endpoint,
+                        "error": error_msg
+                    })
+                    if len(self.recent_errors) > 50:
+                        self.recent_errors.pop(0)
+
+stats_tracker = StatsTracker()
+
+
+class StatsMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: StarletteRequest, call_next):
+        path = request.url.path
+        # Skip tracking static frontend and landing page assets/favicon
+        is_api = not (path.startswith("/app/") or path == "/app" or path == "/favicon.ico" or path == "/" or path == "/auth-config")
+        
+        if not is_api:
+            return await call_next(request)
+
+        # Rate limiting (bypass for local tests)
+        client_ip = request.client.host if request.client else "unknown"
+        is_local = client_ip in ("127.0.0.1", "localhost", "::1")
+        if not is_local:
+            if path in ("/query", "/index-folder", "/ingest-slack"):
+                if not heavy_limiter.is_allowed(client_ip):
+                    return JSONResponse(
+                        status_code=429,
+                        content={"detail": "Too many requests. Please slow down search and ingestion operations."}
+                    )
+            else:
+                if not global_limiter.is_allowed(client_ip):
+                    return JSONResponse(
+                        status_code=429,
+                        content={"detail": "Too many requests. Please wait a moment."}
+                    )
+
+        start_time = time.time()
+        status_code = 500
+        error_msg = None
+        
+        try:
+            response = await call_next(request)
+            status_code = response.status_code
+            return response
+        except Exception as e:
+            error_msg = str(e)
+            raise e
+        finally:
+            latency_ms = (time.time() - start_time) * 1000.0
+            norm_path = path
+            if path.startswith("/org/invites/"):
+                norm_path = "/org/invites/{invite_id}"
+            elif path.startswith("/org/members/"):
+                norm_path = "/org/members/{user_id}"
+            
+            stats_tracker.record_request(norm_path, latency_ms, status_code, error_msg)
+
+app.add_middleware(StatsMiddleware)
+
 
 # ─── Request Models ───────────────────────────────────────────────────────────
+
 
 class IndexRequest(BaseModel):
     folder_path: str
@@ -315,7 +457,7 @@ class ChatMessage(BaseModel):
 
 class QueryRequest(BaseModel):
     query:           str
-    top_k:           int = 6             # number of chunks to retrieve (capped at 10 in route)
+    top_k:           int = 8             # number of chunks to retrieve (capped at 8 in route)
     category_filter: Optional[str] = None  # e.g. "deployment", "requirements"
     history:         Optional[List[ChatMessage]] = None
 
@@ -986,10 +1128,88 @@ async def get_org_info(
     }
 
 
+def _send_invite_email_sync(to_email: str, invite_link: str, company_name: str):
+    import smtplib
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+
+    smtp_host = os.getenv("SMTP_HOST")
+    smtp_port = os.getenv("SMTP_PORT")
+    smtp_user = os.getenv("SMTP_USERNAME")
+    smtp_password = os.getenv("SMTP_PASSWORD")
+    smtp_sender = os.getenv("SMTP_SENDER", "sutra@smriti.one")
+
+    if not (smtp_host and smtp_port and smtp_user and smtp_password):
+        print("[SMTP] Credentials not set in .env. Skipping invite email dispatch (manual fallback available).")
+        return
+
+    print(f"[SMTP] Sending invite email to {to_email}...")
+    try:
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = f"Invitation to join {company_name} on Smriti"
+        msg['From'] = smtp_sender
+        msg['To'] = to_email
+
+        text = f"You have been invited to join the {company_name} workspace on Smriti.\n\nClick the link below to accept the invitation:\n{invite_link}"
+        
+        html = f"""<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Invitation to join {company_name}</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #030014; color: #f3f4f6; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;">
+  <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #030014;">
+    <tr>
+      <td align="center" style="padding: 40px 10px;">
+        <table width="550" border="0" cellspacing="0" cellpadding="0" style="background-color: #080710; border: 1px solid #1f1a3a; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+          <tr>
+            <td style="background: linear-gradient(135deg, #1e1b4b 0%, #31106a 100%); padding: 32px 40px; text-align: center; border-bottom: 1px solid #2e1065;">
+              <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 800;">Smriti Workspace Invitation</h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 40px; font-size: 16px; line-height: 1.6; color: #e2e8f0;">
+              <p>Hello,</p>
+              <p>You have been invited to join the <strong>{company_name}</strong> workspace on Smriti as a team member.</p>
+              <p style="margin-top: 30px; margin-bottom: 30px; text-align: center;">
+                <a href="{invite_link}" style="display: inline-block; padding: 12px 24px; background-color: #6366f1; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 15px; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);">Accept Invitation</a>
+              </p>
+              <p style="font-size: 13px; color: #64748b; text-align: center; margin-top: 20px;">
+                Or copy and paste this link into your browser:<br>
+                <a href="{invite_link}" style="color: #818cf8; text-decoration: underline;">{invite_link}</a>
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="background-color: #02000a; border-top: 1px solid #1e1b4b; padding: 20px 40px; text-align: center; font-size: 12px; color: #64748b;">
+              <p style="margin: 0;">Smriti — Capture requirements, prevent regression.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+"""
+        msg.attach(MIMEText(text, 'plain'))
+        msg.attach(MIMEText(html, 'html'))
+
+        with smtplib.SMTP(smtp_host, int(smtp_port)) as server:
+            server.starttls()
+            server.login(smtp_user, smtp_password)
+            server.sendmail(smtp_sender, [to_email], msg.as_string())
+        print(f"[SMTP] Invite email successfully sent to {to_email}.")
+    except Exception as e:
+        print(f"[SMTP] Failed to send email to {to_email}: {e}")
+
+
 @app.post("/org/invite")
 async def invite_org_member(
     req: OrgInviteRequest,
     request: Request,
+    background_tasks: BackgroundTasks,
     user: UserIdentity = Depends(get_current_user),
 ):
     """Invite a new team member to this organization. restricted to admins."""
@@ -1002,8 +1222,13 @@ async def invite_org_member(
 
     invited_email = req.email.strip().lower()
     role = req.role.strip().lower()
-    if role not in ("admin", "member"):
-        raise HTTPException(status_code=400, detail="Invalid role specified. Use 'admin' or 'member'.")
+    if role == "admin":
+        raise HTTPException(
+            status_code=400,
+            detail="There can only be one admin per organization. You cannot invite someone with the admin role."
+        )
+    if role != "member":
+        raise HTTPException(status_code=400, detail="Invalid role specified. Use 'member'.")
 
     # Generate deterministic user UUID for the current user for invited_by (needed if in dev mode)
     if user.user_id.startswith("dev:"):
@@ -1025,8 +1250,8 @@ async def invite_org_member(
             if existing_member > 0:
                 raise HTTPException(status_code=400, detail="User is already a member of this workspace.")
 
-            # Create or update invite
-            await conn.execute(
+            # Create or update invite (RETURNING id so we can form the URL and email)
+            invite_id = await conn.fetchval(
                 """
                 INSERT INTO public.org_invites (tenant_id, invited_email, role, invited_by)
                 VALUES ($1::uuid, $2, $3, $4)
@@ -1035,17 +1260,31 @@ async def invite_org_member(
                     role = EXCLUDED.role,
                     created_at = NOW(),
                     accepted_at = NULL
+                RETURNING id
                 """,
                 tenant_uuid,
                 invited_email,
                 role,
                 user_uuid,
             )
+
+            # Retrieve company name for email customization
+            company_name = await conn.fetchval(
+                "SELECT company_name FROM public.tenant_registry WHERE tenant_id = $1::uuid",
+                tenant_uuid,
+            ) or "Smriti Workspace"
+
+        invite_link = f"https://smriti.one/app/auth.html?invite={invite_id}"
+        
+        # Enqueue SMTP email sending task
+        background_tasks.add_task(_send_invite_email_sync, invited_email, invite_link, company_name)
+        
         return {"status": "ok", "message": f"Invitation successfully created for {invited_email}"}
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to create invite: {e}")
+
 
 
 @app.delete("/org/invites/{invite_id}")
@@ -1080,6 +1319,45 @@ async def cancel_org_invite(
         raise HTTPException(status_code=400, detail="Invalid invitation ID format.")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to cancel invite: {e}")
+
+
+@app.get("/admin/stats")
+async def get_admin_stats(user: UserIdentity = Depends(get_current_user)):
+    if not user.is_admin:
+        raise HTTPException(status_code=403, detail="Access denied. Admin role required.")
+
+    try:
+        vm = psutil.virtual_memory()
+        import os as std_os
+        process = psutil.Process(std_os.getpid())
+        process_memory_mb = round(process.memory_info().rss / (1024 * 1024), 2)
+        
+        # Format the endpoint statistics for presentation
+        formatted_endpoints = {}
+        for endpoint, data in stats_tracker.endpoint_stats.items():
+            avg_latency = 0.0
+            if data["calls"] > 0:
+                avg_latency = round(data["total_latency_ms"] / data["calls"], 2)
+            formatted_endpoints[endpoint] = {
+                "calls": data["calls"],
+                "avg_latency_ms": avg_latency,
+                "status_codes": data["status_codes"],
+                "errors": data["errors"]
+            }
+            
+        return {
+            "ram": {
+                "total_gb": round(vm.total / (1024 ** 3), 2),
+                "used_gb": round(vm.used / (1024 ** 3), 2),
+                "free_gb": round(vm.available / (1024 ** 3), 2),
+                "percent": vm.percent
+            },
+            "process_memory_mb": process_memory_mb,
+            "endpoints": formatted_endpoints,
+            "recent_errors": stats_tracker.recent_errors
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch system stats: {e}")
 
 
 @app.delete("/org/members/{member_user_id}")
@@ -1767,8 +2045,8 @@ async def process_query(
         text_score_expr = f"({' + '.join(cases)}) / {float(len(keywords))}"
         query_params = query_params_base + [f"%{kw}%" for kw in keywords]
 
-    # Clamp top_k to a safe range — context window budget allows up to 10 chunks at 700 chars each
-    effective_top_k = max(1, min(req.top_k, 10))
+    # Clamp top_k to a safe range — context window budget allows up to 8 chunks at 700 chars each
+    effective_top_k = max(1, min(req.top_k, 8))
 
     # ── 4. Execute retrieval + RRF + Reranker + graph expert query ────────────────
     retrieved_chunks = []
@@ -1782,7 +2060,7 @@ async def process_query(
                 await conn.execute(f"SET LOCAL app.current_tenant_id = '{tenant_id}'")
                 
                 sem_sql = f"""
-                    SELECT source_id, source_type, channel_or_space, content, author_id, document_category,
+                    SELECT event_id, source_id, source_type, channel_or_space, content, author_id, document_category,
                            (1 - (embedding <=> $1::vector)) AS semantic_score,
                            ROW_NUMBER() OVER (ORDER BY embedding <=> $1::vector ASC) AS sem_rank
                     FROM tenant_redwood_inference_prod.vector_chunks
@@ -1796,7 +2074,7 @@ async def process_query(
                 else:
                     kw_sql = f"""
                         WITH kw_scored AS (
-                            SELECT source_id, source_type, channel_or_space, content, author_id, document_category,
+                            SELECT event_id, source_id, source_type, channel_or_space, content, author_id, document_category,
                                    (1 - (embedding <=> $1::vector)) AS semantic_score,
                                    ({text_score_expr}) AS text_score
                             FROM tenant_redwood_inference_prod.vector_chunks
@@ -1824,20 +2102,20 @@ async def process_query(
                 row_map = {}
                 k = 60
                 for r in sem_rows:
-                    sid = r["source_id"]
-                    scores[sid] = scores.get(sid, 0) + 1.0 / (k + r["sem_rank"])
-                    if sid not in row_map:
-                        row_map[sid] = dict(r)
+                    eid = r["event_id"]
+                    scores[eid] = scores.get(eid, 0) + 1.0 / (k + r["sem_rank"])
+                    if eid not in row_map:
+                        row_map[eid] = dict(r)
                 for r in kw_rows:
-                    sid = r["source_id"]
-                    scores[sid] = scores.get(sid, 0) + 1.0 / (k + r["kw_rank"])
-                    if sid not in row_map:
-                        row_map[sid] = dict(r)
+                    eid = r["event_id"]
+                    scores[eid] = scores.get(eid, 0) + 1.0 / (k + r["kw_rank"])
+                    if eid not in row_map:
+                        row_map[eid] = dict(r)
                         
                 # Sort by RRF score
                 candidates = []
-                for sid, score in sorted(scores.items(), key=lambda x: x[1], reverse=True)[:20]:
-                    c = row_map[sid]
+                for eid, score in sorted(scores.items(), key=lambda x: x[1], reverse=True)[:20]:
+                    c = row_map[eid]
                     candidates.append({
                         "source":             c["source_id"],
                         "type":              c["source_type"],
@@ -1864,6 +2142,9 @@ async def process_query(
             
             # Final top_k
             retrieved_chunks = candidates[:effective_top_k]
+            print("  [query] Retrieved chunks passing to LLM:")
+            for idx, c in enumerate(retrieved_chunks):
+                print(f"    [{idx+1}] Source: {c['source']} | Score: {c.get('score')} | SemScore: {c.get('semantic_score')} | Content: {c['content'][:100]!r}")
 
             # Graph cold-start: if no experts yet, return a descriptive message
             # instead of an empty panel (which looks like a broken feature).
@@ -1908,8 +2189,8 @@ async def process_query(
         }
 
     # ── 5. Assemble LLM prompt with context ──────────────────────────────────
-    # Budget: num_ctx=3072 - 400 (reply) - 200 (prompts) = ~2472 tokens = ~9888 chars for all chunks
-    MAX_CHUNK_CHARS = min(700, max(250, 9500 // max(len(retrieved_chunks), 1)))
+    # Budget: num_ctx=2048 - 400 (reply) - 200 (prompts) = ~1448 tokens = ~5792 chars for all chunks
+    MAX_CHUNK_CHARS = min(700, max(250, 5600 // max(len(retrieved_chunks), 1)))
 
     # Boost semantic data files (content.js, README) to top so the model sees
     # the person's identity/profile before generic code files.
@@ -1983,7 +2264,7 @@ async def process_query(
             "stream": False,
             "options": {
                 "temperature": temperature,
-                "num_ctx": 3072,
+                "num_ctx": 2048,
                 "num_predict": 512,
             },
         }
@@ -2003,8 +2284,7 @@ async def process_query(
                 print("  ⚠ LLM returned empty response — context may be too large")
                 raw_response = "I cannot find this in the indexed documents."
 
-
-            # ── 7. Grounding firewall ─────────────────────────────────────────
+            print(f"  [query] Raw response:\n{raw_response}\n")
             validated_response = validate_response(raw_response, retrieved_chunks)
 
             # Check if validation result is fallback / cannot find

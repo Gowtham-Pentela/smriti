@@ -182,7 +182,14 @@
                     <input type="text" id="settings-org-input" style="background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.12);border-radius:6px;padding:6px 10px;color:#fff;font-size:13px;outline:none;font-family:inherit;flex-grow:1;">
                     <button id="settings-org-save" style="padding:6px 12px;background:#6366f1;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;">Save</button>
                     <button id="settings-org-cancel" style="padding:6px 12px;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.6);border:1px solid rgba(255,255,255,0.1);border-radius:6px;font-size:12px;font-family:inherit;cursor:pointer;">Cancel</button>
-                </div>
+            </div>
+
+            <!-- Admin Dashboard Section (Admins only) -->
+            <div id="settings-admin-section" style="display:none;flex-direction:column;gap:8px;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:18px;">
+                <span style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">System Diagnostics</span>
+                <a href="/app/admin.html" style="display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:9px 16px;background:linear-gradient(135deg, #6366f1 0%, #a855f7 100%);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;text-decoration:none;text-align:center;">
+                    📊 Open Visual Admin Dashboard
+                </a>
             </div>
 
             <!-- Invite Section (Admins only) -->
@@ -190,9 +197,8 @@
                 <span style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">Invite Workspace Member</span>
                 <div style="display:flex;gap:10px;align-items:center;">
                     <input type="email" id="settings-invite-email" placeholder="colleague@domain.com" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:9px 12px;color:#fff;font-size:13px;outline:none;font-family:inherit;flex-grow:1;">
-                    <select id="settings-invite-role" style="background:#13131e;border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:9px 12px;color:#fff;font-size:13px;outline:none;font-family:inherit;cursor:pointer;">
-                        <option value="member">Member</option>
-                        <option value="admin">Admin</option>
+                    <select id="settings-invite-role" style="background:#13131e;border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:9px 12px;color:#fff;font-size:13px;outline:none;font-family:inherit;cursor:pointer;display:none;">
+                        <option value="member" selected>Member</option>
                     </select>
                     <button id="btn-send-invite" style="padding:9px 16px;background:#6366f1;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;white-space:nowrap;">Invite</button>
                 </div>
