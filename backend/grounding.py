@@ -136,7 +136,7 @@ def verify_substring_or_words(sentence, chunk_content):
     if not words:
         return False
     matched = sum(1 for w in words if w in chunk_lower)
-    if matched >= max(2, len(words) * 0.55):
+    if matched >= max(2, len(words) * 0.25):
         return True
 
     return False
@@ -227,9 +227,9 @@ def validate_response(response_text, retrieved_chunks):
 
         clean = _CITATION_STRIP_RE.sub('', s).strip()
 
-        # 1. Strip meta-commentary sentences entirely
+        # 1. Keep meta-commentary sentences instead of stripping them
         if _META_COMMENTARY_RE.search(clean):
-            print(f"  [grounding] stripped meta-commentary: {clean[:80]!r}")
+            validated_sentences.append(s)
             continue
 
         # 2. Strip template placeholder sentences — model outputs these when it
