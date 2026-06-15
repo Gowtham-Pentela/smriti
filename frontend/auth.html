@@ -353,16 +353,11 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
     if (user && !error) {
         // Token is valid (server-confirmed) — skip sign-in, go straight to app
         window.location.replace('/app/index.html');
+    } else {
+        // Clean out any stale/expired local storage sessions to prevent redirect issues
+        await sb.auth.signOut().catch(() => {});
     }
-    // No valid session or expired token — fall through and show the login form
 })();
-
-// After fresh OAuth or email login, go to app
-sb.auth.onAuthStateChange((event, session) => {
-    if (event === 'SIGNED_IN' && session) {
-        window.location.replace('/app/index.html');
-    }
-});
 
 let pendingSignupEmail = '';
 
@@ -419,7 +414,7 @@ async function signInWithEmail() {
     if (!email || !password) { showMsg('Enter your email and password.'); return; }
 
     setLoading('btn-signin', true, 'Sign in');
-    const { error } = await sb.auth.signInWithPassword({ email, password });
+    const { data, error } = await sb.auth.signInWithPassword({ email, password });
     setLoading('btn-signin', false, 'Sign in');
 
     if (error) {
@@ -428,8 +423,9 @@ async function signInWithEmail() {
         } else {
             showMsg(error.message);
         }
+    } else if (data && data.session) {
+        window.location.replace('/app/index.html');
     }
-    // Success handled by onAuthStateChange
 }
 
 // ── Email sign-up ─────────────────────────────────────────────────────────

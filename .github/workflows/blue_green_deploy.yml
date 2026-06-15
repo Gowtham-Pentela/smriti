@@ -34,6 +34,7 @@ jobs:
         run: |
           python -m venv venv
           source venv/bin/activate
+          python -m pip install --upgrade pip setuptools wheel
           pip install -r requirements.txt
           # Run tests to check for regressions before deploying (Layer 7 & 13)
           python -m unittest discover -s tests
