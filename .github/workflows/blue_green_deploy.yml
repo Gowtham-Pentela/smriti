@@ -18,76 +18,39 @@ on:
 jobs:
   deploy:
     name: Orchestrate Blue/Green Deployment
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, smriti-dev]
     
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
       # Simulated Build/Test Step (Defensive Programming Layer 7)
       - name: Install dependencies & run test suite
         run: |
-          python -m venv venv
+          python3 -m venv venv
           source venv/bin/activate
           python -m pip install --upgrade pip setuptools wheel
           pip install -r requirements.txt
+          # Copy .env from parent project directory to workspace for tests
+          cp /home/ubuntu/smriti/.env . || echo "⚠️ .env file not found in /home/ubuntu/smriti/.env"
           # Run tests to check for regressions before deploying (Layer 7 & 13)
           python -m unittest discover -s tests
 
-      # Deployment Logic (SSH / local orchestration script)
-      - name: Execute Blue/Green Deployment Swap
+      # Deployment Logic for the VM
+      - name: Execute Background Process CD Restart
         env:
-          DEPL_ACTION: ${{ inputs.action || 'deploy' }}
+          RUNNER_TRACKING_ID: ""
         run: |
-          echo "=== STARTING BLUE/GREEN DEPLOYMENT PROCESS ==="
+          echo "=== STARTING AUTOMATED DEPLOYMENT ==="
           
-          # In a real environment, this script runs via SSH on the target server.
-          # Here we demonstrate the full automated zero-downtime routing swap:
+          # 1. Stop the current running uvicorn process
+          pkill -f "uvicorn backend.main:app" || true
+          sleep 2
           
-          if [ "$DEPL_ACTION" = "rollback" ]; then
-            echo "🚨 Rollback request detected! Reverting proxy upstream target..."
-            # Execute Nginx config swap back to the previously stable environment
-            # ssh user@server "sudo /usr/local/bin/smriti-swap-proxy.sh --rollback"
-            echo "✅ Rollback executed. Production traffic routed back to previous stable environment."
-            exit 0
-          fi
-
-          echo "1. Identifying current active target environment (Blue/Green)..."
-          # Example: curl -s http://localhost/active-env or checking a local symlink
-          # Let's assume Blue (port 8000) is active, standby is Green (port 9000).
-          ACTIVE_PORT=8000
-          STANDBY_PORT=9000
-          STANDBY_COLOR="green"
+          # 2. Start the new uvicorn process in the background
+          nohup venv/bin/python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 --workers 1 > uvicorn.log 2>&1 &
+          sleep 3
           
-          echo "   Active Environment is on port: $ACTIVE_PORT (Blue)"
-          echo "   Standby Target is on port: $STANDBY_PORT (Green)"
-          
-          echo "2. Building & Launching standby environment (Green) on port $STANDBY_PORT..."
-          # docker build -t smriti-backend:latest -f Dockerfile.backend .
-          # docker run -d --name smriti-backend-green -p 9000:8000 smriti-backend:latest
-          echo "   Standby container running."
-          
-          echo "3. Performing automated health smoketests against standby (Layer 13)..."
-          # Poll standby endpoint to confirm database and LLM connections are healthy
-          # for i in {1..10}; do
-          #   if curl -s --fail http://localhost:$STANDBY_PORT/status > /dev/null; then
-          #     echo "✅ Standby is HEALTHY!"
-          #     break
-          #   fi
-          #   sleep 3
-          # done
-          echo "   Health check passed. Standby ready to accept production traffic."
-          
-          echo "4. Swapping upstream proxy configuration (zero-downtime)..."
-          # Update Nginx sites-available upstream port to $STANDBY_PORT
-          # sudo ln -sf /etc/nginx/sites-available/smriti-$STANDBY_COLOR /etc/nginx/sites-enabled/smriti
-          # sudo nginx -s reload
-          echo "   Nginx configuration swapped and reloaded."
-          
-          echo "5. Standby environment is now active production! Retaining previous environment for quick rollbacks."
+          # 3. Perform automated health check to verify the new process started successfully
+          curl -s -I http://127.0.0.1:8000/auth-config || exit 1
           echo "=== DEPLOYMENT COMPLETED SUCCESSFULLY ==="
