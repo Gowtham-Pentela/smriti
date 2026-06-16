@@ -49,8 +49,12 @@ jobs:
           
           # 2. Start the new uvicorn process in the background
           nohup venv/bin/python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 --workers 1 > uvicorn.log 2>&1 &
-          sleep 3
+          sleep 5
           
           # 3. Perform automated health check to verify the new process started successfully
-          curl -s -I http://127.0.0.1:8000/auth-config || exit 1
+          if ! curl -s -I http://127.0.0.1:8000/auth-config; then
+            echo "❌ Health check failed! Printing server logs (uvicorn.log):"
+            cat uvicorn.log
+            exit 1
+          fi
           echo "=== DEPLOYMENT COMPLETED SUCCESSFULLY ==="
