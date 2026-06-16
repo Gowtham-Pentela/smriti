@@ -172,7 +172,7 @@ async def ingest_pipeline(data_dir, db_url, batch_size):
 
     # Establish asyncpg connection
     try:
-        conn = await asyncpg.connect(db_url)
+        conn = await asyncpg.connect(db_url, statement_cache_size=0)
         print("Connected to PostgreSQL successfully.")
     except Exception as e:
         print(f"Critical Error: Failed to connect to database: {e}", file=sys.stderr)

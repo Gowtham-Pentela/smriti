@@ -92,7 +92,7 @@ async def evaluate_questions(questions_path, db_url, limit=None):
         
     print(f"Connecting to database at {db_url}...")
     try:
-        conn = await asyncpg.connect(db_url)
+        conn = await asyncpg.connect(db_url, statement_cache_size=0)
         # Set tenant session variable to satisfy RLS
         await conn.execute(f"SET app.current_tenant_id = '{TENANT_NAMESPACE_UUID}'")
         print("Connected and Tenant ID isolation context set successfully.")

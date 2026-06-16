@@ -194,7 +194,7 @@ async def lifespan(app: FastAPI):
     # ── DB pool ─────────────────────────────────────────────────────────────────
     print("Initializing connection pool → Postgres...")
     try:
-        app.state.db_pool = await asyncpg.create_pool(DB_URL, min_size=5, max_size=20)
+        app.state.db_pool = await asyncpg.create_pool(DB_URL, min_size=5, max_size=20, statement_cache_size=0)
         print("🚀 DB connection pool established.")
     except Exception as e:
         print(f"❌ Critical: DB pool failed: {e}")
