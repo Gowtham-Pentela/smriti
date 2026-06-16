@@ -880,9 +880,20 @@ async function sendQuery(overrideQuery) {
             renderExperts(data.experts || []);
             renderSources(lastRetrievedContext);
         } else {
-            const err = await r.json();
+            let detail = "Server error";
+            try {
+                const err = await r.json();
+                detail = err.detail || detail;
+            } catch (jsonErr) {
+                const text = await r.text().catch(() => "");
+                if (r.status === 504 || text.toLowerCase().includes("timeout") || text.toLowerCase().includes("gateway")) {
+                    detail = "Request timed out. The LLM took too long to generate a response on the VM CPU. Try increasing your proxy/Nginx timeouts or using a faster/smaller model.";
+                } else {
+                    detail = `Server returned status ${r.status}`;
+                }
+            }
             logEl.innerHTML = "";
-            bodyEl.innerHTML = `<p>⚠️ ${escHtml(err.detail || "Server error")}</p>`;
+            bodyEl.innerHTML = `<p>⚠️ ${escHtml(detail)}</p>`;
         }
     } catch (e) {
         logEl.innerHTML = "";
