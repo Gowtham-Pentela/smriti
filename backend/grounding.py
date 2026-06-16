@@ -1,7 +1,8 @@
 import re
+import os
 
 OLLAMA_URL = "http://localhost:11434/api/chat"
-MODEL_NAME = "phi4-mini:latest"  # 2.4GB Q4_K_M — Microsoft Phi-4 Mini, superior reasoning vs qwen2.5-coder:3b at same RAM footprint
+MODEL_NAME = os.getenv("KGF_CHAT_MODEL", "phi4-mini:latest")
 
 
 # Canonical strip pattern — removes both [Citation: ...] and [Cite: ...] variants.
