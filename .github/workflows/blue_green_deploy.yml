@@ -36,6 +36,23 @@ jobs:
           # Run tests to check for regressions before deploying (Layer 7 & 13)
           python -m unittest discover -s tests
 
+      # Run all DB migrations in sorted order before restarting the server
+      - name: Run database migrations
+        run: |
+          source venv/bin/activate
+          # Load DATABASE_URL from the server's .env
+          export DATABASE_URL=$(grep '^DATABASE_URL=' /home/ubuntu/smriti/.env | cut -d '=' -f2-)
+          if [ -z "$DATABASE_URL" ]; then
+            echo "❌ DATABASE_URL not found in .env — aborting"
+            exit 1
+          fi
+          echo "Running migrations..."
+          for f in $(ls -1 supabase/migrations/*.sql | sort); do
+            echo "→ Applying $(basename $f)..."
+            psql "$DATABASE_URL" -f "$f"
+          done
+          echo "✅ All migrations applied"
+
       # Deployment Logic for the VM
       - name: Execute Background Process CD Restart
         env:

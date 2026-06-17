@@ -11,7 +11,7 @@
 #   1. Authenticates with GCP
 #   2. Enables required APIs
 #   3. Applies Terraform (VPC, Cloud SQL + pgvector, GKE cluster)
-#   4. Runs the DB migration SQL (ingestion_hashes, tenant_credentials)
+#   4. Runs ALL DB migrations in supabase/migrations/ in sorted order (idempotent)
 #   5. Builds backend + UI Docker images via Cloud Build
 #   6. Pushes images to Artifact Registry
 #   7. Applies all Kubernetes manifests
@@ -36,7 +36,7 @@ NC='\033[0m'
 REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
 TF_DIR="$REPO_ROOT/gcp_infrastructure/terraform"
 K8S_DIR="$REPO_ROOT/gcp_infrastructure/kubernetes"
-MIGRATION_SQL="$REPO_ROOT/supabase/migrations/001_ingestion_hashes_and_credentials.sql"
+MIGRATIONS_DIR="$REPO_ROOT/supabase/migrations"
 
 echo -e "${CYAN}${BOLD}"
 echo "  ██╗  ██╗ ██████╗ ███████╗"
@@ -122,12 +122,52 @@ EOF
 terraform init -upgrade -reconfigure -input=false
 terraform apply -auto-approve -input=false
 
-# Capture Cloud SQL IP for the migration step
+# Capture Cloud SQL connection details for the migration step
 CLOUD_SQL_IP=$(terraform output -raw db_private_ip 2>/dev/null || echo "")
+DB_NAME=$(terraform output -raw db_name 2>/dev/null || echo "postgres")
+DB_USER=$(terraform output -raw db_user 2>/dev/null || echo "postgres")
 echo -e "${GREEN}✓ Terraform complete${NC}"
 
-# ── 5. Configure kubectl ──────────────────────────────────────────────────────
-echo -e "\n${YELLOW}[5/8] Configuring kubectl for GKE...${NC}"
+# ── 5. Run all DB migrations in order ────────────────────────────────────────
+echo -e "\n${YELLOW}[5/9] Running database migrations...${NC}"
+
+if [ -z "$CLOUD_SQL_IP" ]; then
+    echo -e "${YELLOW}⚠  Could not resolve Cloud SQL IP from Terraform — skipping migrations.${NC}"
+    echo -e "   Run manually: psql \$DATABASE_URL -f <migration_file>"
+else
+    # Collect all .sql files from the migrations directory, sorted by filename
+    MIGRATION_FILES=($(ls -1 "$MIGRATIONS_DIR"/*.sql 2>/dev/null | sort))
+
+    if [ ${#MIGRATION_FILES[@]} -eq 0 ]; then
+        echo -e "${YELLOW}⚠  No migration files found in $MIGRATIONS_DIR${NC}"
+    else
+        # Build the psql connection string from Terraform outputs
+        # PGPASSWORD is read from the environment or .env — never hardcoded here.
+        export PGPASSWORD="${DB_PASSWORD:-}"
+
+        for migration in "${MIGRATION_FILES[@]}"; do
+            filename=$(basename "$migration")
+            echo -e "  → Applying ${CYAN}${filename}${NC}..."
+            if PGPASSWORD="$PGPASSWORD" psql \
+                --host="$CLOUD_SQL_IP" \
+                --username="$DB_USER" \
+                --dbname="$DB_NAME" \
+                --file="$migration" \
+                --set ON_ERROR_STOP=1 \
+                --quiet; then
+                echo -e "    ${GREEN}✓ $filename applied${NC}"
+            else
+                echo -e "    ${RED}✗ $filename FAILED — aborting deploy${NC}"
+                exit 1
+            fi
+        done
+
+        echo -e "${GREEN}✓ All ${#MIGRATION_FILES[@]} migration(s) applied${NC}"
+    fi
+fi
+
+# ── 6. Configure kubectl ──────────────────────────────────────────────────────
+echo -e "\n${YELLOW}[6/9] Configuring kubectl for GKE...${NC}"
 CLUSTER_NAME=$(terraform output -raw gke_cluster_name 2>/dev/null || echo "knowledge-guardian-cluster")
 CLUSTER_ZONE=$(terraform output -raw gke_cluster_zone 2>/dev/null || echo "${REGION}-a")
 gcloud container clusters get-credentials "$CLUSTER_NAME" \
@@ -135,8 +175,8 @@ gcloud container clusters get-credentials "$CLUSTER_NAME" \
     --project "$PROJECT_ID"
 echo -e "${GREEN}✓ kubectl configured${NC}"
 
-# ── 6. Build and push Docker images ──────────────────────────────────────────
-echo -e "\n${YELLOW}[6/8] Building and pushing Docker images via Cloud Build...${NC}"
+# ── 7. Build and push Docker images ──────────────────────────────────────────
+echo -e "\n${YELLOW}[7/9] Building and pushing Docker images via Cloud Build...${NC}"
 cd "$REPO_ROOT"
 
 echo "  → Building backend image..."
@@ -155,8 +195,8 @@ gcloud builds submit \
 
 echo -e "${GREEN}✓ Images pushed to $REGISTRY${NC}"
 
-# ── 7. Update image tags in K8s manifests and apply ──────────────────────────
-echo -e "\n${YELLOW}[7/8] Deploying to GKE...${NC}"
+# ── 8. Update image tags in K8s manifests and apply ──────────────────────────
+echo -e "\n${YELLOW}[8/9] Deploying to GKE...${NC}"
 
 # Patch image references (sed in-place)
 sed -i.bak \
@@ -188,7 +228,7 @@ echo ""
 
 echo -e "${GREEN}✓ GKE deployment complete${NC}"
 
-# ── 8. Print customer URL ─────────────────────────────────────────────────────
+# ── 9. Print customer URL ─────────────────────────────────────────────────────
 echo -e "\n${CYAN}${BOLD}================================================================${NC}"
 echo -e "${GREEN}${BOLD}                  DEPLOYMENT COMPLETE ✓                        ${NC}"
 echo -e "${CYAN}${BOLD}================================================================${NC}"
