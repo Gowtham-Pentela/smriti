@@ -17,12 +17,14 @@
 <div class="shell">
 
     <!-- ═══════════════════════════════════════════
-         LEFT SIDEBAR - Knowledge Controls
+         NAV SIDEBAR (Far Left)
     ═══════════════════════════════════════════ -->
-    <aside class="sidebar" id="sidebar">
-        <div class="sidebar-brand">
-                <a href="landing.html" class="brand-logo">
-                <img src="images/smriti_logo.png" alt="Smriti" width="26" height="26" style="border-radius:6px;flex-shrink:0;">
+    <nav class="nav-sidebar" id="sidebar" aria-label="Primary navigation">
+
+        <!-- Brand -->
+        <div class="nav-brand">
+            <a href="landing.html" class="brand-logo">
+                <img src="images/smriti_logo.png" alt="Smriti" width="30" height="30" style="border-radius:8px;flex-shrink:0;">
                 <div class="brand-text">
                     <span class="brand-name">Smriti</span>
                     <span class="brand-tagline">Organizational AI</span>
@@ -30,79 +32,178 @@
             </a>
         </div>
 
-        <!-- System Status -->
-        <div class="sidebar-section">
+        <!-- Navigation Tabs -->
+        <div class="nav-tabs">
+            <button class="nav-tab active" id="tab-chat" onclick="switchTab('chat')" aria-label="Personal Chat">
+                <svg viewBox="0 0 24 24" fill="none" width="18" height="18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                </svg>
+                <span>Personal Chat</span>
+            </button>
+
+            <button class="nav-tab" id="tab-knowledge" onclick="switchTab('knowledge')" aria-label="Knowledge Base">
+                <svg viewBox="0 0 24 24" fill="none" width="18" height="18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                </svg>
+                <span>Knowledge Base</span>
+                <!-- Stats badge -->
+                <span class="nav-tab-badge" id="nav-chunks-badge">0</span>
+            </button>
+
+            <button class="nav-tab" id="tab-workspaces" onclick="switchTab('workspaces')" aria-label="Workspaces">
+                <svg viewBox="0 0 24 24" fill="none" width="18" height="18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="7" height="7" rx="1"/>
+                    <rect x="14" y="3" width="7" height="7" rx="1"/>
+                    <rect x="3" y="14" width="7" height="7" rx="1"/>
+                    <rect x="14" y="14" width="7" height="7" rx="1"/>
+                </svg>
+                <span>Workspaces</span>
+            </button>
+
+            <button class="nav-tab" id="tab-upload" onclick="switchTab('upload')" aria-label="Upload Files">
+                <svg viewBox="0 0 24 24" fill="none" width="18" height="18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="17 8 12 3 7 8"/>
+                    <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+                <span>Upload Files</span>
+            </button>
+        </div>
+
+        <!-- System Status (small, compact) -->
+        <div class="nav-status-bar">
             <div class="system-status" id="connection-status">
                 <div class="status-indicator online"></div>
                 <span class="status-text">Connecting...</span>
             </div>
         </div>
 
-        <!-- Knowledge Stats -->
-        <div class="sidebar-section">
-            <div class="section-label">Knowledge Base</div>
-            <div class="kbase-stats">
-                <div class="kstat">
-                    <div class="kstat-num" id="stat-chunks">0</div>
-                    <div class="kstat-label">Chunks</div>
-                </div>
-                <div class="kstat-divider"></div>
-                <div class="kstat">
-                    <div class="kstat-num" id="stat-files">0</div>
-                    <div class="kstat-label">Sources</div>
+        <!-- ─── Profile / Account (Pinned to Bottom) ─── -->
+        <div class="nav-profile" id="nav-profile">
+            <div class="profile-info" id="user-row" style="display:none">
+                <div class="user-avatar" id="user-avatar">G</div>
+                <div class="user-details">
+                    <div class="user-name" id="user-name">Account</div>
+                    <div class="user-email" id="user-email">gowthampentela2000@gmail.com</div>
                 </div>
             </div>
-        </div>
-
-        <!-- Upload Documents -->
-        <div class="sidebar-section">
-            <div class="section-label">Add Knowledge</div>
-            <div class="upload-drop-zone" id="upload-drop-zone">
-                <input type="file" id="upload-file-input" multiple
-                       accept=".pdf,.txt,.md,.docx,.csv" style="display:none">
-                <svg viewBox="0 0 24 24" fill="none" width="22" height="22" style="margin-bottom:6px;opacity:0.5">
-                    <path d="M12 5v14M5 12l7-7 7 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                    <rect x="3" y="17" width="18" height="4" rx="1" stroke="currentColor" stroke-width="1.5"/>
+            <button class="signout-btn" id="btn-signout" onclick="signOut()" aria-label="Sign out">
+                <svg viewBox="0 0 24 24" fill="none" width="15" height="15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                    <polyline points="16 17 21 12 16 7"/>
+                    <line x1="21" y1="12" x2="9" y2="12"/>
                 </svg>
-                <span class="drop-label">Drop files or <u>browse</u></span>
-                <span class="drop-hint">PDF · TXT · MD · DOCX · CSV</span>
-            </div>
-            <div id="upload-progress-list" class="upload-progress-list"></div>
+                Sign Out
+            </button>
         </div>
+    </nav>
 
-        <!-- Indexed Files -->
-        <div class="sidebar-section files-section">
-            <div class="section-label-row">
-                <div class="section-label">Indexed Files</div>
-                <button id="btn-clear" class="btn-ghost-xs">Clear</button>
-            </div>
-            <ul id="files-list" class="files-list">
-                <li class="files-empty">No files indexed yet</li>
-            </ul>
-        </div>
+    <!-- ═══════════════════════════════════════════
+         SIDE PANEL (context-sensitive, collapsible)
+         Shows content for the active nav tab
+    ═══════════════════════════════════════════ -->
+    <aside class="side-panel" id="side-panel">
 
-
-        <div class="sidebar-footer">
-            <!-- Signed-in user info -->
-            <div class="user-row" id="user-row" style="display:none">
-                <div class="user-avatar" id="user-avatar">?</div>
-                <div class="user-info">
-                    <div class="user-email" id="user-email">Loading...</div>
-                    <div class="user-domain" id="user-domain"></div>
+        <!-- ── KNOWLEDGE BASE PANEL ── -->
+        <div class="panel-section" id="panel-knowledge" style="display:none">
+            <div class="panel-header">
+                <div class="panel-title">Knowledge Base</div>
+                <div class="kbase-stats">
+                    <div class="kstat">
+                        <div class="kstat-num" id="stat-chunks">0</div>
+                        <div class="kstat-label">Chunks</div>
+                    </div>
+                    <div class="kstat-divider"></div>
+                    <div class="kstat">
+                        <div class="kstat-num" id="stat-files">0</div>
+                        <div class="kstat-label">Sources</div>
+                    </div>
                 </div>
             </div>
-            <div class="footer-actions">
-                <a href="landing.html" class="footer-link">Home</a>
-                <a href="privacy.html" class="footer-link">Privacy</a>
-                <button id="btn-show-settings" class="footer-link footer-btn">⚙️ Workspace</button>
-                <button id="btn-signout" class="footer-link footer-btn" onclick="signOut()">Sign out</button>
-                <button id="btn-delete-account" class="footer-link footer-btn danger" onclick="deleteAccount()">Delete data</button>
+
+            <div class="panel-body">
+                <div class="section-label-row">
+                    <div class="section-label">Indexed Files</div>
+                    <button id="btn-clear" class="btn-ghost-xs">Clear</button>
+                </div>
+                <ul id="files-list" class="files-list">
+                    <li class="files-empty">No files indexed yet</li>
+                </ul>
             </div>
         </div>
+
+        <!-- ── WORKSPACES PANEL ── -->
+        <div class="panel-section" id="panel-workspaces" style="display:none">
+            <div class="panel-header">
+                <div class="panel-title">Workspaces</div>
+            </div>
+            <div class="panel-body">
+                <div class="workspace-info-card">
+                    <div class="workspace-info-label">Workspace Name</div>
+                    <div class="workspace-info-value" id="settings-org-name">Loading...</div>
+                </div>
+                <div class="workspace-info-card" style="margin-top:10px;">
+                    <div class="workspace-info-label">Domain</div>
+                    <div class="workspace-info-value" id="settings-org-domain">Loading...</div>
+                </div>
+
+                <!-- Team Members -->
+                <div class="section-label" style="margin-top:18px;margin-bottom:8px;">Team Members</div>
+                <div class="members-table-wrap">
+                    <table class="members-table">
+                        <thead>
+                            <tr>
+                                <th>Email</th>
+                                <th>Role</th>
+                                <th style="text-align:right">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="settings-members-list">
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Invite Section (Admins) -->
+                <div id="settings-invite-section" style="display:none;flex-direction:column;gap:8px;margin-top:16px;">
+                    <div class="section-label">Invite Member</div>
+                    <div class="invite-row">
+                        <input type="email" id="settings-invite-email" placeholder="colleague@domain.com" class="invite-input">
+                        <button id="btn-send-invite" class="btn-invite">Invite</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── UPLOAD FILES PANEL ── -->
+        <div class="panel-section" id="panel-upload" style="display:none">
+            <div class="panel-header">
+                <div class="panel-title">Upload Files</div>
+            </div>
+            <div class="panel-body">
+                <div class="upload-drop-zone" id="upload-drop-zone">
+                    <input type="file" id="upload-file-input" multiple
+                           accept=".pdf,.txt,.md,.docx,.csv" style="display:none">
+                    <svg viewBox="0 0 24 24" fill="none" width="28" height="28" style="margin-bottom:8px;opacity:0.4">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                        <polyline points="17 8 12 3 7 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                        <line x1="12" y1="3" x2="12" y2="15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    </svg>
+                    <span class="drop-label">Drop files or <u>browse</u></span>
+                    <span class="drop-hint">PDF · TXT · MD · DOCX · CSV</span>
+                </div>
+                <div id="upload-progress-list" class="upload-progress-list"></div>
+            </div>
+        </div>
+
+        <!-- ── CHAT (no side panel content, panel hidden) ── -->
+        <div class="panel-section" id="panel-chat" style="display:none">
+        </div>
+
     </aside>
 
-    <!-- ── Inline Confirmation Modal (replaces window.confirm) ── -->
-    <div id="confirm-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;">
+    <!-- ── Inline Confirmation Modal ── -->
+    <div id="confirm-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);align-items:center;justify-content:center;">
         <div style="background:#13131e;border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:28px 32px;max-width:400px;width:90%;box-shadow:0 24px 64px rgba(0,0,0,0.5);">
             <h3 id="confirm-modal-title" style="font-size:15px;font-weight:600;margin-bottom:10px;color:#e8e8f0;"></h3>
             <p id="confirm-modal-msg" style="font-size:13px;color:rgba(255,255,255,0.55);line-height:1.6;margin-bottom:22px;"></p>
@@ -147,106 +248,8 @@
         </div>
     </div>
 
-    <!-- ── Workspace Settings Modal ── -->
-    <div id="settings-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);align-items:center;justify-content:center;">
-        <div style="background:#13131e;border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:28px 32px;max-width:560px;width:95%;box-shadow:0 24px 64px rgba(0,0,0,0.5);display:flex;flex-direction:column;gap:18px;max-height:90vh;overflow-y:auto;box-sizing:border-box;">
-            
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
-                <div style="display:flex;align-items:center;gap:10px;flex-grow:1;">
-                    <svg viewBox="0 0 24 24" fill="none" width="22" height="22" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="3"></circle>
-                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-                    </svg>
-                    <h3 style="font-size:16px;font-weight:600;color:#e8e8f0;margin:0;">Workspace Settings</h3>
-                </div>
-                <button id="settings-close" style="background:none;border:none;color:rgba(255,255,255,0.4);font-size:18px;cursor:pointer;font-family:inherit;padding:0;">&times;</button>
-            </div>
-
-            <!-- Workspace Details Section -->
-            <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:12px;">
-                <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
-                    <div style="display:flex;flex-direction:column;gap:4px;">
-                        <span style="font-size:10px;font-weight:600;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.5px;">Workspace Name</span>
-                        <div style="display:flex;align-items:center;gap:8px;">
-                            <span id="settings-org-name" style="font-size:15px;font-weight:600;color:#fff;">Loading...</span>
-                            <button id="btn-edit-org-name" style="background:none;border:none;color:#6366f1;font-size:11px;font-weight:500;cursor:pointer;padding:0;display:none;">Edit</button>
-                        </div>
-                    </div>
-                    <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;">
-                        <span style="font-size:10px;font-weight:600;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.5px;">Domain</span>
-                        <span id="settings-org-domain" style="font-size:13px;color:rgba(255,255,255,0.7);">Loading...</span>
-                    </div>
-                </div>
-                <!-- Inline edit input -->
-                <div id="settings-org-edit-row" style="display:none;gap:8px;margin-top:4px;">
-                    <input type="text" id="settings-org-input" style="background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.12);border-radius:6px;padding:6px 10px;color:#fff;font-size:13px;outline:none;font-family:inherit;flex-grow:1;">
-                    <button id="settings-org-save" style="padding:6px 12px;background:#6366f1;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;">Save</button>
-                    <button id="settings-org-cancel" style="padding:6px 12px;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.6);border:1px solid rgba(255,255,255,0.1);border-radius:6px;font-size:12px;font-family:inherit;cursor:pointer;">Cancel</button>
-            </div>
-
-            <!-- Admin Dashboard Section (Admins only) -->
-            <div id="settings-admin-section" style="display:none;flex-direction:column;gap:8px;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:18px;">
-                <span style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">System Diagnostics</span>
-                <a href="/app/admin.html" style="display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:9px 16px;background:linear-gradient(135deg, #6366f1 0%, #a855f7 100%);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;text-decoration:none;text-align:center;">
-                    📊 Open Visual Admin Dashboard
-                </a>
-            </div>
-
-            <!-- Invite Section (Admins only) -->
-            <div id="settings-invite-section" style="display:none;flex-direction:column;gap:8px;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:18px;">
-                <span style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">Invite Workspace Member</span>
-                <div style="display:flex;gap:10px;align-items:center;">
-                    <input type="email" id="settings-invite-email" placeholder="colleague@domain.com" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:9px 12px;color:#fff;font-size:13px;outline:none;font-family:inherit;flex-grow:1;">
-                    <select id="settings-invite-role" style="background:#13131e;border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:9px 12px;color:#fff;font-size:13px;outline:none;font-family:inherit;cursor:pointer;display:none;">
-                        <option value="member" selected>Member</option>
-                    </select>
-                    <button id="btn-send-invite" style="padding:9px 16px;background:#6366f1;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;white-space:nowrap;">Invite</button>
-                </div>
-            </div>
-
-            <!-- Members List Section -->
-            <div style="display:flex;flex-direction:column;gap:8px;">
-                <span style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">Team Members</span>
-                <div style="max-height:160px;overflow-y:auto;border:1px solid rgba(255,255,255,0.06);border-radius:10px;background:rgba(255,255,255,0.01);">
-                    <table style="width:100%;border-collapse:collapse;font-size:12px;text-align:left;box-sizing:border-box;">
-                        <thead>
-                            <tr style="border-bottom:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.02);">
-                                <th style="padding:8px 12px;color:rgba(255,255,255,0.4);font-weight:500;">Email</th>
-                                <th style="padding:8px 12px;color:rgba(255,255,255,0.4);font-weight:500;">Role</th>
-                                <th style="padding:8px 12px;color:rgba(255,255,255,0.4);font-weight:500;text-align:right;">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody id="settings-members-list">
-                            <!-- Populated dynamically -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Pending Invites Section -->
-            <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px;">
-                <span style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">Pending Invitations</span>
-                <div style="max-height:120px;overflow-y:auto;border:1px solid rgba(255,255,255,0.06);border-radius:10px;background:rgba(255,255,255,0.01);">
-                    <table style="width:100%;border-collapse:collapse;font-size:12px;text-align:left;box-sizing:border-box;">
-                        <thead>
-                            <tr style="border-bottom:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.02);">
-                                <th style="padding:8px 12px;color:rgba(255,255,255,0.4);font-weight:500;">Invited Email</th>
-                                <th style="padding:8px 12px;color:rgba(255,255,255,0.4);font-weight:500;">Link</th>
-                                <th style="padding:8px 12px;color:rgba(255,255,255,0.4);font-weight:500;text-align:right;">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody id="settings-invites-list">
-                            <!-- Populated dynamically -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-        </div>
-    </div>
-
     <!-- ═══════════════════════════════════════════
-         WORKSPACE - Chat Column + Canvas Column
+         MAIN CHAT WORKSPACE (Right Side — full remaining width)
     ═══════════════════════════════════════════ -->
     <div class="workspace">
 
@@ -331,7 +334,7 @@
 
             </div>
 
-            <!-- Input area -->
+            <!-- ── Input Area (pinned to bottom of chat) ── -->
             <div class="input-zone">
                 <div class="input-card">
 
@@ -340,7 +343,7 @@
                         <span class="input-plus">+</span>
                         <textarea
                             id="query-input"
-                            placeholder="Ask anything about your organization..."
+                            placeholder="Ask your personal knowledge base anything..."
                             rows="1"
                             spellcheck="false"
                         ></textarea>
@@ -357,11 +360,11 @@
                         </div>
                     </div>
 
-                    <!-- Service pill chips -->
+                    <!-- Connector filter pills — directly above input box -->
                     <div class="service-pills-row">
                         <div class="service-pills-scroll" id="service-pills-scroll">
 
-                            <!-- Slack pill: click = connect if not connected, select if connected -->
+                            <!-- Slack pill -->
                             <button class="service-pill" id="pill-slack" data-connected="false" onclick="handlePillClick('slack')" aria-label="Slack">
                                 <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
                                 <span>Slack</span>
@@ -390,6 +393,7 @@
                                 <span>Confluence</span>
                                 <div class="pill-status-dot" id="pill-confluence-dot"></div>
                             </button>
+
                             <div class="service-pill pill-coming-soon" title="Coming soon">
                                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" stroke="#888" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
                                 <span>GitHub</span>
@@ -401,7 +405,7 @@
 
                         </div>
 
-                        <!-- Action buttons — shown below when a connected service is selected -->
+                        <!-- Action buttons shown when a connected service is selected -->
                         <div class="pill-actions" id="pill-actions">
                             <span class="pill-actions-label" id="pill-actions-label">Google Drive</span>
                             <button class="pill-action-btn pill-action-sync" id="pill-action-sync" onclick="pillSyncSelected()">
@@ -416,7 +420,6 @@
                     </div>
 
                 </div>
-
 
                 <div class="input-meta">
                     <span class="input-hint"><kbd>↵</kbd> send · <kbd>Shift+↵</kbd> newline</span>
@@ -481,6 +484,41 @@
 <div id="citation-tooltip" class="citation-tooltip hidden" role="tooltip"></div>
 
 <script>
+    // ── Tab switcher for nav sidebar ──────────────────────────────────────────
+    // "chat" tab has no side panel content — collapse the side panel when active
+    const PANEL_MAP = {
+        chat:       'panel-chat',
+        knowledge:  'panel-knowledge',
+        workspaces: 'panel-workspaces',
+        upload:     'panel-upload',
+    };
+
+    function switchTab(tabId) {
+        // Update active tab button
+        document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+        const activeTab = document.getElementById('tab-' + tabId);
+        if (activeTab) activeTab.classList.add('active');
+
+        // Show/hide side panel sections
+        Object.entries(PANEL_MAP).forEach(([id, panelId]) => {
+            const panel = document.getElementById(panelId);
+            if (panel) panel.style.display = (id === tabId) ? 'flex' : 'none';
+        });
+
+        // Collapse or expand side panel based on tab
+        const sidePanel = document.getElementById('side-panel');
+        if (tabId === 'chat') {
+            sidePanel.classList.add('collapsed');
+        } else {
+            sidePanel.classList.remove('collapsed');
+        }
+    }
+
+    // Initialize: show chat tab (collapsed side panel) on load
+    document.addEventListener('DOMContentLoaded', () => {
+        switchTab('chat');
+    });
+
     function setQuery(text) {
         const input = document.getElementById('query-input');
         const btn   = document.getElementById('btn-send');
@@ -498,7 +536,7 @@
         el.style.height = Math.min(el.scrollHeight, 180) + 'px';
     }
 
-    // ── Theme toggle ──────────────────────────────────────
+    // ── Theme toggle ──────────────────────────────────────────────────────────
     const THEME_KEY = 'smriti-theme';
     const html      = document.documentElement;
 
@@ -551,18 +589,15 @@ function _populateUserUI(email, badge) {
     const userRow  = document.getElementById('user-row');
     const userAvEl = document.getElementById('user-avatar');
     const userEmEl = document.getElementById('user-email');
-    const userDmEl = document.getElementById('user-domain');
+    const userNmEl = document.getElementById('user-name');
     if (userRow)  { userRow.style.display = 'flex'; }
     if (userAvEl) { userAvEl.textContent  = avatar; }
     if (userEmEl) { userEmEl.textContent  = email; }
-    if (userDmEl) { userDmEl.textContent  = domain; }
+    if (userNmEl) { userNmEl.textContent  = email.split('@')[0] || 'Account'; }
 }
 
 // ── Auth gate ──────────────────────────────────────────────────────────────
 // CRITICAL ORDER: Register onAuthStateChange BEFORE any async operation.
-// Supabase fires INITIAL_SESSION (setTimeout-based) right after registration.
-// If we await fetch('/auth-config') first, that event fires during the
-// network wait WITH NO LISTENER → session missed → redirect loop.
 (async () => {
     // Register auth listener SYNCHRONOUSLY — before any await
     let _authResolve;
@@ -580,8 +615,6 @@ function _populateUserUI(email, badge) {
         } else if (event === 'TOKEN_REFRESHED' && s && s.access_token) {
             _finishAuth(s);
         } else if (event === 'INITIAL_SESSION') {
-            // INITIAL_SESSION fires immediately after subscription (next tick).
-            // s is null if no session exists — fast-fail instead of waiting 3s.
             if (s && s.access_token) _finishAuth(s);
             else _finishAuth(null);
         } else if (event === 'SIGNED_OUT') {
@@ -659,10 +692,23 @@ function _populateUserUI(email, badge) {
 
 // Note: Token refresh is handled automatically by Supabase v2
 
-// ── Sign out ──────────────────────────────────────────────────────────────────
+// ── Sign out — SAFE: only clears local auth tokens, NO data deletion ──────────
+// This only signs out of Supabase (clears JWT/session from localStorage/memory).
+// It does NOT delete any user files, chunks, indices, or chat history.
+// All data remains intact in the database for future logins.
 async function signOut() {
-    if (!window._devMode) await _sb.auth.signOut();
-    window.location.replace('/app/auth.html');
+    try {
+        // Only sign out from Supabase — this clears the local JWT/session token.
+        // No API calls that delete data are made here.
+        if (!window._devMode) {
+            await _sb.auth.signOut();
+        }
+    } catch (e) {
+        // Even if signOut fails (e.g. offline), redirect to landing page
+        console.warn('Sign out error (non-critical):', e);
+    }
+    // Redirect to landing page (not auth.html) as requested
+    window.location.replace('landing.html');
 }
 
 
@@ -676,9 +722,10 @@ async function deleteAccount() {
             'Delete permanently'
           )
         : window.confirm('Delete ALL your indexed data? This cannot be undone.');
+
     if (!confirmed) return;
 
-    const btn = document.getElementById('btn-delete-account');
+    const btn = document.getElementById('btn-signout');
     if (btn) { btn.disabled = true; btn.textContent = 'Deleting...'; }
 
     try {
@@ -691,8 +738,7 @@ async function deleteAccount() {
         });
 
         if (resp.ok) {
-            // Stay signed in — just clear the UI and refresh state
-            if (btn) { btn.disabled = false; btn.textContent = 'Delete data'; }
+            if (btn) { btn.disabled = false; btn.textContent = 'Sign Out'; }
 
             // Refresh stats (will show 0 chunks / 0 files)
             if (typeof updateStats === 'function') updateStats();
@@ -706,7 +752,6 @@ async function deleteAccount() {
                 chat.innerHTML = '';
                 const welcome = document.getElementById('welcome-state');
                 if (!welcome) {
-                    // re-show welcome state if it was removed
                     const w = document.createElement('div');
                     w.id = 'welcome-state';
                     w.className = 'welcome-state';
@@ -716,18 +761,17 @@ async function deleteAccount() {
                     welcome.style.display = '';
                 }
             }
-            // Brief success message (not an alert — doesn't break flow)
             if (typeof appendSystemMsg === 'function') {
                 appendSystemMsg('✅ All indexed data has been permanently deleted. You can upload new documents to start fresh.');
             }
         } else {
             const err = await resp.json().catch(() => ({ detail: 'Unknown error' }));
             alert('Delete failed: ' + (err.detail || resp.statusText));
-            if (btn) { btn.disabled = false; btn.textContent = 'Delete data'; }
+            if (btn) { btn.disabled = false; btn.textContent = 'Sign Out'; }
         }
     } catch (e) {
         alert('Network error. Is the backend running?');
-        if (btn) { btn.disabled = false; btn.textContent = 'Delete data'; }
+        if (btn) { btn.disabled = false; btn.textContent = 'Sign Out'; }
     }
 }
 

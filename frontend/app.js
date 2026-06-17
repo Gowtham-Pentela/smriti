@@ -692,10 +692,14 @@ async function updateStats() {
         statChunks.innerText = chunks.toLocaleString();
         statFiles.innerText  = sources.toLocaleString();
 
+        // Update the Knowledge Base nav tab badge
+        const navBadge = document.getElementById("nav-chunks-badge");
+        if (navBadge) navBadge.textContent = chunks > 999 ? "999+" : chunks.toLocaleString();
+
         // Always keep input enabled — grounding firewall handles the no-docs case.
         queryInput.disabled = false;
         queryInput.placeholder = hasData
-            ? "Ask anything about your organization..."
+            ? "Ask your personal knowledge base anything..."
             : "Upload documents or connect Slack / Drive to begin...";
 
     } catch (e) {
