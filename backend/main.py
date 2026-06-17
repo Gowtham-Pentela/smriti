@@ -17,7 +17,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends, Request, status, UploadFile, File, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse, JSONResponse
+from fastapi.responses import RedirectResponse, JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
@@ -304,6 +304,13 @@ async def get_auth_config():
         "dev_email": dev_email if KGF_DEV_MODE else None,
     }
 
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    favicon_path = os.path.join(_frontend_dir, "images", "smriti_logo_32.png")
+    if not os.path.isfile(favicon_path):
+        raise HTTPException(status_code=404, detail="Favicon not found")
+    return FileResponse(favicon_path, media_type="image/png")
 
 
 # ─── CORS (restrict wildcard in prod via CORS_ORIGINS env var) ──────────────────

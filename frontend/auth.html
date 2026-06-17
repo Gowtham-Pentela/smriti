@@ -361,6 +361,14 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
 let pendingSignupEmail = '';
 
+// Ensure browser Back from auth returns users to the landing page.
+if (window.history && window.history.pushState) {
+    window.history.pushState({ authPage: true }, document.title, window.location.href);
+    window.addEventListener('popstate', () => {
+        window.location.replace('/app/landing.html');
+    });
+}
+
 // ── Tab switching ─────────────────────────────────────────────────────────
 function switchTab(tab) {
     const isSignin = tab === 'signin';

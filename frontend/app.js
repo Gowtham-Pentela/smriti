@@ -168,6 +168,8 @@ window.addEventListener("DOMContentLoaded", async () => {
         drawerOverlay.addEventListener("click", () => {
             if (sidebar) sidebar.classList.remove("open");
             if (canvasColumn) canvasColumn.classList.remove("open");
+            const sidePanel = document.getElementById('side-panel');
+            if (sidePanel) sidePanel.classList.remove('open');
             drawerOverlay.classList.remove("active");
         });
     }

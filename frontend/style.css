@@ -1624,9 +1624,28 @@ textarea:disabled { opacity: 0.45; cursor: not-allowed; }
     .nav-sidebar.open,
     .sidebar.open { left: 0; }
 
-    /* Collapse side panel on mobile */
+    /* Transform side panel into a mobile drawer so Workspaces / Upload / Knowledge remain accessible */
     .side-panel {
-        display: none;
+        display: flex;
+        position: fixed;
+        top: 0;
+        right: -100%;
+        width: min(100%, 360px);
+        max-width: 100%;
+        height: 100%;
+        background: var(--bg-sidebar);
+        border-left: 1px solid var(--border);
+        z-index: 1000;
+        overflow-y: auto;
+        flex-direction: column;
+        transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.2s;
+        box-shadow: -12px 0 48px rgba(0,0,0,0.25);
+    }
+    .side-panel.open {
+        right: 0;
+    }
+    .side-panel.collapsed {
+        right: -100%;
     }
 
     /* Transform Canvas Column into right slide-out drawer */

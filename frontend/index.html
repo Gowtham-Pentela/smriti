@@ -507,14 +507,21 @@
 
         // Collapse or expand side panel based on tab
         const sidePanel = document.getElementById('side-panel');
+        if (!sidePanel) return;
+
         if (tabId === 'chat') {
             sidePanel.classList.add('collapsed');
+            sidePanel.classList.remove('open');
+            if (drawerOverlay) drawerOverlay.classList.remove('active');
         } else {
             sidePanel.classList.remove('collapsed');
+            if (window.innerWidth <= 900) {
+                sidePanel.classList.add('open');
+                if (drawerOverlay) drawerOverlay.classList.add('active');
+            }
         }
     }
 
-    // Initialize: show chat tab (collapsed side panel) on load
     document.addEventListener('DOMContentLoaded', () => {
         switchTab('chat');
     });
