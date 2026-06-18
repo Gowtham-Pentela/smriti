@@ -13,3 +13,10 @@ node_modules/
 backend/node_modules/
 data/sutra_emails/
 
+# --- Security & Artifact Cleanups ---
+.env
+*.log
+.DS_Store
+frontend/.DS_Store
+venv/
+frontend/js/supabase.js

@@ -246,14 +246,9 @@ window.addEventListener("DOMContentLoaded", async () => {
 
     queryInput.addEventListener("input", () => {
         btnSend.disabled = !queryInput.value.trim();
-        _autosize(queryInput);
+        if (window.autosizeTextarea) window.autosizeTextarea(queryInput);
     });
 });
-
-function _autosize(el) {
-    el.style.height = "auto";
-    el.style.height = Math.min(el.scrollHeight, 180) + "px";
-}
 
 // ── Welcome state ──────────────────────────────────────────────────────
 function _hideWelcome() {
@@ -468,38 +463,60 @@ function _setSlackDisconnected() {
     if (_selectedPill === "slack") { _selectedPill = null; _updatePillActions(); }
 }
 
-async function disconnectSlack() {
-    const confirmed = await showConfirm(
-        "Disconnect Slack?",
-        "Your stored Slack credentials will be removed and automatic syncing will stop. " +
-        "Already-indexed Slack data stays in your knowledge base — you can clear it separately with the Clear Index button.",
-        "Disconnect"
-    );
+async function _disconnectServiceHelper({ serviceName, endpoint, buttonId, setDisconnectedFn, confirmTitle, confirmBody, buttonRestoreText }) {
+    const confirmed = await showConfirm(confirmTitle, confirmBody, "Disconnect");
     if (!confirmed) return;
 
-    const btnDisc = document.getElementById("btn-disconnect-slack");
+    const btnDisc = document.getElementById(buttonId);
     if (btnDisc) { btnDisc.disabled = true; btnDisc.textContent = "Disconnecting..."; }
 
     try {
-        const resp = await authFetch(`${API_BASE}/slack/disconnect`, { method: "DELETE" });
+        const resp = await authFetch(endpoint, { method: "DELETE" });
         if (resp.ok) {
-            _setSlackDisconnected();
+            setDisconnectedFn();
             const banner = document.getElementById("oauth-banner");
             if (banner) {
                 banner.className = "oauth-toast success";
-                banner.innerHTML = "Slack disconnected. You can reconnect at any time.";
+                banner.innerHTML = `${serviceName} disconnected. You can reconnect at any time.`;
                 banner.classList.remove("hidden");
                 setTimeout(() => banner.classList.add("hidden"), 6000);
             }
         } else {
             const err = await resp.json().catch(() => ({ detail: "Unknown error" }));
             alert(`Could not disconnect: ${err.detail || resp.statusText}`);
-            if (btnDisc) { btnDisc.disabled = false; btnDisc.textContent = "✕ Disconnect"; }
+            if (btnDisc) {
+                btnDisc.disabled = false;
+                if (buttonRestoreText.includes("<svg")) {
+                    btnDisc.innerHTML = buttonRestoreText;
+                } else {
+                    btnDisc.textContent = buttonRestoreText;
+                }
+            }
         }
     } catch (e) {
         alert("Network error while disconnecting. Is the backend running?");
-        if (btnDisc) { btnDisc.disabled = false; btnDisc.textContent = "✕ Disconnect"; }
+        if (btnDisc) {
+            btnDisc.disabled = false;
+            if (buttonRestoreText.includes("<svg")) {
+                btnDisc.innerHTML = buttonRestoreText;
+            } else {
+                btnDisc.textContent = buttonRestoreText;
+            }
+        }
     }
+}
+
+async function disconnectSlack() {
+    await _disconnectServiceHelper({
+        serviceName: "Slack",
+        endpoint: `${API_BASE}/slack/disconnect`,
+        buttonId: "btn-disconnect-slack",
+        setDisconnectedFn: _setSlackDisconnected,
+        confirmTitle: "Disconnect Slack?",
+        confirmBody: "Your stored Slack credentials will be removed and automatic syncing will stop. " +
+            "Already-indexed Slack data stays in your knowledge base — you can clear it separately with the Clear Index button.",
+        buttonRestoreText: "✕ Disconnect"
+    });
 }
 
 
@@ -535,37 +552,16 @@ function _setDriveDisconnected() {
 }
 
 async function disconnectDrive() {
-    const confirmed = await showConfirm(
-        "Disconnect Google Drive?",
-        "Your stored Google credentials will be removed and automatic syncing will stop. " +
-        "Already-indexed Drive data stays in your knowledge base — clear it separately with the Clear Index button.",
-        "Disconnect"
-    );
-    if (!confirmed) return;
-
-    const btnDisc = document.getElementById("btn-disconnect-gdrive");
-    if (btnDisc) { btnDisc.disabled = true; btnDisc.textContent = "Disconnecting..."; }
-
-    try {
-        const resp = await authFetch(`${API_BASE}/gdrive/disconnect`, { method: "DELETE" });
-        if (resp.ok) {
-            _setDriveDisconnected();
-            const banner = document.getElementById("oauth-banner");
-            if (banner) {
-                banner.className = "oauth-toast success";
-                banner.innerHTML = "Google Drive disconnected. You can reconnect at any time.";
-                banner.classList.remove("hidden");
-                setTimeout(() => banner.classList.add("hidden"), 6000);
-            }
-        } else {
-            const err = await resp.json().catch(() => ({ detail: "Unknown error" }));
-            alert(`Could not disconnect: ${err.detail || resp.statusText}`);
-            if (btnDisc) { btnDisc.disabled = false; btnDisc.textContent = "✕ Disconnect"; }
-        }
-    } catch (e) {
-        alert("Network error while disconnecting. Is the backend running?");
-        if (btnDisc) { btnDisc.disabled = false; btnDisc.textContent = "✕ Disconnect"; }
-    }
+    await _disconnectServiceHelper({
+        serviceName: "Google Drive",
+        endpoint: `${API_BASE}/gdrive/disconnect`,
+        buttonId: "btn-disconnect-gdrive",
+        setDisconnectedFn: _setDriveDisconnected,
+        confirmTitle: "Disconnect Google Drive?",
+        confirmBody: "Your stored Google credentials will be removed and automatic syncing will stop. " +
+            "Already-indexed Drive data stays in your knowledge base — clear it separately with the Clear Index button.",
+        buttonRestoreText: "✕ Disconnect"
+    });
 }
 
 async function syncDrive() {
@@ -1412,37 +1408,16 @@ async function syncConfluence() {
 }
 
 async function disconnectConfluence() {
-    const confirmed = await showConfirm(
-        "Disconnect Confluence?",
-        "Your stored Confluence credentials will be removed. " +
-        "Indexed wiki data stays in your database — clear it separately using the Clear Index button.",
-        "Disconnect"
-    );
-    if (!confirmed) return;
-    
-    const btnDisc = document.getElementById("pill-action-disc");
-    if (btnDisc) { btnDisc.disabled = true; btnDisc.textContent = "Disconnecting..."; }
-    
-    try {
-        const resp = await authFetch(`${API_BASE}/confluence/disconnect`, { method: "DELETE" });
-        if (resp.ok) {
-            _setConfluenceDisconnected();
-            const banner = document.getElementById("oauth-banner");
-            if (banner) {
-                banner.className = "oauth-toast success";
-                banner.innerHTML = "Confluence disconnected. You can reconnect at any time.";
-                banner.classList.remove("hidden");
-                setTimeout(() => banner.classList.add("hidden"), 6000);
-            }
-        } else {
-            const err = await resp.json().catch(() => ({ detail: "Disconnect failed" }));
-            alert(`Error: ${err.detail}`);
-            if (btnDisc) { btnDisc.disabled = false; btnDisc.innerHTML = `<svg viewBox="0 0 24 24" fill="none" width="13" height="13"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg> Disconnect`; }
-        }
-    } catch (e) {
-        alert("Network error disconnecting.");
-        if (btnDisc) { btnDisc.disabled = false; btnDisc.innerHTML = `<svg viewBox="0 0 24 24" fill="none" width="13" height="13"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg> Disconnect`; }
-    }
+    await _disconnectServiceHelper({
+        serviceName: "Confluence",
+        endpoint: `${API_BASE}/confluence/disconnect`,
+        buttonId: "pill-action-disc",
+        setDisconnectedFn: _setConfluenceDisconnected,
+        confirmTitle: "Disconnect Confluence?",
+        confirmBody: "Your stored Confluence credentials will be removed. " +
+            "Indexed wiki data stays in your database — clear it separately using the Clear Index button.",
+        buttonRestoreText: `<svg viewBox="0 0 24 24" fill="none" width="13" height="13"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg> Disconnect`
+    });
 }
 
 function _pollConfluenceSyncStatus() {

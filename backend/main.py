@@ -41,32 +41,24 @@ def get_file_hash(file_path: str) -> str:
 
 # ─── Audit Trail Logging ─────────────────────────────────────────────────────
 
-def write_audit_log(user_email: str, query: str, accessed_files: list):
+def _write_audit_log_sync(log_entry: dict):
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     audit_file = os.path.join(base_dir, "data", "audit_log.json")
+    try:
+        # Append-only NDJSON format: extremely fast, O(1) time
+        with open(audit_file, "a", encoding="utf-8") as f:
+            f.write(json.dumps(log_entry) + "\n")
+    except Exception as e:
+        print(f"Failed to write audit log: {e}")
 
+async def write_audit_log(user_email: str, query: str, accessed_files: list):
     log_entry = {
         "timestamp": datetime.now().isoformat(),
         "user_email": user_email,
         "query": query,
         "accessed_files": list(set(accessed_files)),
     }
-
-    logs = []
-    if os.path.exists(audit_file):
-        try:
-            with open(audit_file, "r", encoding="utf-8") as f:
-                logs = json.load(f)
-        except Exception:
-            logs = []
-
-    logs.append(log_entry)
-
-    try:
-        with open(audit_file, "w", encoding="utf-8") as f:
-            json.dump(logs, f, indent=2)
-    except Exception as e:
-        print(f"Failed to write audit log: {e}")
+    await asyncio.to_thread(_write_audit_log_sync, log_entry)
 
 # ─── Local imports ────────────────────────────────────────────────────────────
 
@@ -81,8 +73,6 @@ from backend.auth import get_current_user, UserIdentity
 from backend import sync_scheduler
 from backend import slack_oauth as _slack_oauth
 from backend import gdrive_oauth as _gdrive_oauth
-from backend.doc_classifier import classify_document
-from backend.sutra_reconciler import run_sutra_pipeline, compile_action_plan, distribute_action_plan
 
 # ─── ONNX Reranker ────────────────────────────────────────────────────────────
 RERANKER_MODEL = "cross-encoder/ms-marco-MiniLM-L6-v2"
@@ -142,10 +132,6 @@ COMMON_STOPWORDS = {
     "with", "would", "you", "your", "yours",
 }
 
-# ─── File hash cache (legacy — /index-folder only) ──────────────────────────
-# Connectors use the Postgres ingestion_hashes table instead (crash-safe).
-# This dict remains for the local /index-folder path only.
-_file_hash_cache: Dict[str, str] = {}
 
 # ─── Connector ingestion status (shared across all connector types) ───────────
 _connector_status: Dict[str, Any] = {
@@ -157,18 +143,6 @@ _connector_status: Dict[str, Any] = {
     "message": "idle",
 }
 
-# ─── Indexing State ───────────────────────────────────────────────────────────
-
-indexing_status = {
-    "is_indexing": False,
-    "progress": 0,
-    "current_file": "",
-    "total_files": 0,
-    "indexed_files": [],
-    "elapsed_time": 0,
-    "total_time": 0,
-}
-cancel_indexing_flag = False
 
 # Per-tenant sync lock — prevents concurrent sync_all_tenants() for the same tenant.
 # Keys: tenant_id string. Value: True while a sync is in progress.
@@ -265,28 +239,57 @@ app = FastAPI(
 # ─── Static frontend (served at /app/) ───────────────────────────────────────
 _frontend_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend")
 if os.path.isdir(_frontend_dir):
-    # ── No-cache middleware for frontend files ──────────────────────────────
-    # Prevents browsers from serving stale JS/HTML after deploys.
-    from starlette.middleware.base import BaseHTTPMiddleware
-    from starlette.requests import Request as StarletteRequest
+    from starlette.datastructures import MutableHeaders
 
-    class NoCacheMiddleware(BaseHTTPMiddleware):
-        async def dispatch(self, request: StarletteRequest, call_next):
-            response = await call_next(request)
-            path = request.url.path
-            if path.startswith('/app/') or path == '/app':
-                response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-                response.headers['Pragma']        = 'no-cache'
-                response.headers['Expires']       = '0'
-            return response
+    class ASGINoCacheMiddleware:
+        def __init__(self, app):
+            self.app = app
 
-    app.add_middleware(NoCacheMiddleware)
+        async def __call__(self, scope, receive, send):
+            if scope["type"] != "http":
+                await self.app(scope, receive, send)
+                return
+
+            path = scope.get("path", "")
+            if path.startswith('/app') or path.startswith('/app/'):
+                async def send_wrapper(message):
+                    if message["type"] == "http.response.start":
+                        headers = MutableHeaders(scope=message)
+                        headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+                        headers['Pragma']        = 'no-cache'
+                        headers['Expires']       = '0'
+                    await send(message)
+                await self.app(scope, receive, send_wrapper)
+            else:
+                await self.app(scope, receive, send)
+
+    app.add_middleware(ASGINoCacheMiddleware)
     app.mount("/app", StaticFiles(directory=_frontend_dir, html=True), name="frontend")
 
 @app.get("/", include_in_schema=False)
 async def _root_redirect():
     """Redirect bare domain to landing page."""
     return RedirectResponse(url="/app/landing.html")
+
+
+@app.get("/client-config", include_in_schema=False)
+async def get_client_config():
+    """
+    Public endpoint — no auth required.
+    Provides frontend JavaScript with the Supabase URL and anon key so that
+    these values are never hard-coded in HTML files.
+
+    Security note: The Supabase anon key is intentionally semi-public — it
+    grants read-only access subject to Row Level Security policies. It is
+    safe to serve here because it cannot be used to bypass RLS or gain
+    elevated privileges. The real secrets (service role key, Fernet key,
+    OAuth client secrets) are never exposed through any client-facing endpoint.
+    """
+    from backend.auth import SUPABASE_URL, SUPABASE_ANON
+    return {
+        "supabase_url":  SUPABASE_URL,
+        "supabase_anon": SUPABASE_ANON,
+    }
 
 
 @app.get("/auth-config", include_in_schema=False)
@@ -313,8 +316,34 @@ async def favicon():
     return FileResponse(favicon_path, media_type="image/png")
 
 
-# ─── CORS (restrict wildcard in prod via CORS_ORIGINS env var) ──────────────────
-_ALLOWED_ORIGINS = os.getenv("CORS_ORIGINS", "*").split(",")
+# ─── CORS ────────────────────────────────────────────────────────────────────
+# SECURITY: wildcard CORS is forbidden outside local/dev environments.
+# Set CORS_ORIGINS to a comma-separated list of explicit origins in production,
+# e.g. "https://smriti.one,https://www.smriti.one".
+_raw_cors     = os.getenv("CORS_ORIGINS", "*")
+_env_name     = os.getenv("KGF_ENV", "local").lower()
+_is_local_env = _env_name in ("local", "dev", "development")
+_ALLOWED_ORIGINS: list[str] = [o.strip() for o in _raw_cors.split(",") if o.strip()]
+
+if "*" in _ALLOWED_ORIGINS:
+    if not _is_local_env:
+        raise RuntimeError(
+            "SECURITY: CORS_ORIGINS='*' is not allowed outside local/dev environments. "
+            f"Current KGF_ENV={_env_name!r}. "
+            "Set CORS_ORIGINS to an explicit comma-separated list of allowed origins "
+            "(e.g. 'https://smriti.one') in your .env file."
+        )
+    else:
+        # In local dev environment, expand "*" to allow loopbacks/local origins to prevent Starlette AssertionError
+        _ALLOWED_ORIGINS = [
+            "http://localhost:3000",
+            "http://localhost:3999",
+            "http://localhost:8000",
+            "http://127.0.0.1:3000",
+            "http://127.0.0.1:3999",
+            "http://127.0.0.1:8000"
+        ]
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_ALLOWED_ORIGINS,
@@ -324,9 +353,6 @@ app.add_middleware(
 )
 # ─── Stats and Rate Limiting monitoring ───────────────────────────────────────
 import threading
-import psutil
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request as StarletteRequest
 
 class TokenBucketRateLimiter:
     def __init__(self, capacity: int, leak_rate: float):
@@ -402,40 +428,78 @@ class StatsTracker:
 stats_tracker = StatsTracker()
 
 
-class StatsMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: StarletteRequest, call_next):
-        path = request.url.path
+TRUST_PROXY = os.getenv("TRUST_PROXY_HEADERS", "false").lower() == "true"
+
+class ASGIStatsMiddleware:
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        path = scope.get("path", "")
         # Skip tracking static frontend and landing page assets/favicon
-        is_api = not (path.startswith("/app/") or path == "/app" or path == "/favicon.ico" or path == "/" or path == "/auth-config")
+        is_api = not (path.startswith("/app/") or path == "/app" or path == "/favicon.ico" or path == "/" or path in ("/auth-config", "/client-config"))
         
         if not is_api:
-            return await call_next(request)
+            await self.app(scope, receive, send)
+            return
 
         # Rate limiting (bypass for local tests)
-        client_ip = request.client.host if request.client else "unknown"
-        is_local = client_ip in ("127.0.0.1", "localhost", "::1")
+        headers = {k.decode("utf-8").lower(): v.decode("utf-8") for k, v in scope.get("headers", [])}
+        client_ip = ""
+        if TRUST_PROXY:
+            client_ip = headers.get("x-real-ip", "").strip()
+            if not client_ip:
+                xff = headers.get("x-forwarded-for", "").strip()
+                if xff:
+                    client_ip = xff.split(",")[0].strip()
+        if not client_ip:
+            client = scope.get("client")
+            client_ip = client[0] if client else "unknown"
+
+        is_local = client_ip in ("127.0.0.1", "localhost", "::1", "::ffff:127.0.0.1")
         if not is_local:
             if path in ("/query", "/index-folder", "/ingest-slack"):
                 if not heavy_limiter.is_allowed(client_ip):
-                    return JSONResponse(
-                        status_code=429,
-                        content={"detail": "Too many requests. Please slow down search and ingestion operations."}
-                    )
+                    await send({
+                        "type": "http.response.start",
+                        "status": 429,
+                        "headers": [(b"content-type", b"application/json")]
+                    })
+                    await send({
+                        "type": "http.response.body",
+                        "body": b'{"detail": "Too many requests. Please slow down search and ingestion operations."}',
+                        "more_body": False
+                    })
+                    return
             else:
                 if not global_limiter.is_allowed(client_ip):
-                    return JSONResponse(
-                        status_code=429,
-                        content={"detail": "Too many requests. Please wait a moment."}
-                    )
+                    await send({
+                        "type": "http.response.start",
+                        "status": 429,
+                        "headers": [(b"content-type", b"application/json")]
+                    })
+                    await send({
+                        "type": "http.response.body",
+                        "body": b'{"detail": "Too many requests. Please wait a moment."}',
+                        "more_body": False
+                    })
+                    return
 
         start_time = time.time()
-        status_code = 500
-        error_msg = None
+        status_code_container = [500]
         
+        async def send_wrapper(message):
+            if message["type"] == "http.response.start":
+                status_code_container[0] = message["status"]
+            await send(message)
+
+        error_msg = None
         try:
-            response = await call_next(request)
-            status_code = response.status_code
-            return response
+            await self.app(scope, receive, send_wrapper)
         except Exception as e:
             error_msg = str(e)
             raise e
@@ -447,16 +511,14 @@ class StatsMiddleware(BaseHTTPMiddleware):
             elif path.startswith("/org/members/"):
                 norm_path = "/org/members/{user_id}"
             
-            stats_tracker.record_request(norm_path, latency_ms, status_code, error_msg)
+            stats_tracker.record_request(norm_path, latency_ms, status_code_container[0], error_msg)
 
-app.add_middleware(StatsMiddleware)
+app.add_middleware(ASGIStatsMiddleware)
 
 
 # ─── Request Models ───────────────────────────────────────────────────────────
 
 
-class IndexRequest(BaseModel):
-    folder_path: str
 
 class ChatMessage(BaseModel):
     role:            str                 # "user" or "assistant"
@@ -563,8 +625,11 @@ async def pg_ingest_chunks(chunks: list, db_pool: asyncpg.Pool, tenant_id: str |
         effective_tenant_uuid = TENANT_UUID
 
     print(f"  → Embedding & inserting {len(chunks)} chunks into Postgres...")
-    async with httpx.AsyncClient() as client:
-        for chunk in chunks:
+    
+    # 1. Concurrently generate embeddings (bounded to max 5 concurrent requests)
+    sem = asyncio.Semaphore(5)
+    async def embed_chunk(client, chunk):
+        async with sem:
             try:
                 resp = await client.post(
                     OLLAMA_EMBED_URL,
@@ -572,178 +637,60 @@ async def pg_ingest_chunks(chunks: list, db_pool: asyncpg.Pool, tenant_id: str |
                     timeout=20.0,
                 )
                 resp.raise_for_status()
-                emb = resp.json().get("embedding", [0.0] * 768)
+                return resp.json().get("embedding", [0.0] * 768)
             except Exception as e:
                 print(f"  ⚠ Embedding failed for chunk from {chunk.get('source')}: {e}")
-                emb = [0.0] * 768
+                return [0.0] * 768
 
-            emb_str = f"[{','.join(map(str, emb))}]"
-            event_id = uuid.uuid4()
-            source_id = chunk.get("source", str(event_id))
-            source_type = chunk.get("type", "document")
-            channel_or_space = chunk.get("location", "local")
-            content = chunk.get("content", "")
-            author_id = chunk.get("author_id") or chunk.get("author") or "system"
-            document_title = chunk.get("title") or chunk.get("section") or source_id
+    async with httpx.AsyncClient() as client:
+        tasks = [embed_chunk(client, chunk) for chunk in chunks]
+        embeddings = await asyncio.gather(*tasks)
 
-            try:
-                async with db_pool.acquire() as conn:
-                    # CRITICAL FIX: SET LOCAL inside a transaction prevents RLS
-                    # tenant context from leaking to the next connection pool user.
-                    async with conn.transaction():
-                        await conn.execute(
-                            f"SET LOCAL app.current_tenant_id = '{effective_tenant_id}'"
-                        )
-                        await conn.execute(
-                            """
-                            INSERT INTO tenant_redwood_inference_prod.vector_chunks
-                                (event_id, tenant_id, source_id, source_type,
-                                 author_id, channel_or_space, content, embedding,
-                                 allowed_groups, allowed_users, is_public,
-                                 document_title)
-                            VALUES ($1, $2, $3, $4, $5, $6, $7, $8::text::vector,
-                                    $9, $10, $11, $12)
-                            ON CONFLICT DO NOTHING
-                            """,
-                            event_id,
-                            effective_tenant_uuid,
-                            source_id,
-                            source_type,
-                            author_id,
-                            channel_or_space,
-                            content,
-                            emb_str,
-                            [],
-                            [],
-                            True,
-                            document_title,
-                        )
-            except Exception as e:
-                print(f"  ⚠ DB insert failed for chunk {source_id}: {e}")
-
-# ─── Background Indexing Task ─────────────────────────────────────────────────
-
-# run_indexing sync wrapper removed — indexing now uses asyncio.create_task()
-# to run on the SAME event loop as the asyncpg connection pool.
-
-
-async def _async_run_indexing(folder_path: str, db_pool: asyncpg.Pool, tenant_id: str | None = None):
-    global indexing_status, cancel_indexing_flag, _file_hash_cache
-
-    indexing_status.update({
-        "is_indexing": True,
-        "progress": 0,
-        "current_file": "",
-        "indexed_files": [],
-        "elapsed_time": 0,
-        "total_time": 0,
-    })
-    cancel_indexing_flag = False
-
-    import time
-    start_time = time.time()
-
+    # 2. Bulk insert inside a single database transaction/connection
     try:
-        doc_exts = {
-            ".pdf", ".txt", ".md", ".markdown", ".json",
-            ".py", ".js", ".ts", ".tsx", ".jsx", ".html", ".css",
-            ".java", ".go", ".cpp", ".c", ".h", ".rs", ".sh",
-            ".yaml", ".yml", ".sql",
-        }
-        video_exts = {".mp4", ".mkv", ".avi", ".mov"}
+        async with db_pool.acquire() as conn:
+            async with conn.transaction():
+                await conn.execute(
+                    f"SET LOCAL app.current_tenant_id = '{effective_tenant_id}'"
+                )
+                for chunk, emb in zip(chunks, embeddings):
+                    emb_str = f"[{','.join(map(str, emb))}]"
+                    event_id = uuid.uuid4()
+                    source_id = chunk.get("source", str(event_id))
+                    source_type = chunk.get("type", "document")
+                    channel_or_space = chunk.get("location", "local")
+                    content = chunk.get("content", "")
+                    author_id = chunk.get("author_id") or chunk.get("author") or "system"
+                    document_title = chunk.get("title") or chunk.get("section") or source_id
 
-        # Exact filenames that are never useful for RAG — lock files, minified assets
-        skip_filenames = {
-            "package-lock.json", "yarn.lock", "pnpm-lock.yaml",
-            "Cargo.lock", "poetry.lock", "Gemfile.lock", "composer.lock",
-            "bun.lockb",
-        }
-        skip_dirs = {
-            ".git", "node_modules", "dist", "build", ".next", ".nuxt",
-            ".venv", "venv", "env", ".gemini", "__pycache__",
-            ".cache", "coverage", ".vercel", ".turbo",
-        }
-        # Size limits:
-        # - PDFs are parsed page-by-page (streaming) → allow up to 200 MB
-        # - Code/text files load fully into memory → keep 150 KB cap
-        MAX_FILE_BYTES_DEFAULT = 150_000        # 150 KB for text/code
-        MAX_FILE_BYTES_PDF     = 200 * 1024 * 1024  # 200 MB for PDFs
-
-        all_files = []
-        for root, dirs, files in os.walk(folder_path):
-            dirs[:] = [d for d in dirs if d not in skip_dirs]
-            for file in files:
-                if file in skip_filenames:
-                    continue
-                # Skip *.min.js, *.min.css, *.bundle.js etc.
-                if re.search(r'\.(min|bundle|chunk)\.(js|css)$', file, re.IGNORECASE):
-                    continue
-                ext = os.path.splitext(file)[1].lower()
-                if ext in doc_exts or ext in video_exts:
-                    full_path = os.path.join(root, file)
-                    try:
-                        fsize = os.path.getsize(full_path)
-                        # PDFs get a generous 200 MB limit (page-by-page parsing)
-                        limit = MAX_FILE_BYTES_PDF if ext == '.pdf' else MAX_FILE_BYTES_DEFAULT
-                        if fsize > limit:
-                            print(f"  ⏭ Skipping oversized file: {file} ({fsize//1024}KB, limit {limit//1024}KB)")
-                            continue
-                    except OSError:
-                        continue
-                    all_files.append(full_path)
-
-
-        indexing_status["total_files"] = len(all_files)
-        if not all_files:
-            print("No indexable files found.")
-            return
-
-        print(f"Found {len(all_files)} files to index in {folder_path}.")
-
-        for idx, file_path in enumerate(all_files):
-            if cancel_indexing_flag:
-                print("Indexing cancelled by user.")
-                break
-
-            source_name = os.path.relpath(file_path, folder_path)
-            file_hash = get_file_hash(file_path)
-            file_size = os.path.getsize(file_path)
-
-            ext = os.path.splitext(file_path)[1].lower()
-            # Skip large non-PDF, non-video files > 1 MB
-            # PDFs are handled by the per-file limit above and parsed page-by-page
-            if ext not in video_exts and ext != '.pdf' and file_size > 1024 * 1024:
-                indexing_status["progress"] = int((idx / len(all_files)) * 100)
-                continue
-
-            # Skip unchanged files
-            if _file_hash_cache.get(source_name) == file_hash:
-                indexing_status["progress"] = int((idx / len(all_files)) * 100)
-                continue
-
-            indexing_status["current_file"] = source_name
-            indexing_status["progress"] = int((idx / len(all_files)) * 100)
-            indexing_status["elapsed_time"] = int(time.time() - start_time)
-
-            chunks = []
-            if ext in video_exts:
-                chunks = transcribe_video(file_path, source_name=source_name)
-            else:
-                chunks = parse_document(file_path, source_name=source_name)
-
-            if chunks:
-                await pg_ingest_chunks(chunks, db_pool, tenant_id=tenant_id)
-                _file_hash_cache[source_name] = file_hash
-                indexing_status["indexed_files"].append(source_name)
-
-        indexing_status["progress"] = 100
-        indexing_status["total_time"] = int(time.time() - start_time)
-        print(f"Indexing completed in {indexing_status['total_time']}s.")
-
+                    await conn.execute(
+                        """
+                        INSERT INTO tenant_redwood_inference_prod.vector_chunks
+                            (event_id, tenant_id, source_id, source_type,
+                             author_id, channel_or_space, content, embedding,
+                             allowed_groups, allowed_users, is_public,
+                             document_title)
+                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8::text::vector,
+                                $9, $10, $11, $12)
+                        ON CONFLICT DO NOTHING
+                        """,
+                        event_id,
+                        effective_tenant_uuid,
+                        source_id,
+                        source_type,
+                        author_id,
+                        channel_or_space,
+                        content,
+                        emb_str,
+                        [],
+                        [],
+                        True,
+                        document_title,
+                    )
     except Exception as e:
-        print(f"Error during indexing: {e}")
-    finally:
-        indexing_status["is_indexing"] = False
+        print(f"  ⚠ Bulk DB insert failed: {e}")
+
+
 
 # ─── Graph Expert Helper ──────────────────────────────────────────────────────
 
@@ -776,40 +723,6 @@ async def fetch_top_experts(conn: asyncpg.Connection, top_n: int = 3) -> list:
 
 # ─── API Routes ───────────────────────────────────────────────────────────────
 
-@app.post("/index-folder")
-async def index_folder(
-    req: IndexRequest,
-    request: Request,
-    user: UserIdentity = Depends(get_current_user),
-):
-    """
-    Kick off folder indexing on the SAME event loop as the asyncpg pool.
-    Requires authentication so documents are stored in the calling user's
-    private data silo (per-user tenant_id).
-    """
-    tenant_id = getattr(request.state, "tenant_id", None)
-    if not tenant_id:
-        raise HTTPException(status_code=401, detail="Could not resolve user tenant.")
-    if not os.path.exists(req.folder_path):
-        raise HTTPException(status_code=404, detail="Folder path does not exist.")
-    if indexing_status["is_indexing"]:
-        raise HTTPException(status_code=400, detail="Indexing already in progress.")
-    asyncio.create_task(_async_run_indexing(req.folder_path, app.state.db_pool, tenant_id=tenant_id))
-    return {"status": "success", "message": "Indexing started in background."}
-
-
-@app.get("/indexing-progress")
-def get_indexing_progress():
-    return indexing_status
-
-
-@app.post("/cancel-indexing")
-def cancel_indexing():
-    global cancel_indexing_flag
-    if indexing_status["is_indexing"]:
-        cancel_indexing_flag = True
-        return {"status": "success", "message": "Cancellation request received."}
-    return {"status": "ignored", "message": "No active indexing task."}
 
 
 # ─── Slack Live Connector ─────────────────────────────────────────────────────
@@ -1328,43 +1241,6 @@ async def cancel_org_invite(
         raise HTTPException(status_code=500, detail=f"Failed to cancel invite: {e}")
 
 
-@app.get("/admin/stats")
-async def get_admin_stats(user: UserIdentity = Depends(get_current_user)):
-    if not user.is_admin:
-        raise HTTPException(status_code=403, detail="Access denied. Admin role required.")
-
-    try:
-        vm = psutil.virtual_memory()
-        import os as std_os
-        process = psutil.Process(std_os.getpid())
-        process_memory_mb = round(process.memory_info().rss / (1024 * 1024), 2)
-        
-        # Format the endpoint statistics for presentation
-        formatted_endpoints = {}
-        for endpoint, data in stats_tracker.endpoint_stats.items():
-            avg_latency = 0.0
-            if data["calls"] > 0:
-                avg_latency = round(data["total_latency_ms"] / data["calls"], 2)
-            formatted_endpoints[endpoint] = {
-                "calls": data["calls"],
-                "avg_latency_ms": avg_latency,
-                "status_codes": data["status_codes"],
-                "errors": data["errors"]
-            }
-            
-        return {
-            "ram": {
-                "total_gb": round(vm.total / (1024 ** 3), 2),
-                "used_gb": round(vm.used / (1024 ** 3), 2),
-                "free_gb": round(vm.available / (1024 ** 3), 2),
-                "percent": vm.percent
-            },
-            "process_memory_mb": process_memory_mb,
-            "endpoints": formatted_endpoints,
-            "recent_errors": stats_tracker.recent_errors
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch system stats: {e}")
 
 
 @app.delete("/org/members/{member_user_id}")
@@ -2140,7 +2016,7 @@ async def process_query(
             reranker = get_reranker()
             if reranker and candidates:
                 pairs = [[req.query, c["content"]] for c in candidates]
-                logits = reranker.predict(pairs)
+                logits = await asyncio.to_thread(reranker.predict, pairs)
                 if not hasattr(logits, "__iter__"):
                     logits = [logits]
                 for c, logit in zip(candidates, logits):
@@ -2328,7 +2204,7 @@ async def process_query(
                 validated_response = f"I don't have that information from the indexed documents, please contact {admin_email}"
 
             accessed_files = [c["source"] for c in retrieved_chunks]
-            write_audit_log(user_email, req.query, accessed_files)
+            await write_audit_log(user_email, req.query, accessed_files)
 
             citations = [] if is_fallback else extract_citations(validated_response)
 
@@ -2360,206 +2236,3 @@ async def process_query(
                 detail=f"Generation pipeline error: {e}",
             )
 
-
-# ─── Sutra Meeting Bot & Reconciler Endpoints ─────────────────────────────────
-
-class ScheduleMeetingRequest(BaseModel):
-    title: str
-    scheduled_start: str  # ISO-8601 string
-    attendees: List[str]
-    meeting_url: Optional[str] = None
-
-ACTIVE_TRANSCRIPTS: Dict[str, List[str]] = {}
-
-@app.post("/api/meetings/schedule")
-async def schedule_meeting(
-    req: ScheduleMeetingRequest,
-    request: Request,
-    user: UserIdentity = Depends(get_current_user)
-):
-    """Schedules a new meeting in the database for the active tenant."""
-    tenant_id_str = getattr(request.state, "tenant_id", None) or TENANT_NAMESPACE_UUID
-    try:
-        tenant_uuid = uuid.UUID(tenant_id_str)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid tenant ID.")
-
-    try:
-        scheduled_dt = datetime.fromisoformat(req.scheduled_start.replace("Z", "+00:00"))
-    except ValueError:
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid scheduled_start format. Must be ISO-8601.",
-        )
-
-    async with app.state.db_pool.acquire() as conn:
-        row = await conn.fetchrow(
-            """
-            INSERT INTO public.meetings (tenant_id, title, scheduled_start, attendees, status, meeting_url)
-            VALUES ($1, $2, $3, $4, 'scheduled', $5)
-            RETURNING id, tenant_id, title, scheduled_start, attendees, status, meeting_url
-            """,
-            tenant_uuid, req.title, scheduled_dt, req.attendees, req.meeting_url
-        )
-        return {
-            "id": str(row["id"]),
-            "tenant_id": str(row["tenant_id"]),
-            "title": row["title"],
-            "scheduled_start": row["scheduled_start"].isoformat(),
-            "attendees": row["attendees"],
-            "status": row["status"],
-            "meeting_url": row["meeting_url"]
-        }
-
-@app.get("/api/meetings/active")
-async def get_active_meetings(
-    request: Request,
-    user: UserIdentity = Depends(get_current_user)
-):
-    """Retrieve all active meetings for the active tenant."""
-    tenant_id_str = getattr(request.state, "tenant_id", None) or TENANT_NAMESPACE_UUID
-    try:
-        tenant_uuid = uuid.UUID(tenant_id_str)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid tenant ID.")
-
-    async with app.state.db_pool.acquire() as conn:
-        rows = await conn.fetch(
-            """
-            SELECT id, title, scheduled_start, attendees, status, meeting_url
-            FROM public.meetings
-            WHERE tenant_id = $1::uuid AND status = 'active'
-            ORDER BY scheduled_start DESC
-            """,
-            tenant_uuid
-        )
-        return [
-            {
-                "id": str(row["id"]),
-                "title": row["title"],
-                "scheduled_start": row["scheduled_start"].isoformat(),
-                "attendees": row["attendees"],
-                "status": row["status"],
-                "meeting_url": row["meeting_url"]
-            }
-            for row in rows
-        ]
-
-@app.post("/api/meetings/{meeting_id}/end")
-async def end_meeting(
-    meeting_id: str,
-    request: Request,
-    background_tasks: BackgroundTasks,
-    user: UserIdentity = Depends(get_current_user)
-):
-    """Manually ends a meeting and triggers compilation/extraction."""
-    tenant_id_str = getattr(request.state, "tenant_id", None) or TENANT_NAMESPACE_UUID
-    try:
-        m_uuid = uuid.UUID(meeting_id)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid meeting ID format.")
-
-    async with app.state.db_pool.acquire() as conn:
-        meeting = await conn.fetchrow(
-            "SELECT status, tenant_id FROM public.meetings WHERE id = $1::uuid",
-            m_uuid
-        )
-        if not meeting:
-            raise HTTPException(status_code=404, detail="Meeting not found.")
-
-        # Set status to completed
-        await conn.execute(
-            "UPDATE public.meetings SET status = 'completed' WHERE id = $1::uuid",
-            m_uuid
-        )
-
-    # Pop transcript from active transcripts
-    turns = ACTIVE_TRANSCRIPTS.pop(meeting_id, None)
-    if turns:
-        full_transcript = "\n".join(turns)
-        background_tasks.add_task(
-            run_sutra_pipeline,
-            full_transcript,
-            meeting_id,
-            str(meeting["tenant_id"]),
-            app.state.db_pool
-        )
-        return {"status": "success", "message": "Meeting ended. Synthesis queued in background."}
-    
-    return {"status": "success", "message": "Meeting ended. No transcript was recorded."}
-
-@app.websocket("/api/meetings/{meeting_id}/stream")
-async def websocket_stream_endpoint(websocket: WebSocket, meeting_id: str):
-    """WebSocket endpoint to ingest real-time captions from Playwright Sutra Bot."""
-    await websocket.accept()
-    print(f"[WebSocket] Bot connected for meeting {meeting_id}")
-    
-    # Initialize transcription queue for this meeting
-    ACTIVE_TRANSCRIPTS[meeting_id] = []
-    
-    # Update meeting status to active
-    try:
-        m_uuid = uuid.UUID(meeting_id)
-        async with app.state.db_pool.acquire() as conn:
-            await conn.execute(
-                "UPDATE public.meetings SET status = 'active' WHERE id = $1::uuid",
-                m_uuid
-            )
-    except Exception as e:
-        print(f"[WebSocket] Error updating meeting status to active: {e}")
-
-    try:
-        while True:
-            data = await websocket.receive_text()
-            try:
-                turn = json.loads(data)
-                speaker = turn.get("speaker", "Unknown Speaker")
-                text = turn.get("text", "")
-                timestamp = turn.get("timestamp", datetime.utcnow().isoformat())
-                
-                if not text.strip():
-                    continue
-                
-                turn_info = f"[{timestamp}] {speaker}: {text}"
-                ACTIVE_TRANSCRIPTS[meeting_id].append(turn_info)
-                print(f"[Sutra WS Turn] {meeting_id} | {speaker}: {text}")
-                
-            except json.JSONDecodeError:
-                print(f"[WebSocket] JSON parse error on message: {data}")
-    except WebSocketDisconnect:
-        print(f"[WebSocket] Bot disconnected for meeting {meeting_id}")
-    except Exception as e:
-        print(f"[WebSocket] Error in stream: {e}")
-    finally:
-        # Schedule auto-synthesis on disconnect after 5 seconds buffer
-        # (gives lobby/temporary disconnects a chance, or handles immediate completion)
-        await asyncio.sleep(5)
-        turns = ACTIVE_TRANSCRIPTS.pop(meeting_id, None)
-        if turns:
-            full_transcript = "\n".join(turns)
-            print(f"[WebSocket] Processing final transcript for meeting {meeting_id} ({len(turns)} turns)")
-            
-            try:
-                m_uuid = uuid.UUID(meeting_id)
-                async with app.state.db_pool.acquire() as conn:
-                    meeting = await conn.fetchrow(
-                        "SELECT tenant_id FROM public.meetings WHERE id = $1::uuid",
-                        m_uuid
-                    )
-                    if meeting:
-                        # Update status to completed
-                        await conn.execute(
-                            "UPDATE public.meetings SET status = 'completed' WHERE id = $1::uuid",
-                            m_uuid
-                        )
-                        # Trigger background processing pipeline
-                        asyncio.create_task(
-                            run_sutra_pipeline(
-                                full_transcript,
-                                meeting_id,
-                                str(meeting["tenant_id"]),
-                                app.state.db_pool
-                            )
-                        )
-            except Exception as e:
-                print(f"[WebSocket] Failed to trigger background processing: {e}")

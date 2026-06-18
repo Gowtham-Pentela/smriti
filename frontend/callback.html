@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="dark">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,7 +9,14 @@
     <link rel="shortcut icon" type="image/png" href="images/smriti_logo_32.png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
         body {
             font-family: 'Inter', system-ui, sans-serif;
             background: #0a0a0f;
@@ -20,45 +28,60 @@
             flex-direction: column;
             gap: 20px;
         }
+
         body::before {
             content: '';
             position: fixed;
             inset: 0;
             background:
-                radial-gradient(ellipse 60% 50% at 20% 30%, rgba(99,102,241,0.08) 0%, transparent 60%),
-                radial-gradient(ellipse 50% 40% at 80% 70%, rgba(139,92,246,0.06) 0%, transparent 60%);
+                radial-gradient(ellipse 60% 50% at 20% 30%, rgba(99, 102, 241, 0.08) 0%, transparent 60%),
+                radial-gradient(ellipse 50% 40% at 80% 70%, rgba(139, 92, 246, 0.06) 0%, transparent 60%);
             pointer-events: none;
         }
+
         .brand {
             display: flex;
             align-items: center;
             gap: 10px;
             margin-bottom: 8px;
         }
-        .brand img { border-radius: 8px; }
-        .brand-name { font-size: 20px; font-weight: 700; }
+
+        .brand img {
+            border-radius: 8px;
+        }
+
+        .brand-name {
+            font-size: 20px;
+            font-weight: 700;
+        }
 
         /* Spinner */
         .spinner {
             width: 36px;
             height: 36px;
-            border: 3px solid rgba(99,102,241,0.15);
+            border: 3px solid rgba(99, 102, 241, 0.15);
             border-top-color: #6366f1;
             border-radius: 50%;
             animation: spin 0.8s linear infinite;
         }
-        @keyframes spin { to { transform: rotate(360deg); } }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
 
         .status {
             font-size: 14px;
-            color: rgba(255,255,255,0.5);
+            color: rgba(255, 255, 255, 0.5);
             text-align: center;
             max-width: 280px;
             line-height: 1.6;
         }
+
         .error-box {
-            background: rgba(239,68,68,0.1);
-            border: 1px solid rgba(239,68,68,0.2);
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
             color: #f87171;
             padding: 14px 20px;
             border-radius: 10px;
@@ -67,6 +90,7 @@
             text-align: center;
             display: none;
         }
+
         .retry-link {
             display: none;
             color: #6366f1;
@@ -74,12 +98,16 @@
             text-decoration: none;
             margin-top: 8px;
         }
-        .retry-link:hover { text-decoration: underline; }
+
+        .retry-link:hover {
+            text-decoration: underline;
+        }
     </style>
 </head>
+
 <body>
     <div class="brand">
-        <img src="images/smriti_logo.png" alt="Smriti" width="32" height="32">
+        <img src="images/smriti_logo_32.png" alt="Smriti" width="32" height="32">
         <span class="brand-name">Smriti</span>
     </div>
 
@@ -88,87 +116,102 @@
     <div class="error-box" id="error-box"></div>
     <a href="/app/auth.html" class="retry-link" id="retry-link">← Back to sign in</a>
 
-<script src="/app/js/supabase.js"></script>
-<script>
-// ─── This page's ONLY job: process the OAuth callback and get to index.html ───
-// It receives ?code=xxx (PKCE) or #access_token=xxx (implicit) from Supabase.
-// Supabase JS automatically detects and processes these on createClient init.
+    <script src="/app/js/supabase.js"></script>
+    <script>
+        // ─── This page's ONLY job: process the OAuth callback and get to index.html ───
+        // It resolves security vectors by requesting configurations asynchronously at runtime.
 
-const SB_URL  = 'https://jflxoijsjdgbiarvstbp.supabase.co';
-const SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpmbHhvaWpzamRnYmlhcnZzdGJwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0ODQwNTgsImV4cCI6MjA5NjA2MDA1OH0.XBjV29kRgrQoO2okDx8ugWPssQ1FOFcj4nZ209tw4dA';
+        let _sb = null;
+        let handled = false;
 
-const sb = supabase.createClient(SB_URL, SB_ANON, {
-    auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-        detectSessionInUrl: true,
-    }
-});
+        function showError(msg) {
+            document.getElementById('spinner').style.display = 'none';
+            document.getElementById('status-msg').style.display = 'none';
+            const errBox = document.getElementById('error-box');
+            errBox.textContent = msg;
+            errBox.style.display = 'block';
+            document.getElementById('retry-link').style.display = 'inline';
+        }
 
-function showError(msg) {
-    document.getElementById('spinner').style.display = 'none';
-    document.getElementById('status-msg').style.display = 'none';
-    const errBox = document.getElementById('error-box');
-    errBox.textContent = msg;
-    errBox.style.display = 'block';
-    document.getElementById('retry-link').style.display = 'inline';
-}
+        function goToApp() {
+            document.getElementById('status-msg').textContent = 'Signed in! Loading your workspace…';
+            // Small delay to ensure localStorage write is flushed cleanly
+            setTimeout(() => {
+                window.location.replace('/app/index.html');
+            }, 150);
+        }
 
-function goToApp() {
-    document.getElementById('status-msg').textContent = 'Signed in! Loading your workspace…';
-    // Small delay to ensure localStorage write is flushed
-    setTimeout(() => {
-        window.location.replace('/app/index.html');
-    }, 150);
-}
+        // Runtime configuration asynchronous listener matrix
+        const _sbReady = (async () => {
+            try {
+                const res = await fetch('/client-config');
+                if (!res.ok) throw new Error('Failed to load client security configurations.');
+                const config = await res.json();
 
-// Primary: SIGNED_IN fires after PKCE exchange completes successfully
-// This is the reliable event for post-OAuth session detection
-let handled = false;
+                // Dynamically instantiate Supabase using the backend injection profile
+                _sb = supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY, {
+                    auth: {
+                        persistSession: true,
+                        autoRefreshToken: true,
+                        detectSessionInUrl: true,
+                    }
+                });
 
-sb.auth.onAuthStateChange((event, session) => {
-    if (handled) return;
-    if (event === 'SIGNED_IN' && session) {
-        handled = true;
-        goToApp();
-    }
-});
+                // Primary: SIGNED_IN fires after PKCE exchange completes successfully
+                _sb.auth.onAuthStateChange((event, session) => {
+                    if (handled) return;
+                    if (event === 'SIGNED_IN' && session) {
+                        handled = true;
+                        goToApp();
+                    }
+                });
 
-// Fallback: poll getSession() in case SIGNED_IN doesn't fire
-// (e.g., Supabase version differences, network delays)
-(async () => {
-    let attempts = 0;
-    const maxAttempts = 20; // 20 × 500ms = 10 seconds max
+                return _sb;
+            } catch (err) {
+                console.error('Initialization Fault:', err);
+                showError('Security runtime context failed to compile.');
+            }
+        })();
 
-    while (attempts < maxAttempts) {
-        await new Promise(r => setTimeout(r, 500));
-        if (handled) return; // SIGNED_IN already fired, stop polling
+        // Active verification event loop matching runtime constraints
+        window.addEventListener('DOMContentLoaded', async () => {
+            await _sbReady;
+            if (!_sb) return;
 
-        const { data: { session } } = await sb.auth.getSession();
-        if (session) {
+            // Fallback: poll getSession() in case SIGNED_IN event hangs
+            let attempts = 0;
+            const maxAttempts = 20; // 20 × 500ms = 10 seconds max
+
+            while (attempts < maxAttempts) {
+                await new Promise(r => setTimeout(r, 500));
+                if (handled) return; // Sequence already addressed, break evaluation loop
+
+                const { data: { session } } = await _sb.auth.getSession();
+                if (session) {
+                    if (!handled) {
+                        handled = true;
+                        goToApp();
+                    }
+                    return;
+                }
+                attempts++;
+            }
+
+            // Terminate evaluation tracking if window exceeds bounds without session validation
             if (!handled) {
                 handled = true;
-                goToApp();
+                showError('Sign-in could not be completed. Please try again.');
             }
-            return;
-        }
-        attempts++;
-    }
+        });
 
-    // Gave up — no session after 10s. Show error.
-    if (!handled) {
-        handled = true;
-        showError('Sign-in could not be completed. Please try again.');
-    }
-})();
-
-// Safety net: if onAuthStateChange never fires (edge case), timeout to auth
-setTimeout(() => {
-    if (!handled) {
-        handled = true;
-        showError('Sign-in timed out. Please try again.');
-    }
-}, 10000);
-</script>
+        // Guardrail fallback timeout sentinel
+        setTimeout(() => {
+            if (!handled) {
+                handled = true;
+                showError('Sign-in timed out. Please try again.');
+            }
+        }, 10000);
+    </script>
 </body>
+
 </html>

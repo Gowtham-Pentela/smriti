@@ -15,22 +15,10 @@
   <!-- Google Fonts: Kanit -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700;800;900&display=swap"
-    rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 
-  <!-- Tech Stack CDN-only -->
+  <!-- Tech Stack CDN-only (Tailwind CSS only — React, Babel, and Motion are pruned) -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin="anonymous"></script>
-  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin="anonymous"></script>
-  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
-  <script src="https://unpkg.com/framer-motion@11.11.17/dist/framer-motion.js"></script>
-  <script>
-    if (window.FramerMotion) {
-      window.Motion = window.FramerMotion;
-    } else if (window.Motion) {
-      window.FramerMotion = window.Motion;
-    }
-  </script>
 
   <!-- Tailwind Custom Configuration -->
   <script>
@@ -48,8 +36,7 @@
   <!-- Global CSS Styling -->
   <style>
     html,
-    body,
-    #root {
+    body {
       background-color: #0C0C0C;
       color: #FFFFFF;
       font-family: 'Kanit', sans-serif;
@@ -83,973 +70,788 @@
     ::-webkit-scrollbar-thumb:hover {
       background: rgba(255, 255, 255, 0.25);
     }
+
+    /* Smooth CSS Animations for Fade-in effects */
+    .fade-in-element {
+      opacity: 0;
+      transform: translateY(30px);
+      transition: opacity 0.7s cubic-bezier(0.25, 0.1, 0.25, 1), transform 0.7s cubic-bezier(0.25, 0.1, 0.25, 1);
+    }
+
+    .fade-in-element.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Interactive 3D Card Hover Tilt */
+    .tilt-card {
+      transform-style: preserve-3d;
+      transition: transform 0.3s ease-out, box-shadow 0.3s ease-out;
+      will-change: transform;
+    }
   </style>
 </head>
 
 <body>
 
-  <!-- Root mount point for React app -->
-  <div id="root"></div>
+  <div class="w-full bg-[#0C0C0C] min-h-screen relative flex flex-col overflow-x-clip">
 
-  <!-- React code container -->
-  <script type="text/babel">
-    const { useState, useEffect, useRef, useMemo } = React;
-    const { motion, useScroll, useTransform } = window.Motion;
+    <!-- ── 1. HERO SECTION ── -->
+    <section class="relative w-full h-screen overflow-hidden z-10">
 
-    // Suppress key warning console logs for Framer Motion / Babel simulation
-    const originalError = console.error;
-    console.error = (...args) => {
-      if (args[0] && typeof args[0] === 'string' && args[0].includes('Each child in a list should have a unique "key"')) {
-        return;
-      }
-      originalError(...args);
-    };
+      <!-- Full-bleed background video -->
+      <video src="images/smriti.mp4" autoPlay loop muted playsInline class="absolute inset-0 w-full h-full pointer-events-none object-cover object-center"></video>
 
-    // ── REUSABLE COMPONENT: FADE IN ANIMATION ──
-    const FadeIn = ({ children, delay = 0, duration = 0.7, x = 0, y = 30, className, style }) => {
-      return (
-        <motion.div
-          initial={{ opacity: 0, x, y }}
-          whileInView={{ opacity: 1, x: 0, y: 0 }}
-          viewport={{ once: true, margin: "50px", amount: 0 }}
-          transition={{ delay, duration, ease: [0.25, 0.1, 0.25, 1] }}
-          className={className}
-          style={style}
-        >
-          {children}
-        </motion.div>
-      );
-    };
+      <!-- Gradient overlay -->
+      <div class="absolute inset-0 pointer-events-none" style="background: linear-gradient(to bottom, rgba(12,12,12,0.72) 0%, rgba(12,12,12,0.10) 38%, rgba(12,12,12,0.10) 58%, rgba(12,12,12,0.88) 100%);"></div>
 
-    // ── REUSABLE COMPONENT: MOUSE-FOLLOW MAGNET CONTAINER WITH 3D TILT ──
-    const Magnet = ({ children, padding = 150, strength = 3, activeTransition = "transform 0.3s ease-out", inactiveTransition = "transform 0.6s ease-in-out", className, style }) => {
-      const [position, setPosition] = useState({ x: 0, y: 0, rotX: 0, rotY: 0 });
-      const ref = useRef(null);
+      <!-- Navbar (top, above everything) -->
+      <div class="absolute top-0 left-0 right-0 z-20 fade-in-element" id="navbar">
+        <nav class="w-full flex items-center justify-between px-6 md:px-10 pt-6 md:pt-8">
+          <a href="#about" class="text-[#F5F5F7] font-medium uppercase tracking-wider text-sm md:text-lg lg:text-[1.4rem] hover:opacity-70 transition-opacity duration-200 select-none" style="text-shadow: 0 1px 8px rgba(0,0,0,0.6)">About</a>
+          <a href="#services" class="text-[#F5F5F7] font-medium uppercase tracking-wider text-sm md:text-lg lg:text-[1.4rem] hover:opacity-70 transition-opacity duration-200 select-none" style="text-shadow: 0 1px 8px rgba(0,0,0,0.6)">Price</a>
+          <a href="#about-services" class="text-[#F5F5F7] font-medium uppercase tracking-wider text-sm md:text-lg lg:text-[1.4rem] hover:opacity-70 transition-opacity duration-200 select-none" style="text-shadow: 0 1px 8px rgba(0,0,0,0.6)">Services</a>
+          <a href="#sources" class="text-[#F5F5F7] font-medium uppercase tracking-wider text-sm md:text-lg lg:text-[1.4rem] hover:opacity-70 transition-opacity duration-200 select-none" style="text-shadow: 0 1px 8px rgba(0,0,0,0.6)">Sources</a>
+          <a href="#contact" class="text-[#F5F5F7] font-medium uppercase tracking-wider text-sm md:text-lg lg:text-[1.4rem] hover:opacity-70 transition-opacity duration-200 select-none" style="text-shadow: 0 1px 8px rgba(0,0,0,0.6)">Contact</a>
+        </nav>
+      </div>
 
-      const handleMouseMove = (e) => {
-        if (!ref.current) return;
-        const rect = ref.current.getBoundingClientRect();
-        const centerX = rect.left + rect.width / 2;
-        const centerY = rect.top + rect.height / 2;
-
-        const distanceX = e.clientX - centerX;
-        const distanceY = e.clientY - centerY;
-        const distance = Math.sqrt(distanceX * distanceX + distanceY * distanceY);
-
-        if (distance < padding) {
-          const x = distanceX / strength;
-          const y = distanceY / strength;
-          const rotX = -(distanceY / (rect.height / 2)) * 15;
-          const rotY = (distanceX / (rect.width / 2)) * 15;
-          setPosition({ x, y, rotX, rotY });
-        } else {
-          setPosition({ x: 0, y: 0, rotX: 0, rotY: 0 });
-        }
-      };
-
-      const handleMouseLeave = () => {
-        setPosition({ x: 0, y: 0, rotX: 0, rotY: 0 });
-      };
-
-      useEffect(() => {
-        window.addEventListener('mousemove', handleMouseMove);
-        return () => window.removeEventListener('mousemove', handleMouseMove);
-      }, [padding, strength]);
-
-      return (
-        <div
-          ref={ref}
-          className={className}
-          style={{
-            ...style,
-            transform: `perspective(1000px) rotateX(${position.rotX}deg) rotateY(${position.rotY}deg) translate3d(${position.x}px, ${position.y}px, 0)`,
-            transition: position.x === 0 && position.y === 0 ? inactiveTransition : activeTransition,
-            willChange: 'transform'
-          }}
-          onMouseLeave={handleMouseLeave}
-        >
-          {children}
+      <!-- Center content -->
+      <div class="absolute inset-0 flex flex-col items-center justify-center z-10 px-6 gap-6 md:gap-8">
+        <div class="w-full overflow-hidden fade-in-element" id="hero-title">
+          <h1 class="hero-heading font-black uppercase tracking-tight leading-none text-center select-none break-words" style="width: 70vw; max-width: 100%; font-size: clamp(3rem, 6vw, 7.5rem); line-height: 0.9; word-break: break-word;">
+            Hi, i&apos;m Smriti
+          </h1>
         </div>
-      );
-    };
 
-    // ── REUSABLE COMPONENT: CHARACTER-BY-CHARACTER SCROLL REVEAL ──
-    const AnimatedText = ({ text }) => {
-      const containerRef = useRef(null);
-      const { scrollYProgress } = useScroll({
-        target: containerRef,
-        offset: ['start 0.8', 'end 0.2']
-      });
-
-      const characters = useMemo(() => text.split(""), [text]);
-
-      return (
-        <p ref={containerRef} className="text-[#D7E2EA] font-medium text-center leading-relaxed font-sans max-w-[560px]" style={{ fontSize: 'clamp(1rem, 2vw, 1.35rem)' }}>
-          {characters.map((char, index) => {
-            const start = index / characters.length;
-            const end = (index + 1) / characters.length;
-            const opacity = useTransform(scrollYProgress, [start, end], [0.2, 1.0]);
-
-            return (
-              <motion.span key={index} style={{ opacity }} className="relative">
-                {char}
-              </motion.span>
-            );
-          })}
-        </p>
-      );
-    };
-    // Expose LaunchSmritiButton globally for runtime JSX usage
-
-
-    // ── REUSABLE COMPONENT: CONTACT PILL BUTTON ──
-    const ContactButton = ({ onClick, label = "Contact Me" }) => {
-      return (
-        <button
-          onClick={onClick || (() => { window.location.href = 'mailto:admin.smritione@gmail.com'; })}
-          className="relative flex items-center justify-center font-medium uppercase tracking-widest text-white transition-transform duration-200 active:scale-95 cursor-pointer whitespace-nowrap"
-          style={{
-            background: 'linear-gradient(123deg, #18011F 7%, #B600A8 37%, #7621B0 72%, #BE4C00 100%)',
-            boxShadow: '0px 4px 4px rgba(181, 1, 167, 0.25), inset 4px 4px 12px #7721B1',
-            outline: '2px solid white',
-            outlineOffset: '-3px',
-            borderRadius: '9999px',
-            padding: 'clamp(0.6rem, 1.3vw, 1rem) clamp(1.8rem, 3.5vw, 3rem)',
-            fontSize: 'clamp(0.7rem, 1.1vw, 0.95rem)'
-          }}
-        >
-          {label}
-        </button>
-      );
-    };
-
-    // ── REUSABLE COMPONENT: LAUNCH SMRITI BUTTON ──
-    const LaunchSmritiButton = ({ onClick, label = "Launch Smriti" }) => {
-      return (
-        <button
-          onClick={onClick || (async () => {
-            if (window.authReady) await window.authReady;
-            window.location.replace('/app/index.html');
-          })}
-          className="relative flex items-center justify-center font-medium uppercase tracking-widest text-white transition-transform duration-200 active:scale-95 cursor-pointer whitespace-nowrap"
-          style={{
-            background: 'linear-gradient(135deg, #4A00E0, #8E2DE2)',
-            boxShadow: '0px 4px 4px rgba(140,45,226,0.3), inset 2px 2px 8px #6A1B9A',
-            outline: '2px solid white',
-            outlineOffset: '-3px',
-            borderRadius: '9999px',
-            padding: 'clamp(0.6rem,1.3vw,1rem) clamp(1.8rem,3.5vw,3rem)',
-            fontSize: 'clamp(0.7rem,1.1vw,0.95rem)'
-          }}
-        >
-          {label}
-        </button>
-      );
-    };
-
-    // ── REUSABLE COMPONENT: LIVE PROJECT OUTLINE BUTTON ──
-    const LiveProjectButton = ({ onClick }) => {
-      return (
-        <button
-          onClick={onClick || (() => alert("Opening live production project..."))}
-          className="border-2 border-[#D7E2EA] text-[#D7E2EA] font-medium uppercase tracking-widest bg-transparent rounded-full px-5 py-2 sm:px-8 sm:py-3.5 text-xs sm:text-sm hover:bg-[#D7E2EA]/10 transition-all duration-200 active:scale-95 whitespace-nowrap"
-        >
-          Live Project
-        </button>
-      );
-    };
-
-    // ── REUSABLE COMPONENT: STICKY PROJECT STACK CARD WITH 3D HOVER TILT ──
-    const StickyProjectCard = ({ card, index, totalCards }) => {
-      const containerRef = useRef(null);
-      const cardRef = useRef(null);
-      const [tilt, setTilt] = useState({ rotX: 0, rotY: 0, scale: 1 });
-
-      const { scrollYProgress } = useScroll({
-        target: containerRef,
-        offset: ["start start", "end start"]
-      });
-
-      const minScale = 1 - (totalCards - 1 - index) * 0.03;
-      const scale = useTransform(scrollYProgress, [0, 1], [1, minScale]);
-      const opacity = useTransform(scrollYProgress, [0, 0.85], [1, 0.75]);
-
-      const handleMouseMove = (e) => {
-        if (!cardRef.current) return;
-        const rect = cardRef.current.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-
-        const centerX = rect.width / 2;
-        const centerY = rect.height / 2;
-
-        const rotX = -((y - centerY) / centerY) * 6; // max 6 degrees
-        const rotY = ((x - centerX) / centerX) * 6;  // max 6 degrees
-
-        setTilt({ rotX, rotY, scale: 1.02 });
-      };
-
-      const handleMouseLeave = () => {
-        setTilt({ rotX: 0, rotY: 0, scale: 1 });
-      };
-
-      return (
-        <div
-          ref={containerRef}
-          className="h-[85vh] flex items-center justify-center sticky top-0"
-          style={{ top: `${index * 28 + 96}px`, perspective: '1000px' }}
-        >
-          <motion.div
-            style={{ scale, opacity }}
-            className="w-full max-w-6xl h-[65vh]"
-          >
-            <motion.div
-              ref={cardRef}
-              onMouseMove={handleMouseMove}
-              onMouseLeave={handleMouseLeave}
-              animate={{
-                rotateX: tilt.rotX,
-                rotateY: tilt.rotY,
-                scale: tilt.scale
-              }}
-              transition={{ type: "spring", stiffness: 300, damping: 20 }}
-              className="w-full h-full rounded-[40px] sm:rounded-[50px] md:rounded-[60px] border-2 border-[#D7E2EA] bg-[#0C0C0C] p-5 sm:p-8 md:p-10 flex flex-col justify-between shadow-[0_24px_50px_rgba(0,0,0,0.8)] relative cursor-pointer"
-              style={{ transformStyle: 'preserve-3d' }}
-            >
-              {/* Top row */}
-              <div className="flex items-start justify-between border-b border-[#D7E2EA]/15 pb-4 w-full">
-                <div className="flex flex-col gap-1 text-left">
-                  <span className="text-white/40 text-[10px] uppercase font-mono tracking-widest">
-                    {card.category}
-                  </span>
-                  <h3 className="text-xl sm:text-2xl md:text-3xl font-black text-[#D7E2EA] tracking-tight uppercase leading-none">
-                    {card.name}
-                  </h3>
-                </div>
-                <div className="flex items-center gap-4 sm:gap-8">
-                  <span className="text-3xl sm:text-4xl md:text-5xl font-black text-[#D7E2EA]/10 font-mono tracking-tighter">
-                    {card.num}
-                  </span>
-                  <LiveProjectButton />
-                </div>
-              </div>
-
-              {/* Bottom row: Two column image grid */}
-              <div className="flex-1 mt-6 grid grid-cols-1 md:grid-cols-10 gap-4 overflow-hidden w-full">
-                {/* Left Column (40% width equivalent) - 2 stacked images */}
-                <div className="md:col-span-4 flex flex-col gap-3 justify-between">
-                  <div className="w-full overflow-hidden border border-[#D7E2EA]/10 bg-black/20" style={{ height: 'clamp(130px, 16vw, 230px)', borderRadius: '24px' }}>
-                    <img src={card.img1} alt="gallery-1" className="w-full h-full object-cover opacity-80 hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-                  </div>
-                  <div className="w-full overflow-hidden border border-[#D7E2EA]/10 bg-black/20" style={{ height: 'clamp(160px, 22vw, 340px)', borderRadius: '24px' }}>
-                    <img src={card.img2} alt="gallery-2" className="w-full h-full object-cover opacity-80 hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-                  </div>
-                </div>
-
-                {/* Right Column (60% width equivalent) - 1 tall image */}
-                <div className="md:col-span-6 overflow-hidden border border-[#D7E2EA]/10 bg-black/20" style={{ borderRadius: '24px', height: '100%' }}>
-                  <img src={card.img3} alt="gallery-tall" className="w-full h-full object-cover opacity-80 hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-                </div>
-              </div>
-
-            </motion.div>
-          </motion.div>
+        <div class="text-center fade-in-element" id="hero-desc">
+          <p class="text-[#D7E2EA]/80 font-light uppercase tracking-widest leading-relaxed max-w-xl mx-auto" style="font-size: clamp(0.65rem, 1.2vw, 1.1rem); text-shadow: 0 1px 10px rgba(0,0,0,0.7)">
+            A SOVEREIGN CONTEXT ENGINE DRIVEN BY SECURE LOCALIZED KNOWLEDGE MANAGEMENT
+          </p>
         </div>
-      );
-    };
 
-    // ── INTERACTIVE SOLUTION MODAL ──
-    const SolutionModal = ({ problem, onClose }) => {
-      const [activeTab, setActiveTab] = useState("how_it_works");
-
-      // Prevent background scrolling while open
-      useEffect(() => {
-        document.body.style.overflow = 'hidden';
-
-        // Escape key listener
-        const handleKeyDown = (e) => {
-          if (e.key === 'Escape') onClose();
-        };
-        window.addEventListener('keydown', handleKeyDown);
-
-        return () => {
-          document.body.style.overflow = 'unset';
-          window.removeEventListener('keydown', handleKeyDown);
-        };
-      }, [onClose]);
-
-      const howItWorksSteps = [
-        {
-          num: "01",
-          name: "CONNECT SOURCES",
-          desc: "Securely hook up your enterprise communications, spreadsheets, documents, and transcript streams.",
-          img: "images/connect_sources.png"
-        },
-        {
-          num: "02",
-          name: "INDEX PRIVATELY",
-          desc: "Locally parse, embed, and index your files into an isolated, local HNSW vector store.",
-          img: "images/index_privately.png"
-        },
-        {
-          num: "03",
-          name: "ASK ANYTHING",
-          desc: "Run phi4-mini or custom LLMs locally to query, summarize, and cross-examine corporate history.",
-          img: "images/ask_anything.png"
-        }
-      ];
-
-      const activeSources = [
-        { name: "SLACK TEAMS", img: "images/slack_teams.png" },
-        { name: "REQUIREMENTS & SPECS", img: "images/requirements_specs.png" },
-        { name: "RELEASE NOTES", img: "images/release_notes.png" },
-        { name: "MEETING TRANSCRIPTS", img: "images/meeting_transcripts.png" },
-        { name: "GOOGLE DRIVE", img: "images/google_drive.png" },
-        { name: "EMAIL THREADS", img: "images/email_threads.png" }
-      ];
-
-      return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          {/* Backdrop */}
-          <div
-            onClick={onClose}
-            className="absolute inset-0 bg-black/85 backdrop-blur-md transition-opacity duration-300"
-          />
-
-          {/* Modal Container */}
-          <div className="relative w-full max-w-6xl h-[85vh] md:h-[75vh] rounded-[30px] border border-white/10 bg-[#0C0C0C] flex flex-col md:flex-row overflow-hidden shadow-[0_32px_64px_rgba(0,0,0,0.85)] z-10 text-left">
-
-            {/* Close Button */}
-            <button
-              onClick={onClose}
-              className="absolute top-5 right-5 z-20 text-white/50 hover:text-white transition-colors p-2 bg-white/5 hover:bg-white/10 rounded-full cursor-pointer"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
+        <div class="fade-in-element" id="hero-actions">
+          <div class="flex gap-4 items-center flex-wrap justify-center">
+            <!-- Contact Button -->
+            <button onclick="window.location.href = 'mailto:admin.smritione@gmail.com';" class="relative flex items-center justify-center font-medium uppercase tracking-widest text-white transition-transform duration-200 active:scale-95 cursor-pointer whitespace-nowrap" style="background: linear-gradient(123deg, #18011F 7%, #B600A8 37%, #7621B0 72%, #BE4C00 100%); box-shadow: 0px 4px 4px rgba(181, 1, 167, 0.25), inset 4px 4px 12px #7721B1; outline: 2px solid white; outline-offset: -3px; border-radius: 9999px; padding: clamp(0.6rem, 1.3vw, 1rem) clamp(1.8rem, 3.5vw, 3rem); font-size: clamp(0.7rem, 1.1vw, 0.95rem);">
+              Contact Me
             </button>
-
-            {/* LEFT COLUMN: Problem Details */}
-            <div className="w-full md:w-5/12 border-b md:border-b-0 md:border-r border-white/10 p-6 md:p-8 flex flex-col justify-between overflow-y-auto">
-              <div className="flex flex-col gap-4">
-                <span className="text-xs font-mono tracking-widest text-white/45 uppercase">
-                  PROBLEM {problem.num} / CONTEXT BOTTLENECK
-                </span>
-                <h3 className="text-2xl md:text-3xl font-black uppercase text-[#D7E2EA] leading-tight font-sans">
-                  {problem.title}
-                </h3>
-                <p className="text-sm md:text-base font-light leading-relaxed text-[#B6BBCA]">
-                  {problem.description}
-                </p>
-              </div>
-              <div className="mt-6 rounded-2xl overflow-hidden border border-white/10 bg-black/20 aspect-video md:aspect-[4/3] w-full">
-                <img
-                  src={problem.img}
-                  alt={problem.title}
-                  className="w-full h-full object-cover"
-                />
-              </div>
-            </div>
-
-            {/* RIGHT COLUMN: The Sovereign Engine Solution */}
-            <div className="w-full md:w-7/12 p-6 md:p-8 flex flex-col overflow-hidden">
-              {/* Tabs */}
-              <div className="flex border-b border-white/10 pb-3 gap-2 overflow-x-auto">
-                {[
-                  { id: "how_it_works", label: "HOW IT WORKS" },
-                  { id: "active_sources", label: "DATA SOURCES" },
-                  { id: "zero_egress", label: "ZERO EGRESS PRIVACY" }
-                ].map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`px-4 py-2 rounded-lg text-xs md:text-sm font-semibold tracking-wider transition-all cursor-pointer ${activeTab === tab.id
-                      ? 'bg-white/10 text-white border border-white/15'
-                      : 'text-white/40 hover:text-white/70'
-                      }`}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* Tab Contents */}
-              <div className="flex-1 overflow-y-auto mt-6">
-                {activeTab === "how_it_works" && (
-                  <div className="flex flex-col gap-6">
-                    {howItWorksSteps.map((step) => (
-                      <div key={step.num} className="flex flex-col sm:flex-row gap-5 items-start sm:items-center border border-white/5 bg-white/[0.02] p-4 rounded-xl">
-                        <div className="w-full sm:w-[140px] h-[90px] rounded-lg overflow-hidden border border-white/10 flex-shrink-0">
-                          <img src={step.img} alt={step.name} className="w-full h-full object-cover" />
-                        </div>
-                        <div className="flex-1 text-left">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-xs font-mono font-bold text-white/30">{step.num}</span>
-                            <h4 className="text-sm font-bold tracking-wider text-[#D7E2EA]">{step.name}</h4>
-                          </div>
-                          <p className="text-xs text-[#B6BBCA]/70 font-light leading-relaxed">{step.desc}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {activeTab === "active_sources" && (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                    {activeSources.map((src, i) => (
-                      <div key={i} className="border border-white/5 bg-white/[0.02] p-3 rounded-xl flex flex-col gap-2 items-center text-center">
-                        <div className="w-full aspect-video rounded-lg overflow-hidden border border-white/10">
-                          <img src={src.img} alt={src.name} className="w-full h-full object-cover" />
-                        </div>
-                        <span className="text-[10px] font-mono font-semibold text-white/50 tracking-wider uppercase mt-1">
-                          {src.name}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {activeTab === "zero_egress" && (
-                  <div className="flex flex-col gap-5 text-left">
-                    <div className="rounded-xl overflow-hidden border border-white/10 bg-black/20 max-w-lg mx-auto w-full aspect-video">
-                      <img src="images/data_never_leaves.png" alt="Data never leaves" className="w-full h-full object-cover" />
-                    </div>
-                    <div className="mt-2">
-                      <h4 className="text-base font-bold text-white mb-2 uppercase tracking-wide">Secure perimeter data containment</h4>
-                      <p className="text-xs sm:text-sm text-[#B6BBCA]/75 font-light leading-relaxed">
-                        All ingestion streams, transcript pipelines, and local vector search computations occur entirely behind your organization's compliance perimeter. Under our localized protocol, zero corporate data, transcripts, or queries escape to third-party APIs.
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
+            <!-- Launch Button -->
+            <button onclick="window.location.replace('/app/index.html');" class="relative flex items-center justify-center font-medium uppercase tracking-widest text-white transition-transform duration-200 active:scale-95 cursor-pointer whitespace-nowrap" style="background: linear-gradient(135deg, #4A00E0, #8E2DE2); box-shadow: 0px 4px 4px rgba(140,45,226,0.3), inset 2px 2px 8px #6A1B9A; outline: 2px solid white; outline-offset: -3px; border-radius: 9999px; padding: clamp(0.6rem, 1.3vw, 1rem) clamp(1.8rem, 3.5vw, 3rem); font-size: clamp(0.7rem, 1.1vw, 0.95rem);">
+              Launch Smriti
+            </button>
           </div>
         </div>
-      );
-    };
+      </div>
 
-    const problemsList = [
-      {
-        id: "knowledge_silos",
-        num: "01",
-        title: "Knowledge Silos",
-        tagline: "ORGANIZATIONAL DISCONNECTION",
-        description: "Organizations lose critical context across multiple isolated platforms. Chat history, documents, and code repositories remain completely disconnected, leading to duplicated efforts and fragmented memory.",
-        img: "images/knowledge_silos.png"
-      },
-      {
-        id: "onboarding_friction",
-        num: "02",
-        title: "Onboarding Friction",
-        tagline: "DEVELOPER VELOCITY BARRIER",
-        description: "New team members waste dozens of hours trying to parse legacy architectural decisions, outdated API documentation, and code bases without access to historical decision logs.",
-        img: "images/onboarding_friction.png"
-      },
-      {
-        id: "brain_drain",
-        num: "03",
-        title: "Brain Drain",
-        tagline: "ORGANIZATIONAL MEMORY LEAK",
-        description: "When key architects or subject matter experts leave the company, their context and decision reasoning vanish with them. Outdated wikis fail to capture the true operational logic.",
-        img: "images/brain_drain.png"
-      }
-    ];
+    </section>
 
-    const marqueeRow1 = [
-      problemsList[0], problemsList[1], problemsList[2],
-      problemsList[0], problemsList[1], problemsList[2],
-      problemsList[0], problemsList[1], problemsList[2],
-      problemsList[0], problemsList[1], problemsList[2],
-      problemsList[0], problemsList[1], problemsList[2]
-    ];
+    <!-- ── 2. MARQUEE SECTION (Data Sources) ── -->
+    <section id="sources" class="w-full bg-[#0C0C0C] pt-24 sm:pt-32 md:pt-40 pb-10 z-10 overflow-hidden relative">
+      <div class="w-full flex flex-col gap-3">
 
-    const marqueeRow2 = [
-      problemsList[1], problemsList[2], problemsList[0],
-      problemsList[1], problemsList[2], problemsList[0],
-      problemsList[1], problemsList[2], problemsList[0],
-      problemsList[1], problemsList[2], problemsList[0],
-      problemsList[1], problemsList[2], problemsList[0]
-    ];
-
-    // ── MAIN WEB APPLICATION APP ──
-    const App = () => {
-      const marqueeSectionRef = useRef(null);
-      const [scrollOffset, setScrollOffset] = useState(0);
-      const [selectedProblem, setSelectedProblem] = useState(null);
-
-      // Listen to scroll position for passive marquee updates
-      useEffect(() => {
-        const handleScroll = () => {
-          if (!marqueeSectionRef.current) return;
-          const rect = marqueeSectionRef.current.getBoundingClientRect();
-          const sectionTop = window.scrollY + rect.top;
-          const offset = (window.scrollY - sectionTop + window.innerHeight) * 0.3;
-          setScrollOffset(offset);
-        };
-
-        window.addEventListener('scroll', handleScroll, { passive: true });
-        handleScroll();
-        return () => window.removeEventListener('scroll', handleScroll);
-      }, []);
-
-      const servicesList = [
-        {
-          num: "01",
-          name: "SLACK & TEAMS",
-          desc: "Real-time channel messages, threaded discussions, and meeting recordings from Slack and Microsoft Teams, captured for context-aware querying.",
-          img: "images/slack_teams.png"
-        },
-        {
-          num: "02",
-          name: "REQUIREMENT SPECS",
-          desc: "Structured requirement documents and user stories indexed for easy retrieval.",
-          img: "images/requirements.png"
-        },
-        {
-          num: "03",
-          name: "RELEASE NOTES & RUNBOOKS",
-          desc: "Versioned release notes and operational runbooks for troubleshooting.",
-          img: "images/release_notes.png"
-        },
-        {
-          num: "04",
-          name: "MEETING TRANSCRIPTS",
-          desc: "Transcribed meeting audio providing searchable decision logs.",
-          img: "images/meeting_transcripts.png"
-        },
-        {
-          num: "05",
-          name: "DRIVE & CONFLUENCE",
-          desc: "Shared Drive files and Confluence pages aggregated locally.",
-          img: "images/drive_confluence.png"
-        },
-        {
-          num: "06",
-          name: "EMAIL THREADS",
-          desc: "Email conversations indexed with privacy-preserving filters.",
-          img: "images/email_threads.png"
-        }
-      ];
-
-      const projectCards = [
-        {
-          num: "01",
-          name: "FINTECH COMPLIANCE NODE",
-          category: "SECURE PRIVATE PERIMETER",
-          img1: "https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260412_055344_5eff02e0-87a5-41ce-b64f-eb08da8f33db.png&w=1280&q=85",
-          img2: "https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260412_055431_11d841fd-8b41-46a5-82e4-b04f2407a7d8.png&w=1280&q=85",
-          img3: "https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260412_055451_e317bf2d-28d4-48cc-86b0-6f72f25b6327.png&w=1280&q=85"
-        },
-        {
-          num: "02",
-          name: "BIOTECH SECURE CORPUS",
-          category: "ISOLATED PIPELINE ENGINE",
-          img1: "https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260412_055654_911201c5-36d9-4bc6-bac7-331adfce159f.png&w=1280&q=85",
-          img2: "https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260412_055723_5ceda0b8-d9c2-4665-b2e3-83ba19ba76d1.png&w=1280&q=85",
-          img3: "https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260412_055753_adc5dcbd-a8e6-49c0-b43a-9b030d835cea.png&w=1280&q=85"
-        },
-        {
-          num: "03",
-          name: "SOVEREIGN GRAPH GRID",
-          category: "ZERO EGRESS INDEX MATRIX",
-          img1: "https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260412_055759_963cfb0b-4bd1-4b0f-9d0a-09bd6cf95b2f.png&w=1280&q=85",
-          img2: "https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260412_060108_438f781a-9846-4dcc-89ab-c4e6cb830f5b.png&w=1280&q=85",
-          img3: "https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260412_055818_9d062121-ad7e-46b9-999a-1a6a692ef1ee.png&w=1280&q=85"
-        }
-      ];
-
-      return (
-        <div className="w-full bg-[#0C0C0C] min-h-screen relative flex flex-col" style={{ overflowX: 'clip' }}>
-
-          {/* Solution Modal Overlay */}
-          {selectedProblem && (
-            <SolutionModal
-              problem={selectedProblem}
-              onClose={() => setSelectedProblem(null)}
-            />
-          )}
-
-          {/* ── 1. HERO SECTION ── */}
-          <section className="relative w-full h-screen overflow-hidden z-10">
-
-            {/* ── Full-bleed background video ── */}
-            <video
-              src="images/smriti.mp4"
-              autoPlay
-              loop
-              muted
-              playsInline
-              className="absolute inset-0 w-full h-full pointer-events-none"
-              style={{ objectFit: 'cover', objectPosition: 'center' }}
-            />
-
-            {/* ── Gradient overlay: dark at top + strong dark at bottom, transparent in the middle ── */}
-            <div
-              className="absolute inset-0 pointer-events-none"
-              style={{
-                background: 'linear-gradient(to bottom, rgba(12,12,12,0.72) 0%, rgba(12,12,12,0.10) 38%, rgba(12,12,12,0.10) 58%, rgba(12,12,12,0.88) 100%)'
-              }}
-            />
-
-            {/* ── Navbar (top, above everything) ── */}
-            <FadeIn delay={0} y={-20} className="absolute top-0 left-0 right-0 z-20">
-              <nav className="w-full flex items-center justify-between px-6 md:px-10 pt-6 md:pt-8">
-                {["About", "Price", "Services", "Sources", "Contact"].map((link, idx) => (
-                  <a
-                    key={idx}
-                    href={link === "About" ? "#about" : link === "Price" ? "#services" : link === "Services" ? "#about-services" : link === "Sources" ? "#sources" : "#contact"}
-                    className="text-[#F5F5F7] font-medium uppercase tracking-wider text-sm md:text-lg lg:text-[1.4rem] hover:opacity-70 transition-opacity duration-200 select-none"
-                    style={{ textShadow: '0 1px 8px rgba(0,0,0,0.6)' }}
-                  >
-                    {link}
-                  </a>
-                ))}
-              </nav>
-            </FadeIn>
-
-            {/* ── Center: heading + tagline + buttons ── */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center z-10 px-6 gap-6 md:gap-8">
-
-              <FadeIn delay={0.15} y={40} className="w-full overflow-hidden">
-                <h1
-                  className="hero-heading font-black uppercase tracking-tight leading-none text-center select-none break-words"
-                  style={{ width: '70vw', maxWidth: '100%', fontSize: 'clamp(3rem, 6vw, 7.5rem)', lineHeight: 0.9, wordBreak: 'break-word' }}
-                >
-                  Hi, i&apos;m Smriti
-                </h1>
-              </FadeIn>
-
-              <FadeIn delay={0.3} y={20} className="text-center">
-                <p
-                  className="text-[#D7E2EA]/80 font-light uppercase tracking-widest leading-relaxed max-w-xl mx-auto"
-                  style={{ fontSize: 'clamp(0.65rem, 1.2vw, 1.1rem)', textShadow: '0 1px 10px rgba(0,0,0,0.7)' }}
-                >
-                  A SOVEREIGN CONTEXT ENGINE DRIVEN BY SECURE LOCALIZED KNOWLEDGE MANAGEMENT
-                </p>
-              </FadeIn>
-
-              <FadeIn delay={0.45} y={20}>
-                <div className="flex gap-4 items-center flex-wrap justify-center">
-                  <ContactButton />
-                  <LaunchSmritiButton />
-                </div>
-              </FadeIn>
-
-            </div>
-
-          </section>
-
-          {/* ── 2. MARQUEE SECTION (Data Sources) ── */}
-          <section id="sources" ref={marqueeSectionRef} className="w-full bg-[#0C0C0C] pt-24 sm:pt-32 md:pt-40 pb-10 z-10 overflow-hidden relative">
-            <div className="w-full flex flex-col gap-3">
-
-              {/* Row 1: First 15 problem cards, moves RIGHT */}
-              <div
-                className="flex gap-3 select-none transition-transform duration-75 ease-out"
-                style={{
-                  transform: `translateX(${scrollOffset - 200}px)`,
-                  willChange: 'transform'
-                }}
-              >
-                {marqueeRow1.map((item, i) => (
-                  <div
-                    key={`r1-${i}`}
-                    onClick={() => setSelectedProblem(item)}
-                    className="flex-shrink-0 w-[420px] h-[270px] rounded-2xl overflow-hidden relative group cursor-pointer border border-white/10 hover:border-white/40 transition-all duration-300"
-                  >
-                    <img
-                      src={item.img}
-                      alt={item.title}
-                      loading="lazy"
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                    {/* Dark Glass Overlay */}
-                    <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors duration-300 flex flex-col justify-end p-5 text-left">
-                      <span className="text-[10px] font-mono tracking-widest text-[#B6BBCA] uppercase mb-1">
-                        PROBLEM {item.num}
-                      </span>
-                      <h4 className="text-lg font-bold uppercase tracking-wide text-white leading-tight">
-                        {item.title}
-                      </h4>
-                      <div className="mt-2 text-[10px] font-semibold text-white/0 group-hover:text-white/80 tracking-widest uppercase transition-all duration-300 flex items-center gap-1.5">
-                        <span>RESOLVE WITH SMRITI</span>
-                        <svg className="w-3 h-3 transform translate-x-[-4px] group-hover:translate-x-0 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} stroke="currentColor" d="M9 5l7 7-7 7" />
-                        </svg>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+        <!-- Row 1: moves RIGHT on scroll -->
+        <div id="marquee-row-1" class="flex gap-3 select-none transition-transform duration-75 ease-out will-change-transform">
+          <!-- Item Cards (Duplicated for Marquee layout) -->
+          <div data-problem="knowledge_silos" class="marquee-card flex-shrink-0 w-[420px] h-[270px] rounded-2xl overflow-hidden relative group cursor-pointer border border-white/10 hover:border-white/40 transition-all duration-300">
+            <img src="images/knowledge_silos.png" alt="Knowledge Silos" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+            <div class="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors duration-300 flex flex-col justify-end p-5 text-left">
+              <span class="text-[10px] font-mono tracking-widest text-[#B6BBCA] uppercase mb-1">PROBLEM 01</span>
+              <h4 class="text-lg font-bold uppercase tracking-wide text-white leading-tight">Knowledge Silos</h4>
+              <div class="mt-2 text-[10px] font-semibold text-white/0 group-hover:text-white/80 tracking-widest uppercase transition-all duration-300 flex items-center gap-1.5">
+                <span>RESOLVE WITH SMRITI</span>
+                <svg class="w-3 h-3 transform translate-x-[-4px] group-hover:translate-x-0 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" stroke="currentColor" d="M9 5l7 7-7 7" />
+                </svg>
               </div>
+            </div>
+          </div>
 
-              {/* Row 2: Remaining 15 problem cards, moves LEFT */}
-              <div
-                className="flex gap-3 select-none transition-transform duration-75 ease-out"
-                style={{
-                  transform: `translateX(${-(scrollOffset - 200)}px)`,
-                  willChange: 'transform'
-                }}
-              >
-                {marqueeRow2.map((item, i) => (
-                  <div
-                    key={`r2-${i}`}
-                    onClick={() => setSelectedProblem(item)}
-                    className="flex-shrink-0 w-[420px] h-[270px] rounded-2xl overflow-hidden relative group cursor-pointer border border-white/10 hover:border-white/40 transition-all duration-300"
-                  >
-                    <img
-                      src={item.img}
-                      alt={item.title}
-                      loading="lazy"
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                    {/* Dark Glass Overlay */}
-                    <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors duration-300 flex flex-col justify-end p-5 text-left">
-                      <span className="text-[10px] font-mono tracking-widest text-[#B6BBCA] uppercase mb-1">
-                        PROBLEM {item.num}
-                      </span>
-                      <h4 className="text-lg font-bold uppercase tracking-wide text-white leading-tight">
-                        {item.title}
-                      </h4>
-                      <div className="mt-2 text-[10px] font-semibold text-white/0 group-hover:text-white/80 tracking-widest uppercase transition-all duration-300 flex items-center gap-1.5">
-                        <span>RESOLVE WITH SMRITI</span>
-                        <svg className="w-3 h-3 transform translate-x-[-4px] group-hover:translate-x-0 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} stroke="currentColor" d="M9 5l7 7-7 7" />
-                        </svg>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+          <div data-problem="onboarding_friction" class="marquee-card flex-shrink-0 w-[420px] h-[270px] rounded-2xl overflow-hidden relative group cursor-pointer border border-white/10 hover:border-white/40 transition-all duration-300">
+            <img src="images/onboarding_friction.png" alt="Onboarding Friction" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+            <div class="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors duration-300 flex flex-col justify-end p-5 text-left">
+              <span class="text-[10px] font-mono tracking-widest text-[#B6BBCA] uppercase mb-1">PROBLEM 02</span>
+              <h4 class="text-lg font-bold uppercase tracking-wide text-white leading-tight">Onboarding Friction</h4>
+              <div class="mt-2 text-[10px] font-semibold text-white/0 group-hover:text-white/80 tracking-widest uppercase transition-all duration-300 flex items-center gap-1.5">
+                <span>RESOLVE WITH SMRITI</span>
+                <svg class="w-3 h-3 transform translate-x-[-4px] group-hover:translate-x-0 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" stroke="currentColor" d="M9 5l7 7-7 7" />
+                </svg>
               </div>
-
             </div>
-          </section>
+          </div>
 
-          {/* ── 3. ABOUT SECTION ── */}
-          <section id="about" className="relative w-full min-h-screen bg-[#0C0C0C] flex flex-col justify-center items-center py-20 px-5 sm:px-8 md:px-10 z-10 overflow-hidden">
-
-            {/* Decorative Corner Icons */}
-            {/* Top-Left: Moon Icon */}
-            <FadeIn delay={0.1} x={-80} y={0} duration={0.9} className="absolute top-[4%] left-[1%] sm:left-[2%] md:left-[4%] z-0 pointer-events-none">
-              <img
-                src="https://shrug-person-78902957.figma.site/_components/v2/ebb2b8f25d8e24d5f0a5ca8af4c950de81aa2fd7/moon_icon.11395d36.png"
-                alt="Moon decorative asset"
-                className="w-[120px] sm:w-[160px] md:w-[210px] h-auto"
-              />
-            </FadeIn>
-
-            {/* Bottom-Left: 3D Object */}
-            <FadeIn delay={0.25} x={-80} y={0} duration={0.9} className="absolute bottom-[8%] left-[3%] sm:left-[6%] md:left-[10%] z-0 pointer-events-none">
-              <img
-                src="https://shrug-person-78902957.figma.site/_components/v2/ebb2b8f25d8e24d5f0a5ca8af4c950de81aa2fd7/p59_1.4659672e.png"
-                alt="3D object decorative asset"
-                className="w-[100px] sm:w-[140px] md:w-[180px] h-auto"
-              />
-            </FadeIn>
-
-            {/* Top-Right: Lego Icon */}
-            <FadeIn delay={0.15} x={80} y={0} duration={0.9} className="absolute top-[4%] right-[1%] sm:right-[2%] md:right-[4%] z-0 pointer-events-none">
-              <img
-                src="https://shrug-person-78902957.figma.site/_components/v2/ebb2b8f25d8e24d5f0a5ca8af4c950de81aa2fd7/lego_icon-1.703bb594.png"
-                alt="Lego decorative asset"
-                className="w-[120px] sm:w-[160px] md:w-[210px] h-auto"
-              />
-            </FadeIn>
-
-            {/* Bottom-Right: 3D Group */}
-            <FadeIn delay={0.3} x={80} y={0} duration={0.9} className="absolute bottom-[8%] right-[3%] sm:right-[6%] md:right-[10%] z-0 pointer-events-none">
-              <img
-                src="https://shrug-person-78902957.figma.site/_components/v2/ebb2b8f25d8e24d5f0a5ca8af4c950de81aa2fd7/Group_134-1.2e04f3ce.png"
-                alt="3D group decorative asset"
-                className="w-[130px] sm:w-[170px] md:w-[220px] h-auto"
-              />
-            </FadeIn>
-
-            {/* Center Content */}
-            <div className="max-w-4xl flex flex-col items-center gap-10 sm:gap-14 md:gap-16 relative z-10 w-full">
-              <FadeIn delay={0} y={40}>
-                <h2 className="hero-heading font-black uppercase leading-none tracking-tight text-center select-none" style={{ fontSize: 'clamp(3rem, 12vw, 160px)' }}>
-                  About me
-                </h2>
-              </FadeIn>
-
-              <AnimatedText text="With a zero-egress local-first architecture, i focus on private grounding, expert routing graphs, and meeting transcript crawler ingestion. I truly enjoy enabling regulated Fintech and Biotech teams to query their corporate memory securely. Let's build your sovereign brain together!" />
-
-              <FadeIn delay={0.3} y={20} className="mt-6 sm:mt-10 md:mt-12">
-                <ContactButton />
-              </FadeIn>
+          <div data-problem="brain_drain" class="marquee-card flex-shrink-0 w-[420px] h-[270px] rounded-2xl overflow-hidden relative group cursor-pointer border border-white/10 hover:border-white/40 transition-all duration-300">
+            <img src="images/brain_drain.png" alt="Brain Drain" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+            <div class="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors duration-300 flex flex-col justify-end p-5 text-left">
+              <span class="text-[10px] font-mono tracking-widest text-[#B6BBCA] uppercase mb-1">PROBLEM 03</span>
+              <h4 class="text-lg font-bold uppercase tracking-wide text-white leading-tight">Brain Drain</h4>
+              <div class="mt-2 text-[10px] font-semibold text-white/0 group-hover:text-white/80 tracking-widest uppercase transition-all duration-300 flex items-center gap-1.5">
+                <span>RESOLVE WITH SMRITI</span>
+                <svg class="w-3 h-3 transform translate-x-[-4px] group-hover:translate-x-0 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" stroke="currentColor" d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
             </div>
+          </div>
 
-          </section>
-
-          {/* ── 4. SERVICES SECTION ── */}
-          <section id="about-services" className="w-full bg-[#FFFFFF] text-[#0C0C0C] py-20 sm:py-24 md:py-32 px-5 sm:px-8 md:px-10 relative z-10 rounded-t-[40px] sm:rounded-t-[50px] md:rounded-t-[60px] flex flex-col items-center">
-
-            <FadeIn delay={0} y={40} className="w-full text-center mb-16 sm:mb-20 md:mb-28">
-              <h2 className="text-[#0C0C0C] font-black uppercase text-center leading-none select-none" style={{ fontSize: 'clamp(3rem, 12vw, 160px)' }}>
-                Services
-              </h2>
-            </FadeIn>
-
-            {/* Numbered list */}
-            <div className="w-full max-w-5xl flex flex-col">
-              {servicesList.map((item, idx) => (
-                <FadeIn
-                  key={idx}
-                  delay={idx * 0.08}
-                  className="w-full py-8 sm:py-10 md:py-12 flex flex-row items-center border-b border-[#0C0C0C]/15 last:border-b-0 gap-6 md:gap-16"
-                >
-                  <span className="text-[#0C0C0C] font-black font-mono leading-none tracking-tighter w-20 md:w-32 text-left flex-shrink-0" style={{ fontSize: 'clamp(3rem, 10vw, 140px)' }}>
-                    {item.num}
-                  </span>
-                  <div className="flex-1 flex flex-col gap-2 text-left">
-                    <h4 className="text-[#0C0C0C] font-medium uppercase" style={{ fontSize: 'clamp(1rem, 2.2vw, 2.1rem)' }}>
-                      {item.name}
-                    </h4>
-                    <p className="text-[#0C0C0C] font-light leading-relaxed max-w-2xl opacity-60" style={{ fontSize: 'clamp(0.85rem, 1.6vw, 1.25rem)' }}>
-                      {item.desc}
-                    </p>
-                  </div>
-                </FadeIn>
-              ))}
+          <!-- Repeat for loop simulation -->
+          <div data-problem="knowledge_silos" class="marquee-card flex-shrink-0 w-[420px] h-[270px] rounded-2xl overflow-hidden relative group cursor-pointer border border-white/10 hover:border-white/40 transition-all duration-300">
+            <img src="images/knowledge_silos.png" alt="Knowledge Silos" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+            <div class="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors duration-300 flex flex-col justify-end p-5 text-left">
+              <span class="text-[10px] font-mono tracking-widest text-[#B6BBCA] uppercase mb-1">PROBLEM 01</span>
+              <h4 class="text-lg font-bold uppercase tracking-wide text-white leading-tight">Knowledge Silos</h4>
+              <div class="mt-2 text-[10px] font-semibold text-white/0 group-hover:text-white/80 tracking-widest uppercase transition-all duration-300 flex items-center gap-1.5">
+                <span>RESOLVE WITH SMRITI</span>
+                <svg class="w-3 h-3 transform translate-x-[-4px] group-hover:translate-x-0 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" stroke="currentColor" d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
             </div>
+          </div>
 
-          </section>
-
-          {/* ── 5. PRICING SECTION ── */}
-          <section id="services" className="w-full bg-[#0C0C0C] py-20 sm:py-24 md:py-32 px-5 sm:px-8 md:px-10 relative z-10 flex flex-col items-center border-t border-white/5">
-
-            <FadeIn delay={0} y={40} className="text-center mb-16 sm:mb-20 md:mb-24">
-              <span className="text-xs font-mono tracking-widest text-white/40 uppercase mb-3 block">Transparent Pricing</span>
-              <h2 className="text-[#F5F5F7] font-black uppercase leading-none tracking-tight select-none" style={{ fontSize: 'clamp(2.5rem, 9vw, 120px)' }}>
-                Price
-              </h2>
-            </FadeIn>
-
-            {/* Pricing cards */}
-            <div className="w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 items-stretch">
-
-              {/* ── Tier 1: Team Starter ── */}
-              <FadeIn delay={0.1} y={40}>
-                <div className="h-full rounded-[32px] border border-white/10 bg-white/[0.03] p-8 md:p-10 flex flex-col gap-6 hover:border-white/25 transition-colors duration-300">
-                  <div className="flex flex-col gap-2">
-                    <span className="text-xs font-mono tracking-widest text-white/40 uppercase">01 / Cloud Hosted</span>
-                    <h3 className="text-2xl md:text-3xl font-black uppercase text-[#F5F5F7] tracking-tight">Team Starter</h3>
-                    <div className="flex items-end gap-1 mt-2">
-                      <span className="text-5xl md:text-6xl font-black text-[#F5F5F7] leading-none">$15</span>
-                      <span className="text-white/40 font-light text-sm mb-2">/ user / month</span>
-                    </div>
-                    <p className="text-[#B6BBCA]/70 text-sm font-light leading-relaxed mt-1">
-                      Cloud-hosted private instance. Perfect for teams getting started with sovereign knowledge management.
-                    </p>
-                  </div>
-                  <div className="border-t border-white/8 pt-6 flex flex-col gap-3 flex-1">
-                    {[
-                      "Private cloud-hosted deployment",
-                      "Slack & Google Drive connectors",
-                      "Local HNSW vector search",
-                      "92.4% retrieval hit rate",
-                      "Expert routing network",
-                      "Zero data egress guarantee"
-                    ].map((feat, i) => (
-                      <div key={i} className="flex items-center gap-3">
-                        <svg className="w-4 h-4 flex-shrink-0 text-[#B600A8]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                        </svg>
-                        <span className="text-[#D7E2EA]/80 text-sm font-light">{feat}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <ContactButton label="Get Started" />
-                </div>
-              </FadeIn>
-
-              {/* ── Tier 2: Enterprise Self-Hosted ── */}
-              <FadeIn delay={0.2} y={40}>
-                <div
-                  className="h-full rounded-[32px] p-8 md:p-10 flex flex-col gap-6 relative overflow-hidden hover:scale-[1.01] transition-transform duration-300"
-                  style={{
-                    background: 'linear-gradient(135deg, #18011F 0%, #2A0840 40%, #1A0530 100%)',
-                    border: '1.5px solid rgba(182, 0, 168, 0.45)',
-                    boxShadow: '0 0 60px rgba(182, 0, 168, 0.12), inset 0 1px 0 rgba(255,255,255,0.06)'
-                  }}
-                >
-                  {/* Recommended badge */}
-                  <div
-                    className="absolute top-6 right-6 px-3 py-1 rounded-full text-[10px] font-mono font-bold tracking-widest uppercase"
-                    style={{ background: 'rgba(182,0,168,0.2)', border: '1px solid rgba(182,0,168,0.5)', color: '#E060D8' }}
-                  >
-                    Most Popular
-                  </div>
-
-                  <div className="flex flex-col gap-2">
-                    <span className="text-xs font-mono tracking-widest text-[#E060D8]/60 uppercase">02 / Self-Hosted</span>
-                    <h3 className="text-2xl md:text-3xl font-black uppercase text-[#F5F5F7] tracking-tight">Enterprise</h3>
-                    <div className="flex items-end gap-2 mt-2 flex-wrap">
-                      <span className="text-5xl md:text-6xl font-black text-[#F5F5F7] leading-none">$150</span>
-                      <span className="text-white/40 font-light text-sm mb-2">–</span>
-                      <span className="text-5xl md:text-6xl font-black text-[#F5F5F7] leading-none">$500</span>
-                      <span className="text-white/40 font-light text-sm mb-2">/ team / month</span>
-                    </div>
-                    <p className="text-[#B6BBCA]/70 text-sm font-light leading-relaxed mt-1">
-                      Deploys fully on your internal Kubernetes or VMs via Docker + Ollama. CISO-grade compliance. No data ever leaves your perimeter.
-                    </p>
-                  </div>
-                  <div className="border-t border-white/8 pt-6 flex flex-col gap-3 flex-1">
-                    {[
-                      "On-premise Kubernetes / Docker / VM deploy",
-                      "phi4-mini + nomic-embed-text via Ollama",
-                      "Slack, Drive, Confluence, Email connectors",
-                      "Sutra meeting crawler & reconciler",
-                      "Expert routing graph analytics",
-                      "Grounding firewall — zero hallucinations",
-                      "116ms p50 latency — RRF hybrid search",
-                      "Dedicated onboarding & SLA support"
-                    ].map((feat, i) => (
-                      <div key={i} className="flex items-center gap-3">
-                        <svg className="w-4 h-4 flex-shrink-0" style={{ color: '#E060D8' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                        </svg>
-                        <span className="text-[#D7E2EA]/80 text-sm font-light">{feat}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <ContactButton label="Talk to Us" />
-                </div>
-              </FadeIn>
-
+          <div data-problem="onboarding_friction" class="marquee-card flex-shrink-0 w-[420px] h-[270px] rounded-2xl overflow-hidden relative group cursor-pointer border border-white/10 hover:border-white/40 transition-all duration-300">
+            <img src="images/onboarding_friction.png" alt="Onboarding Friction" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+            <div class="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors duration-300 flex flex-col justify-end p-5 text-left">
+              <span class="text-[10px] font-mono tracking-widest text-[#B6BBCA] uppercase mb-1">PROBLEM 02</span>
+              <h4 class="text-lg font-bold uppercase tracking-wide text-white leading-tight">Onboarding Friction</h4>
+              <div class="mt-2 text-[10px] font-semibold text-white/0 group-hover:text-white/80 tracking-widest uppercase transition-all duration-300 flex items-center gap-1.5">
+                <span>RESOLVE WITH SMRITI</span>
+                <svg class="w-3 h-3 transform translate-x-[-4px] group-hover:translate-x-0 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" stroke="currentColor" d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
             </div>
-
-            {/* Fine print */}
-            <FadeIn delay={0.35} y={20}>
-              <p className="text-white/25 text-xs text-center mt-10 font-mono tracking-wider uppercase max-w-lg">
-                All tiers include zero-egress data guarantees. Pricing scales with team size. Contact us for custom enterprise pilots.
-              </p>
-            </FadeIn>
-
-          </section>
-
-          {/* Footer & Contact Target anchor */}
-          <footer id="contact" className="w-full bg-[#0C0C0C] py-16 px-6 border-t border-white/5 flex flex-col items-center justify-center gap-6 relative z-10 font-sans">
-            <h3 className="text-[#D7E2EA] font-semibold text-lg md:text-xl uppercase tracking-widest">Smriti -- Sovereign Context Engine</h3>
-            <p className="text-white/45 text-xs text-center max-w-md uppercase tracking-wider leading-relaxed">
-              Design verification & production assets hosted securely in the sovereign local infrastructure environment.
-            </p>
-            <div className="text-[10px] text-white/30 uppercase tracking-widest mt-6">
-              &#169; 2026 SMRITI CORE LABS. ALL PERIMETERS SECURED.
-            </div>
-          </footer>
-
+          </div>
         </div>
-      );
-    };
 
-    // Mount and render
-    const rootElement = document.getElementById("root");
-    const root = ReactDOM.createRoot(rootElement);
-    root.render(<App />);
+        <!-- Row 2: moves LEFT on scroll -->
+        <div id="marquee-row-2" class="flex gap-3 select-none transition-transform duration-75 ease-out will-change-transform">
+          <div data-problem="onboarding_friction" class="marquee-card flex-shrink-0 w-[420px] h-[270px] rounded-2xl overflow-hidden relative group cursor-pointer border border-white/10 hover:border-white/40 transition-all duration-300">
+            <img src="images/onboarding_friction.png" alt="Onboarding Friction" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+            <div class="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors duration-300 flex flex-col justify-end p-5 text-left">
+              <span class="text-[10px] font-mono tracking-widest text-[#B6BBCA] uppercase mb-1">PROBLEM 02</span>
+              <h4 class="text-lg font-bold uppercase tracking-wide text-white leading-tight">Onboarding Friction</h4>
+              <div class="mt-2 text-[10px] font-semibold text-white/0 group-hover:text-white/80 tracking-widest uppercase transition-all duration-300 flex items-center gap-1.5">
+                <span>RESOLVE WITH SMRITI</span>
+                <svg class="w-3 h-3 transform translate-x-[-4px] group-hover:translate-x-0 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" stroke="currentColor" d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <div data-problem="brain_drain" class="marquee-card flex-shrink-0 w-[420px] h-[270px] rounded-2xl overflow-hidden relative group cursor-pointer border border-white/10 hover:border-white/40 transition-all duration-300">
+            <img src="images/brain_drain.png" alt="Brain Drain" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+            <div class="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors duration-300 flex flex-col justify-end p-5 text-left">
+              <span class="text-[10px] font-mono tracking-widest text-[#B6BBCA] uppercase mb-1">PROBLEM 03</span>
+              <h4 class="text-lg font-bold uppercase tracking-wide text-white leading-tight">Brain Drain</h4>
+              <div class="mt-2 text-[10px] font-semibold text-white/0 group-hover:text-white/80 tracking-widest uppercase transition-all duration-300 flex items-center gap-1.5">
+                <span>RESOLVE WITH SMRITI</span>
+                <svg class="w-3 h-3 transform translate-x-[-4px] group-hover:translate-x-0 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" stroke="currentColor" d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <div data-problem="knowledge_silos" class="marquee-card flex-shrink-0 w-[420px] h-[270px] rounded-2xl overflow-hidden relative group cursor-pointer border border-white/10 hover:border-white/40 transition-all duration-300">
+            <img src="images/knowledge_silos.png" alt="Knowledge Silos" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+            <div class="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors duration-300 flex flex-col justify-end p-5 text-left">
+              <span class="text-[10px] font-mono tracking-widest text-[#B6BBCA] uppercase mb-1">PROBLEM 01</span>
+              <h4 class="text-lg font-bold uppercase tracking-wide text-white leading-tight">Knowledge Silos</h4>
+              <div class="mt-2 text-[10px] font-semibold text-white/0 group-hover:text-white/80 tracking-widest uppercase transition-all duration-300 flex items-center gap-1.5">
+                <span>RESOLVE WITH SMRITI</span>
+                <svg class="w-3 h-3 transform translate-x-[-4px] group-hover:translate-x-0 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" stroke="currentColor" d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <!-- Repeat for loop simulation -->
+          <div data-problem="brain_drain" class="marquee-card flex-shrink-0 w-[420px] h-[270px] rounded-2xl overflow-hidden relative group cursor-pointer border border-white/10 hover:border-white/40 transition-all duration-300">
+            <img src="images/brain_drain.png" alt="Brain Drain" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+            <div class="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors duration-300 flex flex-col justify-end p-5 text-left">
+              <span class="text-[10px] font-mono tracking-widest text-[#B6BBCA] uppercase mb-1">PROBLEM 03</span>
+              <h4 class="text-lg font-bold uppercase tracking-wide text-white leading-tight">Brain Drain</h4>
+              <div class="mt-2 text-[10px] font-semibold text-white/0 group-hover:text-white/80 tracking-widest uppercase transition-all duration-300 flex items-center gap-1.5">
+                <span>RESOLVE WITH SMRITI</span>
+                <svg class="w-3 h-3 transform translate-x-[-4px] group-hover:translate-x-0 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" stroke="currentColor" d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <div data-problem="onboarding_friction" class="marquee-card flex-shrink-0 w-[420px] h-[270px] rounded-2xl overflow-hidden relative group cursor-pointer border border-white/10 hover:border-white/40 transition-all duration-300">
+            <img src="images/onboarding_friction.png" alt="Onboarding Friction" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+            <div class="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors duration-300 flex flex-col justify-end p-5 text-left">
+              <span class="text-[10px] font-mono tracking-widest text-[#B6BBCA] uppercase mb-1">PROBLEM 02</span>
+              <h4 class="text-lg font-bold uppercase tracking-wide text-white leading-tight">Onboarding Friction</h4>
+              <div class="mt-2 text-[10px] font-semibold text-white/0 group-hover:text-white/80 tracking-widest uppercase transition-all duration-300 flex items-center gap-1.5">
+                <span>RESOLVE WITH SMRITI</span>
+                <svg class="w-3 h-3 transform translate-x-[-4px] group-hover:translate-x-0 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" stroke="currentColor" d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ── 3. ABOUT SECTION ── -->
+    <section id="about" class="relative w-full min-h-screen bg-[#0C0C0C] flex flex-col justify-center items-center py-20 px-5 sm:px-8 md:px-10 z-10 overflow-hidden">
+
+      <!-- Decorative Corner Icons -->
+      <!-- Top-Left: Moon Icon -->
+      <div class="absolute top-[4%] left-[1%] sm:left-[2%] md:left-[4%] z-0 pointer-events-none fade-in-element">
+        <img src="https://shrug-person-78902957.figma.site/_components/v2/ebb2b8f25d8e24d5f0a5ca8af4c950de81aa2fd7/moon_icon.11395d36.png" alt="Moon decorative asset" class="w-[120px] sm:w-[160px] md:w-[210px] h-auto">
+      </div>
+
+      <!-- Bottom-Left: 3D Object -->
+      <div class="absolute bottom-[8%] left-[3%] sm:left-[6%] md:left-[10%] z-0 pointer-events-none fade-in-element">
+        <img src="https://shrug-person-78902957.figma.site/_components/v2/ebb2b8f25d8e24d5f0a5ca8af4c950de81aa2fd7/p59_1.4659672e.png" alt="3D object decorative asset" class="w-[100px] sm:w-[140px] md:w-[180px] h-auto">
+      </div>
+
+      <!-- Top-Right: Lego Icon -->
+      <div class="absolute top-[4%] right-[1%] sm:right-[2%] md:right-[4%] z-0 pointer-events-none fade-in-element">
+        <img src="https://shrug-person-78902957.figma.site/_components/v2/ebb2b8f25d8e24d5f0a5ca8af4c950de81aa2fd7/lego_icon-1.703bb594.png" alt="Lego decorative asset" class="w-[120px] sm:w-[160px] md:w-[210px] h-auto">
+      </div>
+
+      <!-- Bottom-Right: 3D Group -->
+      <div class="absolute bottom-[8%] right-[3%] sm:right-[6%] md:right-[10%] z-0 pointer-events-none fade-in-element">
+        <img src="https://shrug-person-78902957.figma.site/_components/v2/ebb2b8f25d8e24d5f0a5ca8af4c950de81aa2fd7/Group_134-1.2e04f3ce.png" alt="3D group decorative asset" class="w-[130px] sm:w-[170px] md:w-[220px] h-auto">
+      </div>
+
+      <!-- Center Content -->
+      <div class="max-w-4xl flex flex-col items-center gap-10 sm:gap-14 md:gap-16 relative z-10 w-full">
+        <div class="fade-in-element">
+          <h2 class="hero-heading font-black uppercase leading-none tracking-tight text-center select-none" style="font-size: clamp(3rem, 12vw, 160px)">
+            About me
+          </h2>
+        </div>
+
+        <p id="about-text-content" class="text-[#D7E2EA] font-medium text-center leading-relaxed font-sans max-w-[560px]" style="font-size: clamp(1rem, 2vw, 1.35rem)">
+          With a zero-egress local-first architecture, i focus on private grounding, expert routing graphs, and meeting transcript crawler ingestion. I truly enjoy enabling regulated Fintech and Biotech teams to query their corporate memory securely. Let's build your sovereign brain together!
+        </p>
+
+        <div class="fade-in-element mt-6 sm:mt-10 md:mt-12">
+          <button onclick="window.location.href = 'mailto:admin.smritione@gmail.com';" class="relative flex items-center justify-center font-medium uppercase tracking-widest text-white transition-transform duration-200 active:scale-95 cursor-pointer whitespace-nowrap" style="background: linear-gradient(123deg, #18011F 7%, #B600A8 37%, #7621B0 72%, #BE4C00 100%); box-shadow: 0px 4px 4px rgba(181, 1, 167, 0.25), inset 4px 4px 12px #7721B1; outline: 2px solid white; outline-offset: -3px; border-radius: 9999px; padding: clamp(0.6rem, 1.3vw, 1rem) clamp(1.8rem, 3.5vw, 3rem); font-size: clamp(0.7rem, 1.1vw, 0.95rem)">
+            Contact Me
+          </button>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ── 4. SERVICES SECTION ── -->
+    <section id="about-services" class="w-full bg-[#FFFFFF] text-[#0C0C0C] py-20 sm:py-24 md:py-32 px-5 sm:px-8 md:px-10 relative z-10 rounded-t-[40px] sm:rounded-t-[50px] md:rounded-t-[60px] flex flex-col items-center">
+
+      <div class="w-full text-center mb-16 sm:mb-20 md:mb-28 fade-in-element">
+        <h2 class="text-[#0C0C0C] font-black uppercase text-center leading-none select-none" style="font-size: clamp(3rem, 12vw, 160px)">
+          Services
+        </h2>
+      </div>
+
+      <!-- Numbered list -->
+      <div class="w-full max-w-5xl flex flex-col">
+        <div class="w-full py-8 sm:py-10 md:py-12 flex flex-row items-center border-b border-[#0C0C0C]/15 last:border-b-0 gap-6 md:gap-16 fade-in-element">
+          <span class="text-[#0C0C0C] font-black font-mono leading-none tracking-tighter w-20 md:w-32 text-left flex-shrink-0" style="font-size: clamp(3rem, 10vw, 140px)">01</span>
+          <div class="flex-1 flex flex-col gap-2 text-left">
+            <h4 class="text-[#0C0C0C] font-medium uppercase" style="font-size: clamp(1rem, 2.2vw, 2.1rem)">SLACK & TEAMS</h4>
+            <p class="text-[#0C0C0C] font-light leading-relaxed max-w-2xl opacity-60" style="font-size: clamp(0.85rem, 1.6vw, 1.25rem)">
+              Real-time channel messages, threaded discussions, and meeting recordings from Slack and Microsoft Teams, captured for context-aware querying.
+            </p>
+          </div>
+        </div>
+
+        <div class="w-full py-8 sm:py-10 md:py-12 flex flex-row items-center border-b border-[#0C0C0C]/15 last:border-b-0 gap-6 md:gap-16 fade-in-element">
+          <span class="text-[#0C0C0C] font-black font-mono leading-none tracking-tighter w-20 md:w-32 text-left flex-shrink-0" style="font-size: clamp(3rem, 10vw, 140px)">02</span>
+          <div class="flex-1 flex flex-col gap-2 text-left">
+            <h4 class="text-[#0C0C0C] font-medium uppercase" style="font-size: clamp(1rem, 2.2vw, 2.1rem)">REQUIREMENT SPECS</h4>
+            <p class="text-[#0C0C0C] font-light leading-relaxed max-w-2xl opacity-60" style="font-size: clamp(0.85rem, 1.6vw, 1.25rem)">
+              Structured requirement documents and user stories indexed for easy retrieval.
+            </p>
+          </div>
+        </div>
+
+        <div class="w-full py-8 sm:py-10 md:py-12 flex flex-row items-center border-b border-[#0C0C0C]/15 last:border-b-0 gap-6 md:gap-16 fade-in-element">
+          <span class="text-[#0C0C0C] font-black font-mono leading-none tracking-tighter w-20 md:w-32 text-left flex-shrink-0" style="font-size: clamp(3rem, 10vw, 140px)">03</span>
+          <div class="flex-1 flex flex-col gap-2 text-left">
+            <h4 class="text-[#0C0C0C] font-medium uppercase" style="font-size: clamp(1rem, 2.2vw, 2.1rem)">RELEASE NOTES & RUNBOOKS</h4>
+            <p class="text-[#0C0C0C] font-light leading-relaxed max-w-2xl opacity-60" style="font-size: clamp(0.85rem, 1.6vw, 1.25rem)">
+              Versioned release notes and operational runbooks for troubleshooting.
+            </p>
+          </div>
+        </div>
+
+        <div class="w-full py-8 sm:py-10 md:py-12 flex flex-row items-center border-b border-[#0C0C0C]/15 last:border-b-0 gap-6 md:gap-16 fade-in-element">
+          <span class="text-[#0C0C0C] font-black font-mono leading-none tracking-tighter w-20 md:w-32 text-left flex-shrink-0" style="font-size: clamp(3rem, 10vw, 140px)">04</span>
+          <div class="flex-1 flex flex-col gap-2 text-left">
+            <h4 class="text-[#0C0C0C] font-medium uppercase" style="font-size: clamp(1rem, 2.2vw, 2.1rem)">MEETING TRANSCRIPTS</h4>
+            <p class="text-[#0C0C0C] font-light leading-relaxed max-w-2xl opacity-60" style="font-size: clamp(0.85rem, 1.6vw, 1.25rem)">
+              Transcribed meeting audio providing searchable decision logs.
+            </p>
+          </div>
+        </div>
+
+        <div class="w-full py-8 sm:py-10 md:py-12 flex flex-row items-center border-b border-[#0C0C0C]/15 last:border-b-0 gap-6 md:gap-16 fade-in-element">
+          <span class="text-[#0C0C0C] font-black font-mono leading-none tracking-tighter w-20 md:w-32 text-left flex-shrink-0" style="font-size: clamp(3rem, 10vw, 140px)">05</span>
+          <div class="flex-1 flex flex-col gap-2 text-left">
+            <h4 class="text-[#0C0C0C] font-medium uppercase" style="font-size: clamp(1rem, 2.2vw, 2.1rem)">DRIVE & CONFLUENCE</h4>
+            <p class="text-[#0C0C0C] font-light leading-relaxed max-w-2xl opacity-60" style="font-size: clamp(0.85rem, 1.6vw, 1.25rem)">
+              Shared Drive files and Confluence pages aggregated locally.
+            </p>
+          </div>
+        </div>
+
+        <div class="w-full py-8 sm:py-10 md:py-12 flex flex-row items-center border-b border-[#0C0C0C]/15 last:border-b-0 gap-6 md:gap-16 fade-in-element">
+          <span class="text-[#0C0C0C] font-black font-mono leading-none tracking-tighter w-20 md:w-32 text-left flex-shrink-0" style="font-size: clamp(3rem, 10vw, 140px)">06</span>
+          <div class="flex-1 flex flex-col gap-2 text-left">
+            <h4 class="text-[#0C0C0C] font-medium uppercase" style="font-size: clamp(1rem, 2.2vw, 2.1rem)">EMAIL THREADS</h4>
+            <p class="text-[#0C0C0C] font-light leading-relaxed max-w-2xl opacity-60" style="font-size: clamp(0.85rem, 1.6vw, 1.25rem)">
+              Email conversations indexed with privacy-preserving filters.
+            </p>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ── 5. PRICING SECTION ── -->
+    <section id="services" class="w-full bg-[#0C0C0C] py-20 sm:py-24 md:py-32 px-5 sm:px-8 md:px-10 relative z-10 flex flex-col items-center border-t border-white/5">
+
+      <div class="text-center mb-16 sm:mb-20 md:mb-24 fade-in-element">
+        <span class="text-xs font-mono tracking-widest text-white/40 uppercase mb-3 block">Transparent Pricing</span>
+        <h2 class="text-[#F5F5F7] font-black uppercase leading-none tracking-tight select-none" style="font-size: clamp(2.5rem, 9vw, 120px)">
+          Price
+        </h2>
+      </div>
+
+      <!-- Pricing cards -->
+      <div class="w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 items-stretch">
+
+        <!-- ── Tier 1: Team Starter ── -->
+        <div class="fade-in-element h-full">
+          <div class="h-full rounded-[32px] border border-white/10 bg-white/[0.03] p-8 md:p-10 flex flex-col gap-6 hover:border-white/25 transition-colors duration-300">
+            <div class="flex flex-col gap-2">
+              <span class="text-xs font-mono tracking-widest text-white/40 uppercase">01 / Cloud Hosted</span>
+              <h3 class="text-2xl md:text-3xl font-black uppercase text-[#F5F5F7] tracking-tight">Team Starter</h3>
+              <div class="flex items-end gap-1 mt-2">
+                <span class="text-5xl md:text-6xl font-black text-[#F5F5F7] leading-none">$15</span>
+                <span class="text-white/40 font-light text-sm mb-2">/ user / month</span>
+              </div>
+              <p class="text-[#B6BBCA]/70 text-sm font-light leading-relaxed mt-1">
+                Cloud-hosted private instance. Perfect for teams getting started with sovereign knowledge management.
+              </p>
+            </div>
+            <div class="border-t border-white/8 pt-6 flex flex-col gap-3 flex-1">
+              <div class="flex items-center gap-3">
+                <svg class="w-4 h-4 flex-shrink-0 text-[#B600A8]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                </svg>
+                <span class="text-[#D7E2EA]/80 text-sm font-light">Private cloud-hosted deployment</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <svg class="w-4 h-4 flex-shrink-0 text-[#B600A8]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                </svg>
+                <span class="text-[#D7E2EA]/80 text-sm font-light">Slack & Google Drive connectors</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <svg class="w-4 h-4 flex-shrink-0 text-[#B600A8]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                </svg>
+                <span class="text-[#D7E2EA]/80 text-sm font-light">Local HNSW vector search</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <svg class="w-4 h-4 flex-shrink-0 text-[#B600A8]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                </svg>
+                <span class="text-[#D7E2EA]/80 text-sm font-light">92.4% retrieval hit rate</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <svg class="w-4 h-4 flex-shrink-0 text-[#B600A8]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                </svg>
+                <span class="text-[#D7E2EA]/80 text-sm font-light">Expert routing network</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <svg class="w-4 h-4 flex-shrink-0 text-[#B600A8]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                </svg>
+                <span class="text-[#D7E2EA]/80 text-sm font-light">Zero data egress guarantee</span>
+              </div>
+            </div>
+            <button onclick="window.location.href = 'mailto:admin.smritione@gmail.com';" class="relative flex items-center justify-center font-medium uppercase tracking-widest text-white transition-transform duration-200 active:scale-95 cursor-pointer whitespace-nowrap" style="background: linear-gradient(123deg, #18011F 7%, #B600A8 37%, #7621B0 72%, #BE4C00 100%); box-shadow: 0px 4px 4px rgba(181, 1, 167, 0.25), inset 4px 4px 12px #7721B1; outline: 2px solid white; outline-offset: -3px; border-radius: 9999px; padding: clamp(0.6rem, 1.3vw, 1rem) clamp(1.8rem, 3.5vw, 3rem); font-size: clamp(0.7rem, 1.1vw, 0.95rem)">
+              Get Started
+            </button>
+          </div>
+        </div>
+
+        <!-- ── Tier 2: Enterprise Self-Hosted ── -->
+        <div class="fade-in-element h-full">
+          <div class="h-full rounded-[32px] p-8 md:p-10 flex flex-col gap-6 relative overflow-hidden hover:scale-[1.01] transition-transform duration-300" style="background: linear-gradient(135deg, #18011F 0%, #2A0840 40%, #1A0530 100%); border: 1.5px solid rgba(182, 0, 168, 0.45); box-shadow: 0 0 60px rgba(182, 0, 168, 0.12), inset 0 1px 0 rgba(255,255,255,0.06)">
+            <!-- Recommended badge -->
+            <div class="absolute top-6 right-6 px-3 py-1 rounded-full text-[10px] font-mono font-bold tracking-widest uppercase" style="background: rgba(182,0,168,0.2); border: 1px solid rgba(182,0,168,0.5); color: #E060D8">
+              Most Popular
+            </div>
+
+            <div class="flex flex-col gap-2">
+              <span class="text-xs font-mono tracking-widest text-[#E060D8]/60 uppercase">02 / Self-Hosted</span>
+              <h3 class="text-2xl md:text-3xl font-black uppercase text-[#F5F5F7] tracking-tight">Enterprise</h3>
+              <div class="flex items-end gap-2 mt-2 flex-wrap">
+                <span class="text-5xl md:text-6xl font-black text-[#F5F5F7] leading-none">$150</span>
+                <span class="text-white/40 font-light text-sm mb-2">–</span>
+                <span class="text-5xl md:text-6xl font-black text-[#F5F5F7] leading-none">$500</span>
+                <span class="text-white/40 font-light text-sm mb-2">/ team / month</span>
+              </div>
+              <p class="text-[#B6BBCA]/70 text-sm font-light leading-relaxed mt-1">
+                Deploys fully on your internal Kubernetes or VMs via Docker + Ollama. CISO-grade compliance. No data ever leaves your perimeter.
+              </p>
+            </div>
+            <div class="border-t border-white/8 pt-6 flex flex-col gap-3 flex-1">
+              <div class="flex items-center gap-3">
+                <svg class="w-4 h-4 flex-shrink-0" style="color: #E060D8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                </svg>
+                <span class="text-[#D7E2EA]/80 text-sm font-light">On-premise Kubernetes / Docker / VM deploy</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <svg class="w-4 h-4 flex-shrink-0" style="color: #E060D8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                </svg>
+                <span class="text-[#D7E2EA]/80 text-sm font-light">phi4-mini + nomic-embed-text via Ollama</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <svg class="w-4 h-4 flex-shrink-0" style="color: #E060D8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                </svg>
+                <span class="text-[#D7E2EA]/80 text-sm font-light">Slack, Drive, Confluence, Email connectors</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <svg class="w-4 h-4 flex-shrink-0" style="color: #E060D8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                </svg>
+                <span class="text-[#D7E2EA]/80 text-sm font-light">Expert routing graph analytics</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <svg class="w-4 h-4 flex-shrink-0" style="color: #E060D8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                </svg>
+                <span class="text-[#D7E2EA]/80 text-sm font-light">Grounding firewall — zero hallucinations</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <svg class="w-4 h-4 flex-shrink-0" style="color: #E060D8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                </svg>
+                <span class="text-[#D7E2EA]/80 text-sm font-light">116ms p50 latency — RRF hybrid search</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <svg class="w-4 h-4 flex-shrink-0" style="color: #E060D8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                </svg>
+                <span class="text-[#D7E2EA]/80 text-sm font-light">Dedicated onboarding & SLA support</span>
+              </div>
+            </div>
+            <button onclick="window.location.href = 'mailto:admin.smritione@gmail.com';" class="relative flex items-center justify-center font-medium uppercase tracking-widest text-white transition-transform duration-200 active:scale-95 cursor-pointer whitespace-nowrap" style="background: linear-gradient(123deg, #18011F 7%, #B600A8 37%, #7621B0 72%, #BE4C00 100%); box-shadow: 0px 4px 4px rgba(181, 1, 167, 0.25), inset 4px 4px 12px #7721B1; outline: 2px solid white; outline-offset: -3px; border-radius: 9999px; padding: clamp(0.6rem, 1.3vw, 1rem) clamp(1.8rem, 3.5vw, 3rem); font-size: clamp(0.7rem, 1.1vw, 0.95rem)">
+              Talk to Us
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Fine print -->
+      <div class="fade-in-element mt-10">
+        <p class="text-white/25 text-xs text-center font-mono tracking-wider uppercase max-w-lg">
+          All tiers include zero-egress data guarantees. Pricing scales with team size. Contact us for custom enterprise pilots.
+        </p>
+      </div>
+
+    </section>
+
+    <!-- Footer & Contact Target anchor -->
+    <footer id="contact" class="w-full bg-[#0C0C0C] py-16 px-6 border-t border-white/5 flex flex-col items-center justify-center gap-6 relative z-10 font-sans">
+      <h3 class="text-[#D7E2EA] font-semibold text-lg md:text-xl uppercase tracking-widest">Smriti -- Sovereign Context Engine</h3>
+      <p class="text-white/45 text-xs text-center max-w-md uppercase tracking-wider leading-relaxed">
+        Design verification & production assets hosted securely in the sovereign local infrastructure environment.
+      </p>
+      <div class="text-[10px] text-white/30 uppercase tracking-widest mt-6">
+        &#169; 2026 SMRITI CORE LABS. ALL PERIMETERS SECURED.
+      </div>
+    </footer>
+
+    <!-- ── INTERACTIVE SOLUTION MODAL OVERLAY (Vanilla JS controlled) ── -->
+    <div id="solution-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 hidden">
+      <!-- Backdrop -->
+      <div id="solution-modal-backdrop" class="absolute inset-0 bg-black/85 backdrop-blur-md transition-opacity duration-300"></div>
+
+      <!-- Modal Container -->
+      <div class="relative w-full max-w-6xl h-[85vh] md:h-[75vh] rounded-[30px] border border-white/10 bg-[#0C0C0C] flex flex-col md:flex-row overflow-hidden shadow-[0_32px_64px_rgba(0,0,0,0.85)] z-10 text-left">
+
+        <!-- Close Button -->
+        <button id="solution-modal-close" class="absolute top-5 right-5 z-20 text-white/50 hover:text-white transition-colors p-2 bg-white/5 hover:bg-white/10 rounded-full cursor-pointer">
+          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+
+        <!-- LEFT COLUMN: Problem Details -->
+        <div class="w-full md:w-5/12 border-b md:border-b-0 md:border-r border-white/10 p-6 md:p-8 flex flex-col justify-between overflow-y-auto">
+          <div class="flex flex-col gap-4">
+            <span id="modal-problem-num" class="text-xs font-mono tracking-widest text-white/45 uppercase">PROBLEM 01</span>
+            <h3 id="modal-problem-title" class="text-2xl md:text-3xl font-black uppercase text-[#D7E2EA] leading-tight font-sans"></h3>
+            <p id="modal-problem-desc" class="text-sm md:text-base font-light leading-relaxed text-[#B6BBCA]"></p>
+          </div>
+          <div class="mt-6 rounded-2xl overflow-hidden border border-white/10 bg-black/20 aspect-video md:aspect-[4/3] w-full">
+            <img id="modal-problem-img" src="" alt="" class="w-full h-full object-cover">
+          </div>
+        </div>
+
+        <!-- RIGHT COLUMN: The Sovereign Engine Solution -->
+        <div class="w-full md:w-7/12 p-6 md:p-8 flex flex-col overflow-hidden">
+          <!-- Tabs -->
+          <div class="flex border-b border-white/10 pb-3 gap-2 overflow-x-auto">
+            <button data-tab="how_it_works" class="modal-tab-btn px-4 py-2 rounded-lg text-xs md:text-sm font-semibold tracking-wider transition-all cursor-pointer bg-white/10 text-white border border-white/15">HOW IT WORKS</button>
+            <button data-tab="active_sources" class="modal-tab-btn px-4 py-2 rounded-lg text-xs md:text-sm font-semibold tracking-wider transition-all cursor-pointer text-white/40 hover:text-white/70">DATA SOURCES</button>
+            <button data-tab="zero_egress" class="modal-tab-btn px-4 py-2 rounded-lg text-xs md:text-sm font-semibold tracking-wider transition-all cursor-pointer text-white/40 hover:text-white/70">ZERO EGRESS PRIVACY</button>
+          </div>
+
+          <!-- Tab Contents -->
+          <div class="flex-1 overflow-y-auto mt-6">
+            <!-- Tab: How it works -->
+            <div id="tab-content-how_it_works" class="tab-pane flex flex-col gap-6">
+              <div class="flex flex-col sm:flex-row gap-5 items-start sm:items-center border border-white/5 bg-white/[0.02] p-4 rounded-xl">
+                <div class="w-full sm:w-[140px] h-[90px] rounded-lg overflow-hidden border border-white/10 flex-shrink-0">
+                  <img src="images/connect_sources.png" alt="Connect Sources" class="w-full h-full object-cover">
+                </div>
+                <div class="flex-1 text-left">
+                  <div class="flex items-center gap-2 mb-1">
+                    <span class="text-xs font-mono font-bold text-white/30">01</span>
+                    <h4 class="text-sm font-bold tracking-wider text-[#D7E2EA]">CONNECT SOURCES</h4>
+                  </div>
+                  <p class="text-xs text-[#B6BBCA]/70 font-light leading-relaxed">Securely hook up your enterprise communications, spreadsheets, documents, and transcript streams.</p>
+                </div>
+              </div>
+              <div class="flex flex-col sm:flex-row gap-5 items-start sm:items-center border border-white/5 bg-white/[0.02] p-4 rounded-xl">
+                <div class="w-full sm:w-[140px] h-[90px] rounded-lg overflow-hidden border border-white/10 flex-shrink-0">
+                  <img src="images/index_privately.png" alt="Index Privately" class="w-full h-full object-cover">
+                </div>
+                <div class="flex-1 text-left">
+                  <div class="flex items-center gap-2 mb-1">
+                    <span class="text-xs font-mono font-bold text-white/30">02</span>
+                    <h4 class="text-sm font-bold tracking-wider text-[#D7E2EA]">INDEX PRIVATELY</h4>
+                  </div>
+                  <p class="text-xs text-[#B6BBCA]/70 font-light leading-relaxed">Locally parse, embed, and index your files into an isolated, local HNSW vector store.</p>
+                </div>
+              </div>
+              <div class="flex flex-col sm:flex-row gap-5 items-start sm:items-center border border-white/5 bg-white/[0.02] p-4 rounded-xl">
+                <div class="w-full sm:w-[140px] h-[90px] rounded-lg overflow-hidden border border-white/10 flex-shrink-0">
+                  <img src="images/ask_anything.png" alt="Ask Anything" class="w-full h-full object-cover">
+                </div>
+                <div class="flex-1 text-left">
+                  <div class="flex items-center gap-2 mb-1">
+                    <span class="text-xs font-mono font-bold text-white/30">03</span>
+                    <h4 class="text-sm font-bold tracking-wider text-[#D7E2EA]">ASK ANYTHING</h4>
+                  </div>
+                  <p class="text-xs text-[#B6BBCA]/70 font-light leading-relaxed">Run phi4-mini or custom LLMs locally to query, summarize, and cross-examine corporate history.</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tab: Data sources -->
+            <div id="tab-content-active_sources" class="tab-pane grid grid-cols-2 sm:grid-cols-3 gap-4 hidden">
+              <div class="border border-white/5 bg-white/[0.02] p-3 rounded-xl flex flex-col gap-2 items-center text-center">
+                <div class="w-full aspect-video rounded-lg overflow-hidden border border-white/10">
+                  <img src="images/slack_teams.png" alt="Slack Teams" class="w-full h-full object-cover">
+                </div>
+                <span class="text-[10px] font-mono font-semibold text-white/50 tracking-wider uppercase mt-1">SLACK TEAMS</span>
+              </div>
+              <div class="border border-white/5 bg-white/[0.02] p-3 rounded-xl flex flex-col gap-2 items-center text-center">
+                <div class="w-full aspect-video rounded-lg overflow-hidden border border-white/10">
+                  <img src="images/requirements_specs.png" alt="Specs" class="w-full h-full object-cover">
+                </div>
+                <span class="text-[10px] font-mono font-semibold text-white/50 tracking-wider uppercase mt-1">REQUIREMENTS & SPECS</span>
+              </div>
+              <div class="border border-white/5 bg-white/[0.02] p-3 rounded-xl flex flex-col gap-2 items-center text-center">
+                <div class="w-full aspect-video rounded-lg overflow-hidden border border-white/10">
+                  <img src="images/release_notes.png" alt="Release Notes" class="w-full h-full object-cover">
+                </div>
+                <span class="text-[10px] font-mono font-semibold text-white/50 tracking-wider uppercase mt-1">RELEASE NOTES</span>
+              </div>
+              <div class="border border-white/5 bg-white/[0.02] p-3 rounded-xl flex flex-col gap-2 items-center text-center">
+                <div class="w-full aspect-video rounded-lg overflow-hidden border border-white/10">
+                  <img src="images/meeting_transcripts.png" alt="Meeting transcripts" class="w-full h-full object-cover">
+                </div>
+                <span class="text-[10px] font-mono font-semibold text-white/50 tracking-wider uppercase mt-1">MEETING TRANSCRIPTS</span>
+              </div>
+              <div class="border border-white/5 bg-white/[0.02] p-3 rounded-xl flex flex-col gap-2 items-center text-center">
+                <div class="w-full aspect-video rounded-lg overflow-hidden border border-white/10">
+                  <img src="images/google_drive.png" alt="Google Drive" class="w-full h-full object-cover">
+                </div>
+                <span class="text-[10px] font-mono font-semibold text-white/50 tracking-wider uppercase mt-1">GOOGLE DRIVE</span>
+              </div>
+              <div class="border border-white/5 bg-white/[0.02] p-3 rounded-xl flex flex-col gap-2 items-center text-center">
+                <div class="w-full aspect-video rounded-lg overflow-hidden border border-white/10">
+                  <img src="images/email_threads.png" alt="Email threads" class="w-full h-full object-cover">
+                </div>
+                <span class="text-[10px] font-mono font-semibold text-white/50 tracking-wider uppercase mt-1">EMAIL THREADS</span>
+              </div>
+            </div>
+
+            <!-- Tab: Zero Egress -->
+            <div id="tab-content-zero_egress" class="tab-pane flex flex-col gap-5 text-left hidden">
+              <div class="rounded-xl overflow-hidden border border-white/10 bg-black/20 max-w-lg mx-auto w-full aspect-video">
+                <img src="images/data_never_leaves.png" alt="Data never leaves" class="w-full h-full object-cover">
+              </div>
+              <div class="mt-2">
+                <h4 class="text-base font-bold text-white mb-2 uppercase tracking-wide">Secure perimeter data containment</h4>
+                <p class="text-xs sm:text-sm text-[#B6BBCA]/75 font-light leading-relaxed">
+                  All ingestion streams, transcript pipelines, and local vector search computations occur entirely behind your organization's compliance perimeter. Under our localized protocol, zero corporate data, transcripts, or queries escape to third-party APIs.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Vanilla JS Interactive logic -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // ── Fade In Animations ──
+      const fadeElements = document.querySelectorAll('.fade-in-element');
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+            observer.unobserve(entry.target);
+          }
+        });
+      }, { threshold: 0.1, rootMargin: '50px' });
+      
+      fadeElements.forEach(el => observer.observe(el));
+      
+      // Active the immediate elements
+      document.getElementById('navbar')?.classList.add('visible');
+      document.getElementById('hero-title')?.classList.add('visible');
+      document.getElementById('hero-desc')?.classList.add('visible');
+      document.getElementById('hero-actions')?.classList.add('visible');
+
+      // ── Passive Scroll Marquee Translation ──
+      const marqueeRow1 = document.getElementById('marquee-row-1');
+      const marqueeRow2 = document.getElementById('marquee-row-2');
+      
+      window.addEventListener('scroll', () => {
+        const scrollY = window.scrollY;
+        const offset = scrollY * 0.3;
+        if (marqueeRow1) marqueeRow1.style.transform = `translateX(${offset - 200}px)`;
+        if (marqueeRow2) marqueeRow2.style.transform = `translateX(${-(offset - 200)}px)`;
+      }, { passive: true });
+
+      // ── Interactive Problem/Solution Modal ──
+      const modal = document.getElementById('solution-modal');
+      const modalBackdrop = document.getElementById('solution-modal-backdrop');
+      const modalClose = document.getElementById('solution-modal-close');
+      const modalTabButtons = document.querySelectorAll('.modal-tab-btn');
+      const tabPanes = document.querySelectorAll('.tab-pane');
+
+      const problems = {
+        knowledge_silos: {
+          num: "PROBLEM 01 / CONTEXT BOTTLENECK",
+          title: "Knowledge Silos",
+          desc: "Organizations lose critical context across multiple isolated platforms. Chat history, documents, and code repositories remain completely disconnected, leading to duplicated efforts and fragmented memory.",
+          img: "images/knowledge_silos.png"
+        },
+        onboarding_friction: {
+          num: "PROBLEM 02 / DEVELOPER VELOCITY BARRIER",
+          title: "Onboarding Friction",
+          desc: "New team members waste dozens of hours trying to parse legacy architectural decisions, outdated API documentation, and code bases without access to historical decision logs.",
+          img: "images/onboarding_friction.png"
+        },
+        brain_drain: {
+          num: "PROBLEM 03 / ORGANIZATIONAL MEMORY LEAK",
+          title: "Brain Drain",
+          desc: "When key architects or subject matter experts leave the company, their context and decision reasoning vanish with them. Outdated wikis fail to capture the true operational logic.",
+          img: "images/brain_drain.png"
+        }
+      };
+
+      const openModal = (problemKey) => {
+        const p = problems[problemKey];
+        if (!p) return;
+
+        document.getElementById('modal-problem-num').textContent = p.num;
+        document.getElementById('modal-problem-title').textContent = p.title;
+        document.getElementById('modal-problem-desc').textContent = p.desc;
+        document.getElementById('modal-problem-img').src = p.img;
+        document.getElementById('modal-problem-img').alt = p.title;
+
+        // Reset tab
+        switchTab('how_it_works');
+
+        modal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+      };
+
+      const closeModal = () => {
+        modal.classList.add('hidden');
+        document.body.style.overflow = 'unset';
+      };
+
+      const switchTab = (tabId) => {
+        modalTabButtons.forEach(btn => {
+          if (btn.getAttribute('data-tab') === tabId) {
+            btn.className = 'modal-tab-btn px-4 py-2 rounded-lg text-xs md:text-sm font-semibold tracking-wider transition-all cursor-pointer bg-white/10 text-white border border-white/15';
+          } else {
+            btn.className = 'modal-tab-btn px-4 py-2 rounded-lg text-xs md:text-sm font-semibold tracking-wider transition-all cursor-pointer text-white/40 hover:text-white/70';
+          }
+        });
+        tabPanes.forEach(pane => {
+          if (pane.id === `tab-content-${tabId}`) {
+            pane.classList.remove('hidden');
+          } else {
+            pane.classList.add('hidden');
+          }
+        });
+      };
+
+      // Add click listener to all cards
+      document.querySelectorAll('.marquee-card').forEach(card => {
+        card.addEventListener('click', () => {
+          const problemKey = card.getAttribute('data-problem');
+          openModal(problemKey);
+        });
+      });
+
+      // Close handlers
+      modalClose?.addEventListener('click', closeModal);
+      modalBackdrop?.addEventListener('click', closeModal);
+      
+      // Escape key
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeModal();
+      });
+
+      // Tab handlers
+      modalTabButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const tabId = btn.getAttribute('data-tab');
+          switchTab(tabId);
+        });
+      });
+    });
   </script>
+
+  <!-- GDPR / Cookie Consent Module -->
+  <script src="/app/gdpr-consent.js"></script>
 </body>
 
 </html>

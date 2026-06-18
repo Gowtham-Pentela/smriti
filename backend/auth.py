@@ -21,25 +21,65 @@ on every request. Tokens are evicted when the cache exceeds 500 entries.
 import os
 import time
 import httpx
+import ipaddress
+from collections import OrderedDict
+from threading import Lock
 from dataclasses import dataclass
 from fastapi import Request, HTTPException
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-KGF_DEV_MODE     = os.getenv("KGF_DEV_MODE", "false").lower() == "true"
-SUPABASE_URL     = os.getenv("SUPABASE_URL", "https://jflxoijsjdgbiarvstbp.supabase.co")
-SUPABASE_ANON    = os.getenv(
-    "SUPABASE_ANON_KEY",
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpmbHhvaWpzamRnYmlhcnZzdGJwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0ODQwNTgsImV4cCI6MjA5NjA2MDA1OH0.XBjV29kRgrQoO2okDx8ugWPssQ1FOFcj4nZ209tw4dA",
-)
+KGF_DEV_MODE  = os.getenv("KGF_DEV_MODE", "false").lower() == "true"
+KGF_ENV       = os.getenv("KGF_ENV", "local").lower()
+IS_LOCAL_ENV  = KGF_ENV in ("local", "dev", "devel", "development")
+SUPABASE_URL  = os.getenv("SUPABASE_URL", "https://jflxoijsjdgbiarvstbp.supabase.co")
+SUPABASE_ANON = os.getenv("SUPABASE_ANON_KEY", "")  # no default — must be set in .env
+TRUST_PROXY   = os.getenv("TRUST_PROXY_HEADERS", "false").lower() == "true"
+
+# ── Startup validation ────────────────────────────────────────────────────────
+# Fail immediately if the anon key is absent so misconfigured deployments are
+# caught at boot rather than producing confusing 401s at runtime.
+if not SUPABASE_ANON:
+    # In dev mode with no Supabase key, a warning is acceptable since all auth
+    # is bypassed anyway.  In production the server must not start.
+    if not (KGF_DEV_MODE and IS_LOCAL_ENV):
+        raise RuntimeError(
+            "SECURITY: SUPABASE_ANON_KEY is not set. "
+            "Add it to your .env file. The server will not start without it."
+        )
+    else:
+        import warnings
+        warnings.warn(
+            "SUPABASE_ANON_KEY is not set. This is acceptable in dev mode but "
+            "the server will refuse to start in production.",
+            RuntimeWarning,
+            stacklevel=1,
+        )
 
 _DEV_EMAIL_HEADER = "X-Dev-User-Email"
 
+# IPs allowed to use the X-Dev-User-Email bypass. Only loopback addresses
+# are permitted — this check is absolute and cannot be overridden at runtime.
+_DEV_ALLOWED_IPS: frozenset[str] = frozenset({"127.0.0.1", "::1", "localhost"})
+
 # ── Token cache (in-memory, per-process) ─────────────────────────────────────
 # Stores: token -> (UserIdentity, expires_at_unix)
-_TOKEN_CACHE: dict[str, tuple["UserIdentity", float]] = {}
+_TOKEN_CACHE: OrderedDict[str, tuple["UserIdentity", float]] = OrderedDict()
+_CACHE_LOCK  = Lock()
 _CACHE_TTL   = 300   # seconds (5 minutes)
 _CACHE_MAX   = 500   # evict oldest if over this limit
+
+def _is_trusted_ip(ip_str: str) -> bool:
+    if not ip_str:
+        return False
+    if ip_str in ("localhost", "::1"):
+        return True
+    try:
+        ip = ipaddress.ip_address(ip_str)
+        return ip.is_loopback or ip.is_private
+    except ValueError:
+        return False
+
 
 
 @dataclass
@@ -61,12 +101,14 @@ async def _verify_supabase_token(token: str) -> UserIdentity:
     now = time.time()
 
     # Cache lookup
-    if token in _TOKEN_CACHE:
-        identity, expires = _TOKEN_CACHE[token]
-        if now < expires:
-            return identity
-        # Expired — remove stale entry
-        del _TOKEN_CACHE[token]
+    with _CACHE_LOCK:
+        if token in _TOKEN_CACHE:
+            identity, expires = _TOKEN_CACHE[token]
+            if now < expires:
+                _TOKEN_CACHE.move_to_end(token)
+                return identity
+            # Expired — remove stale entry
+            del _TOKEN_CACHE[token]
 
     # Verify with Supabase
     try:
@@ -103,12 +145,11 @@ async def _verify_supabase_token(token: str) -> UserIdentity:
         user_id = uid,
     )
 
-    # Evict oldest entries if cache is full
-    if len(_TOKEN_CACHE) >= _CACHE_MAX:
-        oldest = min(_TOKEN_CACHE, key=lambda k: _TOKEN_CACHE[k][1])
-        del _TOKEN_CACHE[oldest]
-
-    _TOKEN_CACHE[token] = (identity, now + _CACHE_TTL)
+    with _CACHE_LOCK:
+        # Evict oldest entries if cache is full (OrderedDict maintains insertion order, so pop first item)
+        if len(_TOKEN_CACHE) >= _CACHE_MAX:
+            _TOKEN_CACHE.popitem(last=False)
+        _TOKEN_CACHE[token] = (identity, now + _CACHE_TTL)
     return identity
 
 
@@ -125,13 +166,26 @@ async def extract_user_identity(request: Request) -> UserIdentity:
     Raises HTTP 401 if no valid auth is present.
     """
     # ── Dev mode bypass ───────────────────────────────────────────────────────
-    if KGF_DEV_MODE:
-        dev_email = request.headers.get(_DEV_EMAIL_HEADER, "").strip()
-        if not dev_email:
-            dev_email = os.getenv("KGF_DEV_USER_EMAIL", "dev@localhost.local")
-        email  = dev_email.lower().strip()
-        domain = email.split("@", 1)[1] if "@" in email else "localhost.local"
-        return UserIdentity(email=email, domain=domain, user_id=f"dev:{email}")
+    # SECURITY: Even when KGF_DEV_MODE is true, the X-Dev-User-Email header is
+    # only honoured when the request originates from a loopback address, and
+    # strictly in local/development environments.
+    if KGF_DEV_MODE and IS_LOCAL_ENV:
+        client_ip = ""
+        xff = request.headers.get("X-Forwarded-For", "").strip()
+        if xff:
+            client_ip = xff.split(",")[0].strip()
+        if not client_ip:
+            client_ip = request.headers.get("X-Real-IP", "").strip()
+        if not client_ip:
+            client_ip = (request.client.host if request.client else "").strip()
+
+        if _is_trusted_ip(client_ip):
+            dev_email = request.headers.get(_DEV_EMAIL_HEADER, "").strip()
+            if not dev_email:
+                dev_email = os.getenv("KGF_DEV_USER_EMAIL", "dev@localhost.local")
+            email  = dev_email.lower().strip()
+            domain = email.split("@", 1)[1] if "@" in email else "localhost.local"
+            return UserIdentity(email=email, domain=domain, user_id=f"dev:{email}")
 
     # ── Bearer token ──────────────────────────────────────────────────────────
     auth_header = request.headers.get("Authorization", "")

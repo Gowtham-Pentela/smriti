@@ -332,14 +332,40 @@
     </p>
 </div>
 
-<!-- Supabase JS v2 -->
-<script src="/app/js/supabase.js"></script>
+<!-- Supabase JS v2 (loaded from CDN fallback via index redirect — see supabase.js removal note) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script>
-const SUPABASE_URL  = 'https://jflxoijsjdgbiarvstbp.supabase.co';
-const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpmbHhvaWpzamRnYmlhcnZzdGJwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0ODQwNTgsImV4cCI6MjA5NjA2MDA1OH0.XBjV29kRgrQoO2okDx8ugWPssQ1FOFcj4nZ209tw4dA';
+// ── Supabase client initialisation (credentials loaded from backend) ──────────
+// Credentials are fetched from /client-config rather than embedded in this file.
+// This keeps the anon key out of version control and allows key rotation without
+// touching frontend assets.
+let sb;           // Supabase client — set once _sbReady resolves
+let _sbReady;     // Promise that resolves after the client is initialised
 
-const { createClient } = supabase;
-const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
+(function initSupabaseFromConfig() {
+    const _API_BASE_INIT = (window.location.protocol === 'file:' || window.location.hostname === 'localhost')
+        ? 'http://localhost:8000' : window.location.origin;
+
+    _sbReady = fetch(`${_API_BASE_INIT}/client-config`)
+        .then(r => {
+            if (!r.ok) throw new Error(`/client-config returned ${r.status}`);
+            return r.json();
+        })
+        .then(cfg => {
+            const { createClient } = supabase;
+            sb = createClient(cfg.supabase_url, cfg.supabase_anon);
+        })
+        .catch(err => {
+            console.error('[auth] Failed to load Supabase config:', err);
+            // Surface a visible error so the user knows the backend is unreachable
+            document.body.innerHTML =
+                `<div style="color:#ef4444;font-family:monospace;padding:40px">
+                    Backend unreachable — could not load authentication config.<br>
+                    <small>${err.message}</small>
+                </div>`;
+            throw err; // re-throw so callers of _sbReady see the rejection
+        });
+})();
 
 // ── Session gate ──────────────────────────────────────────────────────────
 // CRITICAL: Use getUser() NOT getSession() here.
@@ -349,6 +375,7 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 // getUser() makes a real network call to Supabase to validate the token.
 // If the token is expired, it returns an error and we show the login form.
 (async () => {
+    await _sbReady;
     const { data: { user }, error } = await sb.auth.getUser();
     if (user && !error) {
         // Token is valid (server-confirmed) — skip sign-in, go straight to app
@@ -358,6 +385,7 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
         await sb.auth.signOut().catch(() => {});
     }
 })();
+
 
 let pendingSignupEmail = '';
 
@@ -396,6 +424,7 @@ function setLoading(btnId, loading, label) {
 
 // ── Google OAuth ──────────────────────────────────────────────────────────
 async function signInWithGoogle() {
+    await _sbReady;
     clearMsg();
     const { error } = await sb.auth.signInWithOAuth({
         provider: 'google',
@@ -406,6 +435,7 @@ async function signInWithGoogle() {
 
 // ── GitHub OAuth ──────────────────────────────────────────────────────────
 async function signInWithGitHub() {
+    await _sbReady;
     clearMsg();
     const { error } = await sb.auth.signInWithOAuth({
         provider: 'github',
@@ -416,6 +446,7 @@ async function signInWithGitHub() {
 
 // ── Email sign-in ─────────────────────────────────────────────────────────
 async function signInWithEmail() {
+    await _sbReady;
     clearMsg();
     const email    = document.getElementById('signin-email').value.trim();
     const password = document.getElementById('signin-password').value;
@@ -438,6 +469,7 @@ async function signInWithEmail() {
 
 // ── Email sign-up ─────────────────────────────────────────────────────────
 async function signUpWithEmail() {
+    await _sbReady;
     clearMsg();
     const email    = document.getElementById('signup-email').value.trim();
     const password = document.getElementById('signup-password').value;
@@ -464,6 +496,7 @@ async function signUpWithEmail() {
 
 // ── Resend verification email ─────────────────────────────────────────────
 async function resendVerification() {
+    await _sbReady;
     if (!pendingSignupEmail) return;
     const btn = document.getElementById('resend-btn');
     btn.disabled = true;
@@ -485,5 +518,7 @@ document.addEventListener('keydown', (e) => {
     else               signUpWithEmail();
 });
 </script>
+<!-- GDPR / Cookie Consent Module -->
+<script src="/app/gdpr-consent.js"></script>
 </body>
 </html>

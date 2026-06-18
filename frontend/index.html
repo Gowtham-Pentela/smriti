@@ -535,13 +535,14 @@
         btn.disabled   = false;
         document.getElementById('welcome-state').style.display = 'none';
         input.focus();
-        _resizeTextarea(input);
+        window.autosizeTextarea(input);
     }
 
-    function _resizeTextarea(el) {
+    window.autosizeTextarea = function (el) {
+        if (!el) return;
         el.style.height = 'auto';
         el.style.height = Math.min(el.scrollHeight, 180) + 'px';
-    }
+    };
 
     // ── Theme toggle ──────────────────────────────────────────────────────────
     const THEME_KEY = 'smriti-theme';
@@ -565,7 +566,8 @@
 </script>
 <script>
 // ── Supabase auth gate ────────────────────────────────────────────────────────
-// Runs before app.js. Checks backend dev_mode first, then Supabase session.
+// Runs before app.js. Fetches Supabase config from /client-config (no hardcoded
+// credentials), then checks backend dev_mode, then validates the Supabase session.
 // Exposes window.sbSession and window.getAuthHeaders() for app.js to use.
 // authReady resolves once sbSession is confirmed — app.js awaits this
 // before calling any authenticated endpoints.
@@ -573,14 +575,28 @@ let _resolveAuthReady;
 window.authReady  = new Promise(resolve => { _resolveAuthReady = resolve; });
 window.sbSession  = null;
 
-const _SB_URL  = 'https://jflxoijsjdgbiarvstbp.supabase.co';
-const _SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpmbHhvaWpzamRnYmlhcnZzdGJwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0ODQwNTgsImV4cCI6MjA5NjA2MDA1OH0.XBjV29kRgrQoO2okDx8ugWPssQ1FOFcj4nZ209tw4dA';
-const _sb = supabase.createClient(_SB_URL, _SB_ANON);
-window._sb = _sb; // expose for app.js token refresh
 const _API_BASE = (window.location.protocol === 'file:' || window.location.hostname === 'localhost')
     ? 'http://localhost:8000' : window.location.origin;
 
-window._devMode   = false;
+window._devMode = false;
+
+// Fetch Supabase config from backend so credentials are never in source.
+// window._sbReady resolves with the initialised Supabase client.
+window._sbReady = fetch(`${_API_BASE}/client-config`)
+    .then(r => {
+        if (!r.ok) throw new Error(`/client-config returned ${r.status}`);
+        return r.json();
+    })
+    .then(cfg => {
+        const _sb = supabase.createClient(cfg.supabase_url, cfg.supabase_anon);
+        window._sb = _sb; // expose for app.js token refresh
+        return _sb;
+    })
+    .catch(err => {
+        console.error('[index] Failed to load Supabase config:', err);
+        return null;
+    });
+
 
 // Returns Bearer token header for production, empty object for dev mode
 window.getAuthHeaders = () => {
@@ -603,9 +619,18 @@ function _populateUserUI(email, badge) {
     if (userNmEl) { userNmEl.textContent  = email.split('@')[0] || 'Account'; }
 }
 
-// ── Auth gate ──────────────────────────────────────────────────────────────
-// CRITICAL ORDER: Register onAuthStateChange BEFORE any async operation.
+// ── Auth gate ──────────────────────────────────────────────────────────
+// CRITICAL ORDER: Await _sbReady first so we have an initialised client,
+// then register onAuthStateChange before any other async operation.
 (async () => {
+    // Wait for the Supabase client to be created from /client-config
+    const _sbClient = await window._sbReady;
+    if (!_sbClient) {
+        // Config fetch failed entirely — fall back to auth page
+        window.location.replace('/app/auth.html');
+        return;
+    }
+
     // Register auth listener SYNCHRONOUSLY — before any await
     let _authResolve;
     const _authPromise = new Promise(r => { _authResolve = r; });
@@ -616,7 +641,7 @@ function _populateUserUI(email, badge) {
         _authResolve(s);
     }
 
-    _sb.auth.onAuthStateChange((event, s) => {
+    _sbClient.auth.onAuthStateChange((event, s) => {
         if (event === 'SIGNED_IN' && s && s.access_token) {
             _finishAuth(s);
         } else if (event === 'TOKEN_REFRESHED' && s && s.access_token) {
@@ -665,7 +690,7 @@ function _populateUserUI(email, badge) {
     _resolveAuthReady(); // signal app.js: session confirmed, safe to call APIs
 
     // Step 3: react to sign-out / token refresh (re-use the same _sb instance)
-    _sb.auth.onAuthStateChange((event, newSession) => {
+    _sbClient.auth.onAuthStateChange((event, newSession) => {
         if (event === 'SIGNED_OUT') {
             window.location.replace('/app/auth.html');
         }
@@ -708,7 +733,8 @@ async function signOut() {
         // Only sign out from Supabase — this clears the local JWT/session token.
         // No API calls that delete data are made here.
         if (!window._devMode) {
-            await _sb.auth.signOut();
+            const _sbClient = await window._sbReady.catch(() => null);
+            if (_sbClient) await _sbClient.auth.signOut();
         }
     } catch (e) {
         // Even if signOut fails (e.g. offline), redirect to landing page
@@ -784,5 +810,7 @@ async function deleteAccount() {
 
 </script>
 <script src="app.js"></script>
+<!-- GDPR / Cookie Consent Module (must load last so DOM is ready) -->
+<script src="/app/gdpr-consent.js"></script>
 </body>
 </html>
