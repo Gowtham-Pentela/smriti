@@ -343,8 +343,8 @@ let sb;           // Supabase client — set once _sbReady resolves
 let _sbReady;     // Promise that resolves after the client is initialised
 
 (function initSupabaseFromConfig() {
-    const _API_BASE_INIT = (window.location.protocol === 'file:' || window.location.hostname === 'localhost')
-        ? 'http://localhost:8000' : window.location.origin;
+    const isLocalApp = window.location.protocol === 'file:' || ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname);
+    const _API_BASE_INIT = isLocalApp ? 'http://127.0.0.1:8000' : window.location.origin;
 
     _sbReady = fetch(`${_API_BASE_INIT}/client-config`)
         .then(r => {
@@ -352,6 +352,7 @@ let _sbReady;     // Promise that resolves after the client is initialised
             return r.json();
         })
         .then(cfg => {
+            window.clientConfig = cfg;
             const { createClient } = supabase;
             sb = createClient(cfg.supabase_url, cfg.supabase_anon);
         })
@@ -422,13 +423,23 @@ function setLoading(btnId, loading, label) {
     if (btn) { btn.disabled = loading; btn.textContent = loading ? 'Please wait...' : label; }
 }
 
+// Helper to get site URL redirect
+function getRedirectUrl() {
+    return (window.clientConfig && window.clientConfig.site_url)
+        ? window.clientConfig.site_url + '/app/callback.html'
+        : window.location.origin + '/app/callback.html';
+}
+
 // ── Google OAuth ──────────────────────────────────────────────────────────
 async function signInWithGoogle() {
     await _sbReady;
     clearMsg();
     const { error } = await sb.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo: window.location.origin + '/app/callback.html' },
+        options: {
+            redirectTo: getRedirectUrl(),
+            queryParams: { prompt: 'select_account', access_type: 'offline' }
+        },
     });
     if (error) showMsg(error.message);
 }
@@ -439,7 +450,7 @@ async function signInWithGitHub() {
     clearMsg();
     const { error } = await sb.auth.signInWithOAuth({
         provider: 'github',
-        options: { redirectTo: window.location.origin + '/app/callback.html' },
+        options: { redirectTo: getRedirectUrl() },
     });
     if (error) showMsg(error.message);
 }
@@ -480,7 +491,7 @@ async function signUpWithEmail() {
     const { error } = await sb.auth.signUp({
         email,
         password,
-        options: { emailRedirectTo: window.location.origin + '/app/callback.html' },
+        options: { emailRedirectTo: getRedirectUrl() },
     });
     setLoading('btn-signup', false, 'Create account');
 
@@ -504,7 +515,7 @@ async function resendVerification() {
     const { error } = await sb.auth.resend({
         type: 'signup',
         email: pendingSignupEmail,
-        options: { emailRedirectTo: window.location.origin + '/app/callback.html' },
+        options: { emailRedirectTo: getRedirectUrl() },
     });
     btn.textContent = error ? 'Failed — try again' : 'Sent! Check your inbox';
     setTimeout(() => { btn.disabled = false; btn.textContent = 'Resend email'; }, 5000);

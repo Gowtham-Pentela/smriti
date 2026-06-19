@@ -509,15 +509,16 @@
         const sidePanel = document.getElementById('side-panel');
         if (!sidePanel) return;
 
+        const overlay = document.getElementById('drawer-overlay');
         if (tabId === 'chat') {
             sidePanel.classList.add('collapsed');
             sidePanel.classList.remove('open');
-            if (drawerOverlay) drawerOverlay.classList.remove('active');
+            if (overlay) overlay.classList.remove('active');
         } else {
             sidePanel.classList.remove('collapsed');
             if (window.innerWidth <= 900) {
                 sidePanel.classList.add('open');
-                if (drawerOverlay) drawerOverlay.classList.add('active');
+                if (overlay) overlay.classList.add('active');
             }
         }
     }
@@ -575,8 +576,8 @@ let _resolveAuthReady;
 window.authReady  = new Promise(resolve => { _resolveAuthReady = resolve; });
 window.sbSession  = null;
 
-const _API_BASE = (window.location.protocol === 'file:' || window.location.hostname === 'localhost')
-    ? 'http://localhost:8000' : window.location.origin;
+const isLocal = window.location.protocol === 'file:' || ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname);
+const _API_BASE = isLocal ? 'http://127.0.0.1:8000' : window.location.origin;
 
 window._devMode = false;
 
@@ -671,7 +672,7 @@ function _populateUserUI(email, badge) {
     const session = await Promise.race([_authPromise, _timeout]);
 
     // Check if dev mode resolved while we were waiting
-    const devCfg = await Promise.race([_devPromise, Promise.resolve(null)]);
+    const devCfg = await _devPromise;
     if (devCfg) {
         window._devMode = true;
         _populateUserUI(devCfg.dev_email || 'dev@localhost.local', '⚙');
@@ -762,8 +763,8 @@ async function deleteAccount() {
     if (btn) { btn.disabled = true; btn.textContent = 'Deleting...'; }
 
     try {
-        const API_BASE = (window.location.protocol === 'file:' || window.location.hostname === 'localhost')
-            ? 'http://localhost:8000' : window.location.origin;
+        const isLocalDel = window.location.protocol === 'file:' || ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname);
+        const API_BASE = isLocalDel ? 'http://127.0.0.1:8000' : window.location.origin;
 
         const resp = await fetch(`${API_BASE}/account`, {
             method: 'DELETE',

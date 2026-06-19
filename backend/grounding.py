@@ -1,8 +1,10 @@
 import re
 import os
+from dotenv import load_dotenv
+load_dotenv(override=True)
 
 OLLAMA_URL = "http://localhost:11434/api/chat"
-MODEL_NAME = os.getenv("KGF_CHAT_MODEL", "phi4-mini:latest")
+MODEL_NAME = os.getenv("KGF_CHAT_MODEL", "llama3.2:1b")
 
 
 # Canonical strip pattern — removes both [Citation: ...] and [Cite: ...] variants.

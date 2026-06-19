@@ -144,12 +144,18 @@
         // Runtime configuration asynchronous listener matrix
         const _sbReady = (async () => {
             try {
-                const res = await fetch('/client-config');
+                const isLocal = window.location.protocol === 'file:' || ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname);
+                const _API_BASE = isLocal ? 'http://127.0.0.1:8000' : window.location.origin;
+                const res = await fetch(_API_BASE + '/client-config');
                 if (!res.ok) throw new Error('Failed to load client security configurations.');
                 const config = await res.json();
 
                 // Dynamically instantiate Supabase using the backend injection profile
-                _sb = supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY, {
+                const sbUrl = config.supabase_url || config.SUPABASE_URL;
+                const sbKey = config.supabase_anon || config.SUPABASE_ANON_KEY || config.supabase_anon_key;
+                if (!sbUrl || !sbKey) throw new Error('Invalid Supabase configuration received.');
+
+                _sb = supabase.createClient(sbUrl, sbKey, {
                     auth: {
                         persistSession: true,
                         autoRefreshToken: true,

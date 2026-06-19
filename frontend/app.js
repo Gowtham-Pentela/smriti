@@ -5,12 +5,12 @@
    - Streaming status log during generation
    - Hover action overlays (copy / regenerate)
    - Theme toggle (handled in HTML, persisted via localStorage)
+   - HARDENED: Explicit Google Account Selector Context Rules
 */
+
 // Auto-detect API base: when served from smriti.one (or any domain via tunnel),
-// use the same origin. When opened via file:// in dev, fall back to localhost:8000.
-const API_BASE = (window.location.protocol === "file:" || window.location.hostname === "localhost")
-    ? "http://localhost:8000"
-    : window.location.origin;
+const isLocalApp = window.location.protocol === "file:" || ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
+const API_BASE = isLocalApp ? "http://127.0.0.1:8000" : window.location.origin;
 
 /**
  * Authenticated fetch: wraps all API calls with the Supabase Bearer token.
@@ -41,7 +41,7 @@ async function authFetch(url, options = {}) {
                     if (data && data.session) {
                         window.sbSession = data.session; // update cached session
                     }
-                } catch (_) {}
+                } catch (_) { }
             }
             return _doFetch(true); // retry once with refreshed token
         }
@@ -53,20 +53,19 @@ async function authFetch(url, options = {}) {
 /**
  * showConfirm(title, message, confirmLabel?)
  * Promise-based inline modal — replaces window.confirm().
- * Resolves true if user clicks Confirm, false if Cancel or Escape.
  */
 function showConfirm(title, message, confirmLabel = "Confirm", danger = true) {
     return new Promise((resolve) => {
-        const modal  = document.getElementById("confirm-modal");
+        const modal = document.getElementById("confirm-modal");
         const titleEl = document.getElementById("confirm-modal-title");
-        const msgEl   = document.getElementById("confirm-modal-msg");
-        const okBtn   = document.getElementById("confirm-modal-ok");
+        const msgEl = document.getElementById("confirm-modal-msg");
+        const okBtn = document.getElementById("confirm-modal-ok");
         const cancelBtn = document.getElementById("confirm-modal-cancel");
         if (!modal) { resolve(window.confirm(`${title}\n\n${message}`)); return; }
 
         titleEl.textContent = title;
-        msgEl.textContent   = message;
-        okBtn.textContent   = confirmLabel;
+        msgEl.textContent = message;
+        okBtn.textContent = confirmLabel;
         okBtn.style.background = danger ? "#ef4444" : "#6366f1";
         modal.style.display = "flex";
 
@@ -77,9 +76,9 @@ function showConfirm(title, message, confirmLabel = "Confirm", danger = true) {
             document.removeEventListener("keydown", onKey);
             resolve(result);
         }
-        function onOk()     { finish(true);  }
+        function onOk() { finish(true); }
         function onCancel() { finish(false); }
-        function onKey(e)   { if (e.key === "Escape") finish(false); }
+        function onKey(e) { if (e.key === "Escape") finish(false); }
 
         okBtn.addEventListener("click", onOk);
         cancelBtn.addEventListener("click", onCancel);
@@ -87,59 +86,53 @@ function showConfirm(title, message, confirmLabel = "Confirm", danger = true) {
     });
 }
 
-
-
-
 // ── DOM refs ──────────────────────────────────────────────────────────
-const btnClear          = document.getElementById("btn-clear");
-const statChunks        = document.getElementById("stat-chunks");
-const statFiles         = document.getElementById("stat-files");
-const filesList         = document.getElementById("files-list");
-const chatHistory       = document.getElementById("chat-history");
-const queryInput        = document.getElementById("query-input");
-const btnSend           = document.getElementById("btn-send");
-const connectionStatus  = document.getElementById("connection-status");
-const citationTooltip   = document.getElementById("citation-tooltip");
-const expertList        = document.getElementById("expert-list");
-const sourcesList       = document.getElementById("sources-list");
-const btnClearChat      = document.getElementById("btn-clear-chat");
-const btnToggleSidebar  = document.getElementById("btn-toggle-sidebar");
-const btnToggleCanvas   = document.getElementById("btn-toggle-canvas");
-const drawerOverlay     = document.getElementById("drawer-overlay");
-const sidebar           = document.getElementById("sidebar");
-const canvasColumn      = document.getElementById("canvas-column");
+const btnClear = document.getElementById("btn-clear");
+const statChunks = document.getElementById("stat-chunks");
+const statFiles = document.getElementById("stat-files");
+const filesList = document.getElementById("files-list");
+const chatHistory = document.getElementById("chat-history");
+const queryInput = document.getElementById("query-input");
+const btnSend = document.getElementById("btn-send");
+const connectionStatus = document.getElementById("connection-status");
+const citationTooltip = document.getElementById("citation-tooltip");
+const expertList = document.getElementById("expert-list");
+const sourcesList = document.getElementById("sources-list");
+const btnClearChat = document.getElementById("btn-clear-chat");
+const btnToggleSidebar = document.getElementById("btn-toggle-sidebar");
+const btnToggleCanvas = document.getElementById("btn-toggle-canvas");
+const drawerOverlay = document.getElementById("drawer-overlay");
+const sidebar = document.getElementById("sidebar");
+const canvasColumn = document.getElementById("canvas-column");
 
 // Workspace Settings Refs
-const btnShowSettings   = document.getElementById("btn-show-settings");
-const settingsModal     = document.getElementById("settings-modal");
-const settingsClose     = document.getElementById("settings-close");
-const btnEditOrgName    = document.getElementById("btn-edit-org-name");
-const settingsOrgName   = document.getElementById("settings-org-name");
+const btnShowSettings = document.getElementById("btn-show-settings");
+const settingsModal = document.getElementById("settings-modal");
+const settingsClose = document.getElementById("settings-close");
+const btnEditOrgName = document.getElementById("btn-edit-org-name");
+const settingsOrgName = document.getElementById("settings-org-name");
 const settingsOrgDomain = document.getElementById("settings-org-domain");
-const settingsOrgInput  = document.getElementById("settings-org-input");
+const settingsOrgInput = document.getElementById("settings-org-input");
 const settingsOrgEditRow = document.getElementById("settings-org-edit-row");
-const settingsOrgSave   = document.getElementById("settings-org-save");
+const settingsOrgSave = document.getElementById("settings-org-save");
 const settingsOrgCancel = document.getElementById("settings-org-cancel");
 const settingsInviteSection = document.getElementById("settings-invite-section");
 const settingsInviteEmail = document.getElementById("settings-invite-email");
 const settingsInviteRole = document.getElementById("settings-invite-role");
-const btnSendInvite     = document.getElementById("btn-send-invite");
+const btnSendInvite = document.getElementById("btn-send-invite");
 const settingsMembersList = document.getElementById("settings-members-list");
 const settingsInvitesList = document.getElementById("settings-invites-list");
 
-let indexingInterval     = null;
-let userCancelled        = false;
+let indexingInterval = null;
+let userCancelled = false;
 let lastRetrievedContext = [];  // stored for citation tooltip lookups
-let lastQuery            = "";  // stored for regenerate
-let conversationHistory  = [];  // stored for multi-turn chat memory
+let lastQuery = "";  // stored for regenerate
+let conversationHistory = [];  // stored for multi-turn chat memory
 
 // ── Init ──────────────────────────────────────────────────────────────
 window.addEventListener("DOMContentLoaded", async () => {
-    // Unauthenticated calls — fire immediately, no session needed
     checkBackendConnection();
-    updateStats();
 
-    // Drawer toggle logic
     if (btnToggleSidebar && sidebar && drawerOverlay) {
         btnToggleSidebar.addEventListener("click", () => {
             sidebar.classList.toggle("open");
@@ -174,7 +167,6 @@ window.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
-    // Close drawers when clicking index options or upload components
     const uploadDropZone = document.getElementById("upload-drop-zone");
     if (uploadDropZone) {
         uploadDropZone.addEventListener("click", () => {
@@ -183,13 +175,9 @@ window.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
-    // Wait for the auth gate in index.html to confirm the session
-    // (auth gate does: fetch /auth-config → getSession → sets window.sbSession)
-    // Without this, checkSlackConnection() runs before sbSession is set,
-    // authFetch sends no Bearer token, backend returns 401, loop starts.
     if (window.authReady) await window.authReady;
 
-    // Authenticated calls — safe to fire now that sbSession is confirmed
+    updateStats();
     loadFilesList();
     checkSlackConnection();
     checkDriveConnection();
@@ -197,7 +185,6 @@ window.addEventListener("DOMContentLoaded", async () => {
     checkOAuthUrlParams();
     loadWorkspaceProfile();
 
-    // Workspace Settings Modal bindings
     if (btnShowSettings) btnShowSettings.addEventListener("click", showSettingsModal);
     if (settingsClose) settingsClose.addEventListener("click", closeSettingsModal);
     if (settingsModal) {
@@ -250,7 +237,6 @@ window.addEventListener("DOMContentLoaded", async () => {
     });
 });
 
-// ── Welcome state ──────────────────────────────────────────────────────
 function _hideWelcome() {
     const w = document.getElementById("welcome-state");
     if (w && w.parentNode) w.style.display = "none";
@@ -262,7 +248,7 @@ function checkOAuthUrlParams() {
     if (!banner) return;
     const p = new URLSearchParams(window.location.search);
     const connected = p.get("connected");
-    const error     = p.get("error");
+    const error = p.get("error");
 
     if (connected === "slack") {
         banner.className = "oauth-toast success";
@@ -275,10 +261,7 @@ function checkOAuthUrlParams() {
         banner.innerHTML = "✅ Google Drive connected! Starting indexing now...";
         banner.classList.remove("hidden");
         _setDriveConnected();
-        // Auto-start indexing immediately — user shouldn't need a second click
-        setTimeout(() => {
-            syncDrive();
-        }, 1500);  // small delay so the connection UI settles first
+        setTimeout(() => { syncDrive(); }, 1500);
         setTimeout(() => banner.classList.add("hidden"), 12000);
     } else if (error === "oauth_expired") {
         banner.className = "oauth-toast error";
@@ -301,15 +284,12 @@ function checkOAuthUrlParams() {
     }
 }
 
-// ── OAuth connect starters (must use authFetch, not plain <a href>) ────────
-// Direct browser navigation (<a href>) sends no Authorization header,
-// causing a 401. Instead: fetch the URL with Bearer token, then redirect.
-
+// ── OAuth connect starters with Selector Account Bounds ────────────────────────
 async function startSlackOAuth() {
     const btn = document.getElementById("btn-connect-slack");
     if (btn) { btn.disabled = true; btn.textContent = "Connecting..."; }
     try {
-        const resp = await authFetch(`${API_BASE}/slack/oauth/start`);
+        const resp = await authFetch(`${API_BASE}/slack/oauth/start?prompt=select_account`);
         if (!resp.ok) {
             const err = await resp.json().catch(() => ({ detail: resp.statusText }));
             alert(`Could not start Slack auth: ${err.detail}`);
@@ -317,9 +297,28 @@ async function startSlackOAuth() {
             return;
         }
         const { url } = await resp.json();
-        window.location.href = url;   // now the browser navigates to Slack's consent page
+        window.location.href = url;
     } catch (e) {
         alert("Network error starting Slack auth.");
+        if (btn) { btn.disabled = false; btn.textContent = "Connect"; }
+    }
+}
+
+async function startDriveOAuth() {
+    const btn = document.getElementById("btn-connect-gdrive");
+    if (btn) { btn.disabled = true; btn.textContent = "Connecting..."; }
+    try {
+        const resp = await authFetch(`${API_BASE}/gdrive/oauth/start?prompt=select_account`);
+        if (!resp.ok) {
+            const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+            alert(`Could not start Google Drive auth: ${err.detail}`);
+            if (btn) { btn.disabled = false; btn.textContent = "Connect"; }
+            return;
+        }
+        const { url } = await resp.json();
+        window.location.href = url;
+    } catch (e) {
+        alert("Network error starting Google Drive auth.");
         if (btn) { btn.disabled = false; btn.textContent = "Connect"; }
     }
 }
@@ -327,22 +326,22 @@ async function startSlackOAuth() {
 // ── Pill chip controller ──────────────────────────────────────────────────
 const PILL_SERVICES = {
     slack: {
-        connect:    () => startSlackOAuth(),
-        sync:       () => alert("Slack syncs automatically every 30 min"),
+        connect: () => startSlackOAuth(),
+        sync: () => alert("Slack syncs automatically every 30 min"),
         disconnect: () => disconnectSlack(),
-        label:      "Slack",
+        label: "Slack",
     },
     gdrive: {
-        connect:    () => startDriveOAuth(),
-        sync:       () => syncDrive(),
+        connect: () => startDriveOAuth(),
+        sync: () => syncDrive(),
         disconnect: () => disconnectDrive(),
-        label:      "Google Drive",
+        label: "Google Drive",
     },
     confluence: {
-        connect:    () => showConfluenceModal(),
-        sync:       () => syncConfluence(),
+        connect: () => showConfluenceModal(),
+        sync: () => syncConfluence(),
         disconnect: () => disconnectConfluence(),
-        label:      "Confluence",
+        label: "Confluence",
     },
 };
 
@@ -353,12 +352,10 @@ function handlePillClick(key) {
     if (!pill) return;
 
     if (pill.getAttribute("data-connected") !== "true") {
-        // Not yet connected — start OAuth immediately
         PILL_SERVICES[key]?.connect();
         return;
     }
 
-    // Toggle selection on connected pill
     const alreadySelected = pill.getAttribute("data-selected") === "true";
     Object.keys(PILL_SERVICES).forEach(k => {
         const p = document.getElementById(`pill-${k}`);
@@ -374,11 +371,10 @@ function handlePillClick(key) {
 }
 
 function _updatePillActions() {
-    const bar   = document.getElementById("pill-actions");
+    const bar = document.getElementById("pill-actions");
     const label = document.getElementById("pill-actions-label");
     if (!bar) return;
 
-    // If no pill is explicitly selected, auto-pick the first connected one
     if (!_selectedPill) {
         const firstConnected = Object.keys(PILL_SERVICES).find(k => {
             const p = document.getElementById(`pill-${k}`);
@@ -399,45 +395,20 @@ function _updatePillActions() {
     }
 }
 
-function pillSyncSelected()       { if (_selectedPill) PILL_SERVICES[_selectedPill]?.sync(); }
+function pillSyncSelected() { if (_selectedPill) PILL_SERVICES[_selectedPill]?.sync(); }
 function pillDisconnectSelected() { if (_selectedPill) PILL_SERVICES[_selectedPill]?.disconnect(); }
 
-async function startDriveOAuth() {
-
-    const btn = document.getElementById("btn-connect-gdrive");
-    if (btn) { btn.disabled = true; btn.textContent = "Connecting..."; }
-    try {
-        const resp = await authFetch(`${API_BASE}/gdrive/oauth/start`);
-        if (!resp.ok) {
-            const err = await resp.json().catch(() => ({ detail: resp.statusText }));
-            alert(`Could not start Google Drive auth: ${err.detail}`);
-            if (btn) { btn.disabled = false; btn.textContent = "Connect"; }
-            return;
-        }
-        const { url } = await resp.json();
-        window.location.href = url;   // browser navigates to Google's consent page
-    } catch (e) {
-        alert("Network error starting Google Drive auth.");
-        if (btn) { btn.disabled = false; btn.textContent = "Connect"; }
-    }
-}
-
-// ── Slack connection ──────────────────────────────────────────────────
+// ── Service Connection Checks ──────────────────────────────────────────
 async function checkSlackConnection() {
     const statusEl = document.getElementById("slack-status-text");
-    const btnEl    = document.getElementById("btn-connect-slack");
+    const btnEl = document.getElementById("btn-connect-slack");
     if (!statusEl || !btnEl) return;
     try {
-        // Use plain fetch with manual auth headers — do NOT use authFetch here.
-        // A 401 from /connections must NEVER trigger a redirect: it only means
-        // Slack isn't connected yet, which is normal for new users.
-        const authHeaders = (typeof window.getAuthHeaders === "function")
-            ? window.getAuthHeaders()
-            : {};
+        const authHeaders = (typeof window.getAuthHeaders === "function") ? window.getAuthHeaders() : {};
         const resp = await fetch(`${API_BASE}/connections`, { headers: authHeaders });
         if (!resp.ok) { _setSlackDisconnected(); return; }
         const connections = await resp.json();
-        const slackConn   = connections.find(c => c.source === "slack");
+        const slackConn = connections.find(c => c.source === "slack");
         if (slackConn) _setSlackConnected(slackConn.connected_at);
         else _setSlackDisconnected();
     } catch { statusEl.textContent = "Backend offline"; }
@@ -447,7 +418,6 @@ function _setSlackConnected() {
     const pill = document.getElementById("pill-slack");
     if (!pill) return;
     pill.setAttribute("data-connected", "true");
-    // Auto-select and show action bar if nothing is already selected
     if (!_selectedPill) {
         _selectedPill = "slack";
         pill.setAttribute("data-selected", "true");
@@ -463,6 +433,7 @@ function _setSlackDisconnected() {
     if (_selectedPill === "slack") { _selectedPill = null; _updatePillActions(); }
 }
 
+// Parameterized Shared Eviction Disconnect Helper Block
 async function _disconnectServiceHelper({ serviceName, endpoint, buttonId, setDisconnectedFn, confirmTitle, confirmBody, buttonRestoreText }) {
     const confirmed = await showConfirm(confirmTitle, confirmBody, "Disconnect");
     if (!confirmed) return;
@@ -486,22 +457,14 @@ async function _disconnectServiceHelper({ serviceName, endpoint, buttonId, setDi
             alert(`Could not disconnect: ${err.detail || resp.statusText}`);
             if (btnDisc) {
                 btnDisc.disabled = false;
-                if (buttonRestoreText.includes("<svg")) {
-                    btnDisc.innerHTML = buttonRestoreText;
-                } else {
-                    btnDisc.textContent = buttonRestoreText;
-                }
+                btnDisc.innerHTML = buttonRestoreText;
             }
         }
     } catch (e) {
         alert("Network error while disconnecting. Is the backend running?");
         if (btnDisc) {
             btnDisc.disabled = false;
-            if (buttonRestoreText.includes("<svg")) {
-                btnDisc.innerHTML = buttonRestoreText;
-            } else {
-                btnDisc.textContent = buttonRestoreText;
-            }
+            btnDisc.innerHTML = buttonRestoreText;
         }
     }
 }
@@ -513,14 +476,11 @@ async function disconnectSlack() {
         buttonId: "btn-disconnect-slack",
         setDisconnectedFn: _setSlackDisconnected,
         confirmTitle: "Disconnect Slack?",
-        confirmBody: "Your stored Slack credentials will be removed and automatic syncing will stop. " +
-            "Already-indexed Slack data stays in your knowledge base — you can clear it separately with the Clear Index button.",
+        confirmBody: "Your credentials will be removed. Stored knowledge stays—wipe it separately with Clear Index.",
         buttonRestoreText: "✕ Disconnect"
     });
 }
 
-
-// ── Google Drive connection ──────────────────────────────────────────────
 async function checkDriveConnection() {
     try {
         const resp = await authFetch(`${API_BASE}/gdrive/status`);
@@ -528,14 +488,13 @@ async function checkDriveConnection() {
         const data = await resp.json();
         if (data.connected) _setDriveConnected(data.connected_at);
         else _setDriveDisconnected();
-    } catch { /* backend offline, ignore */ }
+    } catch { /* backend offline */ }
 }
 
 function _setDriveConnected() {
     const pill = document.getElementById("pill-gdrive");
     if (!pill) return;
     pill.setAttribute("data-connected", "true");
-    // Auto-select and show action bar if nothing is already selected
     if (!_selectedPill) {
         _selectedPill = "gdrive";
         pill.setAttribute("data-selected", "true");
@@ -558,17 +517,14 @@ async function disconnectDrive() {
         buttonId: "btn-disconnect-gdrive",
         setDisconnectedFn: _setDriveDisconnected,
         confirmTitle: "Disconnect Google Drive?",
-        confirmBody: "Your stored Google credentials will be removed and automatic syncing will stop. " +
-            "Already-indexed Drive data stays in your knowledge base — clear it separately with the Clear Index button.",
+        confirmBody: "Your credentials will be removed. Stored knowledge base data stays untouched.",
         buttonRestoreText: "✕ Disconnect"
     });
 }
 
 async function syncDrive() {
-    const banner  = document.getElementById("oauth-banner");
+    const banner = document.getElementById("oauth-banner");
     const syncBtn = document.getElementById("pill-gdrive-sync");
-
-    // Disable the sync button to prevent double-clicks
     if (syncBtn) { syncBtn.disabled = true; syncBtn.textContent = "⏳ Syncing..."; }
 
     try {
@@ -581,14 +537,12 @@ async function syncDrive() {
         if (resp.ok) {
             if (banner) {
                 banner.className = "oauth-toast success";
-                banner.innerHTML = "🔄 Google Drive indexing started — this runs in the background. Check back in a few minutes.";
+                banner.innerHTML = "🔄 Google Drive indexing started in the background.";
                 banner.classList.remove("hidden");
             }
-            // Poll status every 5 seconds and update the banner
             _pollDriveSyncStatus(banner, syncBtn);
         } else {
             const err = await resp.json().catch(() => ({ detail: "Unknown error" }));
-            // "already running" is fine — just show progress
             if (resp.status === 400 && err.detail && err.detail.includes("already running")) {
                 if (banner) {
                     banner.className = "oauth-toast success";
@@ -618,8 +572,6 @@ async function syncDrive() {
 
 function _pollDriveSyncStatus(banner, syncBtn) {
     let pollCount = 0;
-    const maxPolls = 120;  // 10 minutes max (120 × 5s)
-
     const interval = setInterval(async () => {
         pollCount++;
         try {
@@ -632,25 +584,22 @@ function _pollDriveSyncStatus(banner, syncBtn) {
                     banner.innerHTML = `⏳ Indexing Drive... ${s.ingested || 0} chunks added so far.`;
                 } else {
                     banner.className = "oauth-toast success";
-                    banner.innerHTML = `✅ Drive indexing complete — ${s.ingested || 0} chunks added. You can now ask questions!`;
+                    banner.innerHTML = `✅ Drive indexing complete — ${s.ingested || 0} chunks added.`;
                     setTimeout(() => banner.classList.add("hidden"), 10000);
                     if (syncBtn) { syncBtn.disabled = false; syncBtn.textContent = "🔄 Sync Now"; }
-                    // Refresh the file list so newly indexed Drive files appear
                     if (typeof loadFilesList === "function") loadFilesList();
                     clearInterval(interval);
                 }
             }
         } catch { /* ignore poll errors */ }
-
-        if (pollCount >= maxPolls) {
+        if (pollCount >= 120) {
             clearInterval(interval);
             if (syncBtn) { syncBtn.disabled = false; syncBtn.textContent = "🔄 Sync Now"; }
         }
     }, 5000);
 }
 
-
-// ── Backend connection ────────────────────────────────────────────────
+// ── Backend health diagnostics ──────────────────────────────────────────
 async function checkBackendConnection() {
     try {
         const r = await authFetch(`${API_BASE}/health`);
@@ -661,21 +610,20 @@ async function checkBackendConnection() {
 }
 
 function _setOnline(online) {
-    const ind  = connectionStatus.querySelector(".status-indicator");
+    const ind = connectionStatus.querySelector(".status-indicator");
     const text = connectionStatus.querySelector(".status-text");
     if (online) {
-        ind.className  = "status-indicator online";
+        ind.className = "status-indicator online";
         text.innerText = "Online";
     } else {
-        ind.className  = "status-indicator offline";
+        ind.className = "status-indicator offline";
         text.innerText = "Offline — start backend";
     }
-    // Also update topbar sub
     const topSub = document.getElementById("model-status");
     if (topSub && !online) topSub.textContent = "⚠️ Backend offline — run: uvicorn backend.main:app";
 }
 
-// ── Stats (counts only — file list loaded lazily) ────────────────────
+// ── Knowledge Analytics ────────────────────────────────────────────────
 let _sourcesLoaded = false;
 
 async function updateStats() {
@@ -683,29 +631,25 @@ async function updateStats() {
         const r = await authFetch(`${API_BASE}/status`);
         if (!r.ok) return;
         const data = await r.json();
-        const chunks  = data.indexed_chunks_count  || 0;
+        const chunks = data.indexed_chunks_count || 0;
         const sources = data.indexed_sources_count || 0;
         const hasData = chunks > 0;
 
         statChunks.innerText = chunks.toLocaleString();
-        statFiles.innerText  = sources.toLocaleString();
+        statFiles.innerText = sources.toLocaleString();
 
-        // Update the Knowledge Base nav tab badge
         const navBadge = document.getElementById("nav-chunks-badge");
         if (navBadge) navBadge.textContent = chunks > 999 ? "999+" : chunks.toLocaleString();
 
-        // Always keep input enabled — grounding firewall handles the no-docs case.
         queryInput.disabled = false;
         queryInput.placeholder = hasData
             ? "Ask your personal knowledge base anything..."
             : "Upload documents or connect Slack / Drive to begin...";
-
     } catch (e) {
         console.error("updateStats:", e);
     }
 }
 
-// Called lazily when user opens the sources/files panel
 async function loadFilesList() {
     if (_sourcesLoaded) return;
     _sourcesLoaded = true;
@@ -736,15 +680,15 @@ async function loadFilesList() {
     }
 }
 
-// ── File Upload ───────────────────────────────────────────────────────
-const uploadDropZone  = document.getElementById("upload-drop-zone");
+// ── File Upload Mechanics ─────────────────────────────────────────────
+const uploadDropZone = document.getElementById("upload-drop-zone");
 const uploadFileInput = document.getElementById("upload-file-input");
 const uploadProgressList = document.getElementById("upload-progress-list");
 
 if (uploadDropZone) {
     uploadDropZone.addEventListener("click", () => uploadFileInput && uploadFileInput.click());
     uploadDropZone.addEventListener("dragover", e => { e.preventDefault(); uploadDropZone.classList.add("drag-over"); });
-    uploadDropZone.addEventListener("dragleave",  () => uploadDropZone.classList.remove("drag-over"));
+    uploadDropZone.addEventListener("dragleave", () => uploadDropZone.classList.remove("drag-over"));
     uploadDropZone.addEventListener("drop", e => {
         e.preventDefault();
         uploadDropZone.classList.remove("drag-over");
@@ -755,7 +699,7 @@ if (uploadFileInput) {
     uploadFileInput.addEventListener("change", () => {
         if (uploadFileInput.files.length) {
             uploadFiles(Array.from(uploadFileInput.files));
-            uploadFileInput.value = ""; // reset so same file can be re-uploaded
+            uploadFileInput.value = "";
         }
     });
 }
@@ -789,17 +733,14 @@ async function uploadFiles(files) {
             badge.className = "upload-row-badge error";
             badge.textContent = "✗ Network error";
         }
-
-        // Auto-remove row after 8 seconds
         setTimeout(() => row.remove(), 8000);
     }
 }
 
-
 async function clearIndex() {
     const confirmed = await showConfirm(
         "Clear all indexed knowledge?",
-        "This removes all vector chunks, graph nodes, and graph edges for your workspace. Source files on disk are untouched — you can re-index at any time.",
+        "This removes all vector chunks, graph nodes, and graph edges for your workspace.",
         "Clear index"
     );
     if (!confirmed) return;
@@ -810,7 +751,7 @@ async function clearIndex() {
             renderExperts([]);
             renderSources([]);
             updateStats();
-            _sourcesLoaded = false;  // force file list reload after clear
+            _sourcesLoaded = false;
             loadFilesList();
         } else {
             const err = await r.json();
@@ -819,14 +760,11 @@ async function clearIndex() {
     } catch (e) { alert(`Error: ${e}`); }
 }
 
-// ═══════════════════════════════════════════════════════════════════════
-// QUERY — with streaming telemetry log
-// ═══════════════════════════════════════════════════════════════════════
+// ── Ingestion Core Processing ──────────────────────────────────────────
 async function sendQuery(overrideQuery) {
-    const query = overrideQuery || queryInput.value.trim();
+    const query = (typeof overrideQuery === "string" ? overrideQuery : "") || queryInput.value.trim();
     if (!query) return;
 
-    // Close drawers on mobile when sending query
     if (sidebar) sidebar.classList.remove("open");
     if (canvasColumn) canvasColumn.classList.remove("open");
     if (drawerOverlay) drawerOverlay.classList.remove("active");
@@ -834,17 +772,13 @@ async function sendQuery(overrideQuery) {
     lastQuery = query;
     _hideWelcome();
 
-    // Append user block
     appendUserBlock(query);
-    queryInput.value   = "";
+    queryInput.value = "";
     queryInput.style.height = "auto";
-    btnSend.disabled   = true;
+    btnSend.disabled = true;
 
-    // Append assistant block with streaming log
     const { blockEl, logEl, bodyEl, headerEl } = appendAssistantBlock();
     const t0 = Date.now();
-
-    // Stream log: step 1
     const step1 = addStreamStep(logEl, "🔍 Searching knowledge base...", "active");
 
     try {
@@ -854,7 +788,6 @@ async function sendQuery(overrideQuery) {
             body: JSON.stringify({ query, history: conversationHistory }),
         });
 
-        // Stream log: step 2
         step1.classList.remove("active");
         step1.classList.add("done");
         const step2 = addStreamStep(logEl, "Running synthesis...", "active");
@@ -866,11 +799,9 @@ async function sendQuery(overrideQuery) {
             step2.classList.remove("active");
             step2.classList.add("done");
 
-            // Clear log, render telemetry in header
             logEl.innerHTML = "";
             _setTelemetry(headerEl, latencyMs, data.model || "phi4-mini · Q4_K_M");
 
-            // Add to conversation history
             conversationHistory.push({ role: "user", content: query });
             conversationHistory.push({ role: "assistant", content: data.response });
 
@@ -888,8 +819,8 @@ async function sendQuery(overrideQuery) {
                 detail = err.detail || detail;
             } catch (jsonErr) {
                 const text = await r.text().catch(() => "");
-                if (r.status === 504 || text.toLowerCase().includes("timeout") || text.toLowerCase().includes("gateway")) {
-                    detail = "Request timed out. The LLM took too long to generate a response on the VM CPU. Try increasing your proxy/Nginx timeouts or using a faster/smaller model.";
+                if (r.status === 504 || text.toLowerCase().includes("timeout")) {
+                    detail = "Request timed out. Local inference execution metrics exceeded thresholds.";
                 } else {
                     detail = `Server returned status ${r.status}`;
                 }
@@ -901,11 +832,10 @@ async function sendQuery(overrideQuery) {
         logEl.innerHTML = "";
         bodyEl.innerHTML = `<p>⚠️ Cannot reach backend: ${escHtml(String(e))}</p>`;
     }
-
     btnSend.disabled = !queryInput.value.trim();
 }
 
-// ── Message block builders ────────────────────────────────────────────
+// ── Render Presentation Templates ──────────────────────────────────────
 function appendUserBlock(text) {
     const block = document.createElement("div");
     block.className = "message-block user";
@@ -928,7 +858,7 @@ function appendAssistantBlock() {
     headerEl.className = "msg-header";
     headerEl.innerHTML = `
         <div class="msg-role-icon"><svg viewBox="0 0 24 24" fill="none" width="16" height="16"><path d="M12 2L3 6v6c0 5.25 3.75 10.15 9 11.25C17.25 22.15 21 17.25 21 12V6L12 2z" fill="rgba(99,102,241,0.3)" stroke="rgba(99,102,241,0.8)" stroke-width="1.5"/><path d="M9 12l2 2 4-4" stroke="#a5f3fc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-        <div class="msg-role-label">Smriti</div>
+            <div class="msg-role-label">Smriti</div>
     `;
 
     const logEl = document.createElement("div");
@@ -938,35 +868,29 @@ function appendAssistantBlock() {
     bodyEl.className = "msg-body";
     bodyEl.innerHTML = `<div class="typing-dots"><span></span><span></span><span></span></div>`;
 
-    // Hover action overlay
     const actionsEl = document.createElement("div");
     actionsEl.className = "msg-actions";
     actionsEl.innerHTML = `
         <button class="msg-action-btn btn-copy" title="Copy response">
-            <svg viewBox="0 0 24 24" fill="none" width="12" height="12"><rect x="9" y="9" width="13" height="13" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="1.5"/></svg>
-            Copy
+            <svg viewBox="0 0 24 24" fill="none" width="12" height="12"><rect x="9" y="9" width="13" height="13" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="1.5"/></svg> Copy
         </button>
         <button class="msg-action-btn btn-regen" title="Regenerate">
-            <svg viewBox="0 0 24 24" fill="none" width="12" height="12"><path d="M1 4v6h6M23 20v-6h-6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10M23 14l-4.64 4.36A9 9 0 0 1 3.51 15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            Regenerate
+            <svg viewBox="0 0 24 24" fill="none" width="12" height="12"><path d="M1 4v6h6M23 20v-6h-6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10M23 14l-4.64 4.36A9 9 0 0 1 3.51 15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Regenerate
         </button>
     `;
 
-    // Wire copy
     actionsEl.querySelector(".btn-copy").addEventListener("click", () => {
-        const text = bodyEl.innerText;
-        navigator.clipboard.writeText(text).then(() => {
+        navigator.clipboard.writeText(bodyEl.innerText).then(() => {
             const btn = actionsEl.querySelector(".btn-copy");
             btn.classList.add("copied-flash");
-            btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" width="12" height="12"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Copied!`;
+            btn.innerHTML = `✓ Copied!`;
             setTimeout(() => {
                 btn.classList.remove("copied-flash");
-                btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" width="12" height="12"><rect x="9" y="9" width="13" height="13" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="1.5"/></svg> Copy`;
+                btn.innerHTML = `Copy`;
             }, 2000);
         });
     });
 
-    // Wire regenerate
     actionsEl.querySelector(".btn-regen").addEventListener("click", () => {
         if (!lastQuery) return;
         bodyEl.innerHTML = `<div class="typing-dots"><span></span><span></span><span></span></div>`;
@@ -995,10 +919,7 @@ function addStreamStep(logEl, text, cls) {
 function _setTelemetry(headerEl, latencyMs, model) {
     const telem = document.createElement("div");
     telem.className = "msg-telemetry";
-    telem.innerHTML = `
-        <span class="telemetry-latency">⏱ ${latencyMs}ms</span>
-        <span class="telemetry-model">${escHtml(model)}</span>
-    `;
+    telem.innerHTML = `<span class="telemetry-latency">⏱ ${latencyMs}ms</span><span class="telemetry-model">${escHtml(model)}</span>`;
     headerEl.appendChild(telem);
 }
 
@@ -1011,25 +932,15 @@ function appendSystemMsg(text) {
     _scroll();
 }
 
-function _scroll() {
-    chatHistory.scrollTop = chatHistory.scrollHeight;
-}
+function _scroll() { chatHistory.scrollTop = chatHistory.scrollHeight; }
 
-// ═══════════════════════════════════════════════════════════════════════
-// RESPONSE FORMATTER — numbered citation badges
-// ═══════════════════════════════════════════════════════════════════════
+// ── Response Formatting ───────────────────────────────────────────────
 function formatResponse(text, context) {
     let out = escHtml(text);
-
-    // Bold: **text**
     out = out.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
-
-    // Inline code: `text`
     out = out.replace(/`([^`]+)`/g, "<code>$1</code>");
 
-    // Citation pattern: [Citation: source, location]
-    // Map to numbered badges, numbered in order of appearance
-    const citeMap = {};   // source → number
+    const citeMap = {};
     let citeCounter = 0;
 
     out = out.replace(/\[Citation:\s*([^,\]]+),\s*([^\]]+)\]/g, (match, source, location) => {
@@ -1042,38 +953,27 @@ function formatResponse(text, context) {
         return `<span class="cite-badge" data-cite-num="${num}" data-source="${escAttr(source.trim())}" data-location="${escAttr(location.trim())}">${num}</span>`;
     });
 
-    // Paragraphs
-    out = out.split("\n").map(l => l.trim() ? `<p>${l}</p>` : "").join("");
-    return out;
+    return out.split("\n").map(l => l.trim() ? `<p>${l}</p>` : "").join("");
 }
 
-// Wire citation badge → canvas card highlight + tooltip
 function setupCiteEvents(container, blockEl) {
     container.querySelectorAll(".cite-badge").forEach(badge => {
-        const num      = parseInt(badge.dataset.citeNum);
-        const source   = badge.dataset.source;
+        const num = parseInt(badge.dataset.citeNum);
+        const source = badge.dataset.source;
         const location = badge.dataset.location;
 
-        // Find snippet from context
-        const ctx = lastRetrievedContext.find(c =>
-            c.source && c.source.toLowerCase() === source.toLowerCase()
-        );
-        const snippet = ctx
-            ? ctx.content.substring(0, 240) + (ctx.content.length > 240 ? "…" : "")
-            : "Source snippet not available.";
+        const ctx = lastRetrievedContext.find(c => c.source && c.source.toLowerCase() === source.toLowerCase());
+        const snippet = ctx ? ctx.content.substring(0, 240) + "…" : "Source snippet not available.";
 
-        // Click → highlight canvas card
         badge.addEventListener("click", () => {
-            // Deactivate all badges in this block
             blockEl.querySelectorAll(".cite-badge").forEach(b => b.classList.remove("active"));
             badge.classList.add("active");
             highlightSourceCard(num);
         });
 
-        // Hover → tooltip
-        badge.addEventListener("mouseenter", (e) => {
+        badge.addEventListener("mouseenter", () => {
             const link = _getSourceLink(source, location);
-            const linkHtml = link ? ` <a href="${link}" target="_blank" class="tooltip-link" style="color:var(--color-primary);margin-left:8px;text-decoration:underline;font-weight:600;">Open ↗</a>` : "";
+            const linkHtml = link ? ` <a href="${link}" target="_blank" class="tooltip-link">Open ↗</a>` : "";
             citationTooltip.innerHTML = `
                 <div class="tooltip-src">[${num}] ${escHtml(source)} — ${escHtml(location)}${linkHtml}</div>
                 <div class="tooltip-text">"${escHtml(snippet)}"</div>
@@ -1081,31 +981,24 @@ function setupCiteEvents(container, blockEl) {
             citationTooltip.classList.remove("hidden");
             _positionTooltip(badge);
         });
-        badge.addEventListener("mouseleave", () => {
-            citationTooltip.classList.add("hidden");
-        });
+        badge.addEventListener("mouseleave", () => { citationTooltip.classList.add("hidden"); });
     });
 }
 
 function _positionTooltip(anchor) {
-    const r    = anchor.getBoundingClientRect();
+    const r = anchor.getBoundingClientRect();
     const tipH = citationTooltip.offsetHeight || 100;
-    citationTooltip.style.top  = `${r.top - tipH - 8}px`;
+    citationTooltip.style.top = `${r.top - tipH - 8}px`;
     citationTooltip.style.left = `${Math.max(8, r.left)}px`;
 }
 
 function highlightSourceCard(num) {
-    // Remove active from all source cards
-    document.querySelectorAll(".source-card").forEach(c => {
-        c.classList.remove("active");
-        c.classList.remove("expanded");
-    });
+    document.querySelectorAll(".source-card").forEach(c => { c.classList.remove("active", "expanded"); });
     const card = document.querySelector(`.source-card[data-num="${num}"]`);
     if (!card) return;
     card.classList.add("active", "expanded");
     card.scrollIntoView({ behavior: "smooth", block: "nearest" });
 
-    // Auto-open canvas drawer on mobile when citation is highlighted
     if (window.innerWidth <= 800) {
         if (canvasColumn) canvasColumn.classList.add("open");
         if (sidebar) sidebar.classList.remove("open");
@@ -1116,31 +1009,20 @@ function highlightSourceCard(num) {
 function _getSourceLink(source, location) {
     if (!source) return null;
     if (source.startsWith("gdrive_")) {
-        const fileId = source.substring(7);
-        return `https://drive.google.com/open?id=${fileId}`;
+        return `https://drive.google.com/open?id=${source.substring(7)}`;
     }
     if (source.startsWith("slack_")) {
         const parts = source.split("_");
-        if (parts.length >= 2) {
-            const channelId = parts[1];
-            return `https://slack.com/app_redirect?channel=${channelId}`;
-        }
+        if (parts.length >= 2) return `https://slack.com/app_redirect?channel=${parts[1]}`;
     }
     return null;
 }
 
-// ═══════════════════════════════════════════════════════════════════════
-// CANVAS — Source cards (accordion)
-// ═══════════════════════════════════════════════════════════════════════
+// ── Accordion Panel Viewports ──────────────────────────────────────────
 function renderSources(chunks) {
     const pill = document.getElementById("source-count-pill");
-
     if (!chunks || chunks.length === 0) {
-        sourcesList.innerHTML = `
-            <div class="canvas-empty">
-                <div class="canvas-empty-icon"><svg viewBox="0 0 24 24" fill="none" width="36" height="36"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-                <p>Sources referenced in the last response will appear here.</p>
-            </div>`;
+        sourcesList.innerHTML = `<div class="canvas-empty"><p>Sources referenced will appear here.</p></div>`;
         if (pill) pill.textContent = "0 sources";
         return;
     }
@@ -1149,21 +1031,20 @@ function renderSources(chunks) {
     sourcesList.innerHTML = "";
 
     chunks.slice(0, 5).forEach((chunk, idx) => {
-        const num         = idx + 1;
-        const score       = Math.round((chunk.score || 0) * 100);
-        const sourceName  = chunk.source || "Unknown source";
-        const location    = chunk.location || "—";
-        const snippet     = (chunk.content || "").substring(0, 280);
-        const wordCount   = (chunk.content || "").split(" ").length;
-        const typeIcon    = _sourceTypeIcon(sourceName);
-
+        const num = idx + 1;
+        const score = Math.round((chunk.score || 0) * 100);
+        const sourceName = chunk.source || "Unknown source";
+        const location = chunk.location || "—";
+        const snippet = (chunk.content || "").substring(0, 280);
+        const wordCount = (chunk.content || "").split(" ").length;
+        const typeIcon = _sourceTypeIcon(sourceName);
         const card = document.createElement("div");
         card.className = "source-card";
         card.dataset.num = num;
-        
+
         const link = _getSourceLink(sourceName, location);
         const nameHtml = link
-            ? `<a href="${link}" target="_blank" class="source-link-anchor" style="color:var(--color-primary);text-decoration:none;font-weight:600;display:inline-flex;align-items:center;gap:4px;">${typeIcon} ${escHtml(truncate(sourceName, 32))} <svg viewBox="0 0 24 24" fill="none" width="10" height="10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg></a>`
+            ? `<a href="${link}" target="_blank" class="source-link-anchor">${typeIcon} ${escHtml(truncate(sourceName, 32))}</a>`
             : `${typeIcon} ${escHtml(truncate(sourceName, 32))}`;
 
         card.innerHTML = `
@@ -1174,61 +1055,33 @@ function renderSources(chunks) {
                     <div class="source-card-loc">${escHtml(location)}</div>
                 </div>
                 <div class="source-card-score">${score}%</div>
-                <svg class="source-card-chevron" viewBox="0 0 24 24" fill="none" width="12" height="12">
-                    <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
             </div>
             <div class="source-card-body">
-                <div class="source-snippet">"${escHtml(snippet)}${snippet.length < (chunk.content || "").length ? "…" : ""}"</div>
+                <div class="source-snippet">"${escHtml(snippet)}…"</div>
                 <div class="source-meta-row">
                     <span class="source-meta-chip">~${wordCount} words</span>
                     <span class="source-meta-chip">relevance: ${score}%</span>
-                    ${chunk.category ? `<span class="source-meta-chip">${escHtml(chunk.category)}</span>` : ""}
                 </div>
             </div>
         `;
-
-        // Toggle accordion on header click
-        card.querySelector(".source-card-header").addEventListener("click", () => {
-            card.classList.toggle("expanded");
-        });
-
+        card.querySelector(".source-card-header").addEventListener("click", () => { card.classList.toggle("expanded"); });
         sourcesList.appendChild(card);
     });
 }
 
 function _sourceTypeIcon(name) {
     const n = name.toLowerCase();
-    if (n.includes("slack") || n.includes("#"))           return "<svg viewBox='0 0 24 24' fill='none' width='13' height='13'><path d='M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z' stroke='currentColor' stroke-width='1.5'/></svg>";
-    if (n.includes(".pdf"))                               return "<svg viewBox='0 0 24 24' fill='none' width='13' height='13'><path d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z' stroke='currentColor' stroke-width='1.5'/><polyline points='14 2 14 8 20 8' stroke='currentColor' stroke-width='1.5'/></svg>";
-    if (n.includes(".md") || n.includes("readme"))       return "<svg viewBox='0 0 24 24' fill='none' width='13' height='13'><path d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z' stroke='currentColor' stroke-width='1.5'/><line x1='8' y1='13' x2='16' y2='13' stroke='currentColor' stroke-width='1.5'/><line x1='8' y1='17' x2='16' y2='17' stroke='currentColor' stroke-width='1.5'/></svg>";
-    if (n.includes("meeting") || n.includes("transcript")) return "<svg viewBox='0 0 24 24' fill='none' width='13' height='13'><path d='M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z' stroke='currentColor' stroke-width='1.5'/><path d='M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8' stroke='currentColor' stroke-width='1.5' stroke-linecap='round'/></svg>";
-    if (n.includes("spec") || n.includes("prd"))         return "<svg viewBox='0 0 24 24' fill='none' width='13' height='13'><path d='M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2' stroke='currentColor' stroke-width='1.5' stroke-linecap='round'/></svg>";
-    return "<svg viewBox='0 0 24 24' fill='none' width='13' height='13'><path d='M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z' stroke='currentColor' stroke-width='1.5'/></svg>";
+    if (n.includes("slack") || n.includes("#")) return "💬";
+    if (n.includes(".pdf")) return "📄";
+    if (n.includes(".md") || n.includes("readme")) return "📝";
+    return "📁";
 }
 
-// ═══════════════════════════════════════════════════════════════════════
-// EXPERTS
-// ═══════════════════════════════════════════════════════════════════════
 function renderExperts(experts) {
     if (!experts || experts.length === 0) {
-        expertList.innerHTML = `
-            <div class="canvas-empty">
-                <div class="canvas-empty-icon">🔍</div>
-                <p>Experts surface from the knowledge graph after each query.</p>
-            </div>`;
+        expertList.innerHTML = `<div class="canvas-empty"><p>Experts surface from the knowledge graph after each query.</p></div>`;
         return;
     }
-    // Cold-start sentinel
-    if (experts.length === 1 && experts[0].name === "_cold_start") {
-        expertList.innerHTML = `
-            <div class="canvas-empty">
-                <div class="canvas-empty-icon">📊</div>
-                <p>${escHtml(experts[0].message)}</p>
-            </div>`;
-        return;
-    }
-
     expertList.innerHTML = "";
     experts.forEach((expert, idx) => {
         const item = document.createElement("div");
@@ -1237,9 +1090,7 @@ function renderExperts(experts) {
             <div class="expert-rank">#${idx + 1}</div>
             <div class="expert-info">
                 <div class="expert-name">${escHtml(expert.name)}</div>
-                <div class="expert-bar-wrap">
-                    <div class="expert-bar" style="width:${Math.min(100, expert.score * 10)}%"></div>
-                </div>
+                <div class="expert-bar-wrap"><div class="expert-bar" style="width:${Math.min(100, expert.score * 10)}%"></div></div>
             </div>
             <div class="expert-chip">${expert.score.toFixed(1)}</div>
         `;
@@ -1247,34 +1098,16 @@ function renderExperts(experts) {
     });
 }
 
-// ── Utilities ──────────────────────────────────────────────────────────
-function escHtml(s) {
-    return String(s)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;");
-}
+function escHtml(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
 function escAttr(s) { return String(s).replace(/"/g, "&quot;"); }
 function truncate(s, n) { return s && s.length > n ? s.substring(0, n) + "…" : s; }
 
-
-// ── Confluence connection ──────────────────────────────────────────────
-function showConfluenceModal() {
-    const modal = document.getElementById("confluence-modal");
-    if (modal) modal.style.display = "flex";
-}
-
+// ── Confluence Modal Handlers ──────────────────────────────────────────
+function showConfluenceModal() { const modal = document.getElementById("confluence-modal"); if (modal) modal.style.display = "flex"; }
 function closeConfluenceModal() {
     const modal = document.getElementById("confluence-modal");
     if (modal) modal.style.display = "none";
-    
-    const urlInput = document.getElementById("conf-url");
-    const emailInput = document.getElementById("conf-email");
-    const tokenInput = document.getElementById("conf-token");
-    if (urlInput) urlInput.value = "";
-    if (emailInput) emailInput.value = "";
-    if (tokenInput) tokenInput.value = "";
+    document.querySelectorAll("#conf-url, #conf-email, #conf-token").forEach(i => i.value = "");
 }
 
 async function connectConfluence() {
@@ -1282,58 +1115,35 @@ async function connectConfluence() {
     const emailInput = document.getElementById("conf-email");
     const tokenInput = document.getElementById("conf-token");
     const btn = document.getElementById("conf-connect");
-    
     if (!urlInput || !emailInput || !tokenInput) return;
-    
+
     const url = urlInput.value.trim();
     const email = emailInput.value.trim();
     const token = tokenInput.value.trim();
-    
-    if (!url || !email || !token) {
-        alert("Please fill in all fields (URL, email, and API token).");
-        return;
-    }
-    
-    if (btn) {
-        btn.disabled = true;
-        btn.textContent = "Connecting...";
-    }
-    
+
+    if (!url || !email || !token) { alert("Please fill in all fields."); return; }
+    if (btn) { btn.disabled = true; btn.textContent = "Connecting..."; }
+
     try {
         const resp = await authFetch(`${API_BASE}/confluence/connect`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                confluence_url: url,
-                email: email,
-                api_token: token
-            })
+            body: JSON.stringify({ confluence_url: url, email: email, api_token: token })
         });
-        
+
         if (resp.ok) {
             closeConfluenceModal();
             _setConfluenceConnected();
-            const banner = document.getElementById("oauth-banner");
-            if (banner) {
-                banner.className = "oauth-toast success";
-                banner.innerHTML = "✅ Confluence connected! Ingestion started in the background. Check back in a few minutes.";
-                banner.classList.remove("hidden");
-            }
+            showBannerToast("✅ Confluence connected! Ingestion running.");
             _pollConfluenceSyncStatus();
         } else {
             const err = await resp.json().catch(() => ({ detail: "Connection failed" }));
             alert(`Error: ${err.detail}`);
-            if (btn) {
-                btn.disabled = false;
-                btn.textContent = "Connect & Sync";
-            }
+            if (btn) { btn.disabled = false; btn.textContent = "Connect & Sync"; }
         }
     } catch (e) {
         alert("Network error connecting to Confluence.");
-        if (btn) {
-            btn.disabled = false;
-            btn.textContent = "Connect & Sync";
-        }
+        if (btn) { btn.disabled = false; btn.textContent = "Connect & Sync"; }
     }
 }
 
@@ -1351,8 +1161,6 @@ function _setConfluenceConnected() {
     const pill = document.getElementById("pill-confluence");
     if (!pill) return;
     pill.setAttribute("data-connected", "true");
-    
-    // Auto-select and show action bar if nothing is already selected
     if (!_selectedPill) {
         _selectedPill = "confluence";
         pill.setAttribute("data-selected", "true");
@@ -1371,14 +1179,10 @@ function _setConfluenceDisconnected() {
 async function syncConfluence() {
     const banner = document.getElementById("oauth-banner");
     const syncBtn = document.getElementById("pill-action-sync");
-    
     if (syncBtn) { syncBtn.disabled = true; syncBtn.textContent = "Syncing..."; }
-    
+
     try {
-        const resp = await authFetch(`${API_BASE}/ingest-confluence`, {
-            method: "POST"
-        });
-        
+        const resp = await authFetch(`${API_BASE}/ingest-confluence`, { method: "POST" });
         if (resp.ok) {
             if (banner) {
                 banner.className = "oauth-toast success";
@@ -1394,16 +1198,10 @@ async function syncConfluence() {
                 banner.classList.remove("hidden");
                 setTimeout(() => banner.classList.add("hidden"), 8000);
             }
-            if (syncBtn) { syncBtn.disabled = false; syncBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" width="13" height="13"><path d="M4 4v5h5M20 20v-5h-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 9a8 8 0 0 0-14.93-2M4 15a8 8 0 0 0 14.93 2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg> Sync Data`; }
+            if (syncBtn) { syncBtn.disabled = false; syncBtn.textContent = "Sync Data"; }
         }
     } catch (e) {
-        if (banner) {
-            banner.className = "oauth-toast error";
-            banner.innerHTML = "❌ Network error starting Confluence sync.";
-            banner.classList.remove("hidden");
-            setTimeout(() => banner.classList.add("hidden"), 8000);
-        }
-        if (syncBtn) { syncBtn.disabled = false; syncBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" width="13" height="13"><path d="M4 4v5h5M20 20v-5h-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 9a8 8 0 0 0-14.93-2M4 15a8 8 0 0 0 14.93 2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg> Sync Data`; }
+        if (syncBtn) { syncBtn.disabled = false; syncBtn.textContent = "Sync Data"; }
     }
 }
 
@@ -1414,9 +1212,8 @@ async function disconnectConfluence() {
         buttonId: "pill-action-disc",
         setDisconnectedFn: _setConfluenceDisconnected,
         confirmTitle: "Disconnect Confluence?",
-        confirmBody: "Your stored Confluence credentials will be removed. " +
-            "Indexed wiki data stays in your database — clear it separately using the Clear Index button.",
-        buttonRestoreText: `<svg viewBox="0 0 24 24" fill="none" width="13" height="13"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg> Disconnect`
+        confirmBody: "Credentials will be removed. Stored page data stays untouched.",
+        buttonRestoreText: "✕ Disconnect"
     });
 }
 
@@ -1437,7 +1234,7 @@ function _pollConfluenceSyncStatus() {
                     banner.className = "oauth-toast success";
                     banner.innerHTML = `✅ Confluence sync complete — ${s.ingested || 0} chunks added.`;
                     setTimeout(() => banner.classList.add("hidden"), 10000);
-                    if (syncBtn) { syncBtn.disabled = false; syncBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" width="13" height="13"><path d="M4 4v5h5M20 20v-5h-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 9a8 8 0 0 0-14.93-2M4 15a8 8 0 0 0 14.93 2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg> Sync Data`; }
+                    if (syncBtn) { syncBtn.disabled = false; syncBtn.textContent = "Sync Data"; }
                     if (typeof loadFilesList === "function") loadFilesList();
                     clearInterval(interval);
                 }
@@ -1445,21 +1242,14 @@ function _pollConfluenceSyncStatus() {
         } catch { /* ignore */ }
         if (pollCount >= 120) {
             clearInterval(interval);
-            if (syncBtn) { syncBtn.disabled = false; syncBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" width="13" height="13"><path d="M4 4v5h5M20 20v-5h-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 9a8 8 0 0 0-14.93-2M4 15a8 8 0 0 0 14.93 2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg> Sync Data`; }
+            if (syncBtn) { syncBtn.disabled = false; syncBtn.textContent = "Sync Data"; }
         }
     }, 5000);
 }
 
-// ── Workspace Settings Functions ──────────────────────────────────────────────
-function showSettingsModal() {
-    if (settingsModal) settingsModal.style.display = "flex";
-    loadOrgInfo();
-}
-
-function closeSettingsModal() {
-    if (settingsModal) settingsModal.style.display = "none";
-    cancelEditOrgName();
-}
+// ── Workspace Profiles ──────────────────────────────────────────────────
+function showSettingsModal() { if (settingsModal) settingsModal.style.display = "flex"; loadOrgInfo(); }
+function closeSettingsModal() { if (settingsModal) settingsModal.style.display = "none"; cancelEditOrgName(); }
 
 async function loadWorkspaceProfile() {
     try {
@@ -1467,243 +1257,85 @@ async function loadWorkspaceProfile() {
         if (resp.ok) {
             const data = await resp.json();
             const userDmEl = document.getElementById("user-domain");
-            if (userDmEl && data.company_name) {
-                userDmEl.textContent = data.company_name;
-            }
+            if (userDmEl && data.company_name) userDmEl.textContent = data.company_name;
         }
-    } catch (e) {
-        console.log("Error loading workspace profile:", e);
-    }
+    } catch (e) { console.log("Workspace metadata unavailable:", e); }
 }
 
 async function loadOrgInfo() {
     try {
         const resp = await authFetch(`${API_BASE}/org/info`);
-        if (!resp.ok) {
-            console.error("Failed to fetch organization settings.");
-            return;
-        }
+        if (!resp.ok) return;
         const data = await resp.json();
-        
-        // Populate display info
+
         if (settingsOrgName) settingsOrgName.textContent = data.company_name || "";
         if (settingsOrgDomain) settingsOrgDomain.textContent = data.email_domain || "";
         if (settingsOrgInput) settingsOrgInput.value = data.company_name || "";
-        
-        // Update user domain in sidebar footer
+
         const userDmEl = document.getElementById("user-domain");
-        if (userDmEl && data.company_name) {
-            userDmEl.textContent = data.company_name;
-        }
+        if (userDmEl && data.company_name) userDmEl.textContent = data.company_name;
 
         const isAdmin = data.role === "admin";
-        
-        // Show/hide admin-only sections
         if (btnEditOrgName) btnEditOrgName.style.display = isAdmin ? "inline-block" : "none";
         if (settingsInviteSection) settingsInviteSection.style.display = isAdmin ? "flex" : "none";
-        const settingsAdminSection = document.getElementById("settings-admin-section");
-        if (settingsAdminSection) settingsAdminSection.style.display = isAdmin ? "flex" : "none";
 
-        // Render member table rows
         const currentUserEmail = (document.getElementById('user-email')?.textContent || window.sbSession?.user?.email || '').trim().toLowerCase();
-        
+
         if (settingsMembersList) {
             if (!data.members || data.members.length === 0) {
-                settingsMembersList.innerHTML = `<tr><td colspan="3" style="text-align:center;color:rgba(255,255,255,0.4);padding:12px;">No members found</td></tr>`;
+                settingsMembersList.innerHTML = `<tr><td colspan="3">No members found</td></tr>`;
             } else {
                 settingsMembersList.innerHTML = data.members.map(member => {
                     const emailNormalized = (member.email || "").trim().toLowerCase();
                     const isSelf = emailNormalized === currentUserEmail;
-                    const canRemove = isAdmin && !isSelf;
-                    return `
-                        <tr>
-                            <td>${escapeHtml(member.email)} ${isSelf ? '<span style="color:rgba(255,255,255,0.4);font-size:10px;">(you)</span>' : ''}</td>
-                            <td style="text-transform: capitalize;">${escapeHtml(member.role)}</td>
-                            <td style="text-align: right;">
-                                ${canRemove ? `<button class="settings-action-btn" onclick="removeWorkspaceMember('${member.user_id}', '${escapeHtml(member.email)}')">Remove</button>` : ''}
-                            </td>
-                        </tr>
-                    `;
+                    return `<tr><td>${escapeHtml(member.email)}</td><td>${escapeHtml(member.role)}</td><td>${isAdmin && !isSelf ? `<button class="settings-action-btn" onclick="removeWorkspaceMember('${member.user_id}', '${escapeHtml(member.email)}')">Remove</button>` : ''}</td></tr>`;
                 }).join("");
             }
         }
-
-        // Render invite table rows
-        if (settingsInvitesList) {
-            if (!data.invites || data.invites.length === 0) {
-                settingsInvitesList.innerHTML = `<tr><td colspan="3" style="text-align:center;color:rgba(255,255,255,0.4);padding:12px;">No pending invitations</td></tr>`;
-            } else {
-                settingsInvitesList.innerHTML = data.invites.map(invite => {
-                    return `
-                        <tr>
-                            <td>${escapeHtml(invite.email)}</td>
-                            <td>
-                                <button class="settings-copy-btn" onclick="copyInviteLink(this, '${escapeHtml(invite.invite_link)}')">Copy Link</button>
-                            </td>
-                            <td style="text-align: right;">
-                                ${isAdmin ? `<button class="settings-action-btn" onclick="cancelWorkspaceInvite('${invite.id}', '${escapeHtml(invite.email)}')">Cancel</button>` : ''}
-                            </td>
-                        </tr>
-                    `;
-                }).join("");
-            }
-        }
-    } catch (e) {
-        console.error("Error loading workspace info:", e);
-    }
+    } catch (e) { console.error(e); }
 }
 
-function editOrgName() {
-    if (settingsOrgEditRow) {
-        settingsOrgEditRow.style.display = "flex";
-        if (settingsOrgInput && settingsOrgName) {
-            settingsOrgInput.value = settingsOrgName.textContent;
-            settingsOrgInput.focus();
-        }
-    }
-}
-
-function cancelEditOrgName() {
-    if (settingsOrgEditRow) settingsOrgEditRow.style.display = "none";
-    if (settingsOrgInput) settingsOrgInput.value = "";
-}
+function editOrgName() { if (settingsOrgEditRow && settingsOrgInput && settingsOrgName) { settingsOrgEditRow.style.display = "flex"; settingsOrgInput.value = settingsOrgName.textContent; settingsOrgInput.focus(); } }
+function cancelEditOrgName() { if (settingsOrgEditRow) settingsOrgEditRow.style.display = "none"; }
 
 async function saveOrgName() {
-    if (!settingsOrgInput) return;
     const newName = settingsOrgInput.value.trim();
-    if (!newName) {
-        alert("Organization name cannot be empty.");
-        return;
-    }
-    
+    if (!newName) return;
     try {
-        const resp = await authFetch(`${API_BASE}/org/info`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ company_name: newName })
-        });
-        if (resp.ok) {
-            cancelEditOrgName();
-            loadOrgInfo();
-            showBannerToast("✅ Workspace name updated successfully.");
-        } else {
-            const err = await resp.json().catch(() => ({ detail: "Failed to update workspace name" }));
-            alert(`Error: ${err.detail}`);
-        }
-    } catch (e) {
-        alert("Network error updating workspace name.");
-    }
+        const resp = await authFetch(`${API_BASE}/org/info`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ company_name: newName }) });
+        if (resp.ok) { cancelEditOrgName(); loadOrgInfo(); showBannerToast("✅ Workspace name updated."); }
+    } catch (e) { /* ignore */ }
 }
 
 async function inviteMember() {
-    if (!settingsInviteEmail || !settingsInviteRole) return;
     const email = settingsInviteEmail.value.trim();
     const role = settingsInviteRole.value;
-    if (!email) {
-        alert("Please enter an email address.");
-        return;
-    }
-    
+    if (!email) return;
     try {
-        const resp = await authFetch(`${API_BASE}/org/invite`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email, role })
-        });
-        if (resp.ok) {
-            settingsInviteEmail.value = "";
-            loadOrgInfo();
-            showBannerToast(`✅ Invitation successfully created for ${email}`);
-        } else {
-            const err = await resp.json().catch(() => ({ detail: "Failed to invite member" }));
-            alert(`Error: ${err.detail}`);
-        }
-    } catch (e) {
-        alert("Network error inviting member.");
-    }
+        const resp = await authFetch(`${API_BASE}/org/invite`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, role }) });
+        if (resp.ok) { settingsInviteEmail.value = ""; loadOrgInfo(); showBannerToast(`✅ Invitation sent to ${email}`); }
+    } catch (e) { /* ignore */ }
 }
 
 async function cancelWorkspaceInvite(inviteId, email) {
-    const confirmed = await showConfirm(
-        "Cancel Invitation", 
-        `Are you sure you want to cancel the invitation for ${email}?`, 
-        "Cancel Invite", 
-        true
-    );
-    if (!confirmed) return;
-    
+    if (!await showConfirm("Cancel Invitation", `Revoke access link for ${email}?`, "Cancel Link")) return;
     try {
-        const resp = await authFetch(`${API_BASE}/org/invites/${inviteId}`, {
-            method: "DELETE"
-        });
-        if (resp.ok) {
-            loadOrgInfo();
-            showBannerToast("✅ Invitation successfully canceled.");
-        } else {
-            const err = await resp.json().catch(() => ({ detail: "Failed to cancel invitation" }));
-            alert(`Error: ${err.detail}`);
-        }
-    } catch (e) {
-        alert("Network error canceling invitation.");
-    }
+        const resp = await authFetch(`${API_BASE}/org/invites/${inviteId}`, { method: "DELETE" });
+        if (resp.ok) { loadOrgInfo(); showBannerToast("✅ Invitation link revoked."); }
+    } catch (e) { /* ignore */ }
 }
 
 async function removeWorkspaceMember(userId, email) {
-    const confirmed = await showConfirm(
-        "Remove Member", 
-        `Are you sure you want to remove ${email} from this workspace?`, 
-        "Remove Member", 
-        true
-    );
-    if (!confirmed) return;
-    
+    if (!await showConfirm("Remove Member", `Evict ${email} from workspace profiles?`, "Remove")) return;
     try {
-        const resp = await authFetch(`${API_BASE}/org/members/${userId}`, {
-            method: "DELETE"
-        });
-        if (resp.ok) {
-            loadOrgInfo();
-            showBannerToast("✅ Member successfully removed.");
-        } else {
-            const err = await resp.json().catch(() => ({ detail: "Failed to remove member" }));
-            alert(`Error: ${err.detail}`);
-        }
-    } catch (e) {
-        alert("Network error removing member.");
-    }
+        const resp = await authFetch(`${API_BASE}/org/members/${userId}`, { method: "DELETE" });
+        if (resp.ok) { loadOrgInfo(); showBannerToast("✅ Workspace token evicted."); }
+    } catch (e) { /* ignore */ }
 }
 
-function copyInviteLink(btn, url) {
-    if (!btn || !url) return;
-    navigator.clipboard.writeText(url).then(() => {
-        const oldText = btn.textContent;
-        btn.textContent = "Copied!";
-        setTimeout(() => {
-            btn.textContent = oldText;
-        }, 2000);
-    }).catch(err => {
-        console.error("Failed to copy text: ", err);
-    });
-}
-
-function showBannerToast(msg, isSuccess = true) {
-    const banner = document.getElementById("oauth-banner");
-    if (!banner) return;
-    banner.className = isSuccess ? "oauth-toast success" : "oauth-toast error";
-    banner.innerHTML = msg;
-    banner.classList.remove("hidden");
-    setTimeout(() => banner.classList.add("hidden"), 8000);
-}
-
-function escapeHtml(str) {
-    if (!str) return "";
-    return str
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-}
+function copyInviteLink(btn, url) { navigator.clipboard.writeText(url).then(() => { const old = btn.textContent; btn.textContent = "Copied!"; setTimeout(() => btn.textContent = old, 2000); }); }
+function showBannerToast(msg) { const banner = document.getElementById("oauth-banner"); if (!banner) return; banner.className = "oauth-toast success"; banner.innerHTML = msg; banner.classList.remove("hidden"); setTimeout(() => banner.classList.add("hidden"), 8000); }
+function escapeHtml(str) { return str ? str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") : ""; }
 
 window.removeWorkspaceMember = removeWorkspaceMember;
 window.cancelWorkspaceInvite = cancelWorkspaceInvite;

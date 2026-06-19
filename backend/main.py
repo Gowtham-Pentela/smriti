@@ -4,7 +4,7 @@ import os
 # `source` can't parse. This ensures GOOGLE_CLIENT_ID, SLACK_CLIENT_ID, etc.
 # are always available regardless of how uvicorn was launched.
 from dotenv import load_dotenv
-load_dotenv(override=False)  # override=False: env vars already set in shell take priority
+load_dotenv(override=True)  # override=True: .env settings take priority over environment variables set in the shell
 
 import glob
 import asyncio
@@ -115,8 +115,8 @@ TENANT_NAMESPACE_UUID = "1b87e7de-de9c-5f96-87d6-b163402ddd4c"
 TENANT_UUID = uuid.UUID(TENANT_NAMESPACE_UUID)
 
 MODEL_NAME_EMBED = "nomic-embed-text"
-OLLAMA_EMBED_URL = "http://localhost:11434/api/embeddings"
-OLLAMA_CHAT_URL = "http://localhost:11434/api/chat"   # chat API, proper system/user roles
+OLLAMA_EMBED_URL = "http://127.0.0.1:11434/api/embeddings"
+OLLAMA_CHAT_URL = "http://127.0.0.1:11434/api/chat"   # chat API, proper system/user roles
 
 COMMON_STOPWORDS = {
     "a", "about", "above", "after", "again", "against", "all", "am", "an", "and",
@@ -147,6 +147,11 @@ _connector_status: Dict[str, Any] = {
 # Per-tenant sync lock — prevents concurrent sync_all_tenants() for the same tenant.
 # Keys: tenant_id string. Value: True while a sync is in progress.
 _active_syncs: Dict[str, bool] = {}
+
+# File-hash deduplication cache (key: file path, value: md5 hash). Cleared by
+# /clear and /admin/clear-my-data so a re-ingest re-embeds rather than being
+# short-circuited as a duplicate.
+_file_hash_cache: Dict[str, str] = {}
 
 
 # ─── App Setup (lifespan replaces deprecated on_event) ──────────────────────
@@ -289,7 +294,11 @@ async def get_client_config():
     return {
         "supabase_url":  SUPABASE_URL,
         "supabase_anon": SUPABASE_ANON,
+        "SUPABASE_URL":  SUPABASE_URL,
+        "SUPABASE_ANON_KEY": SUPABASE_ANON,
+        "site_url":      os.getenv("SITE_URL", "http://127.0.0.1:8000"),
     }
+
 
 
 @app.get("/auth-config", include_in_schema=False)
@@ -648,20 +657,30 @@ async def pg_ingest_chunks(chunks: list, db_pool: asyncpg.Pool, tenant_id: str |
 
     # 2. Bulk insert inside a single database transaction/connection
     try:
+        source_ids = list(set(str(chunk.get("source") or "").replace("\x00", "") for chunk in chunks if chunk.get("source")))
         async with db_pool.acquire() as conn:
             async with conn.transaction():
                 await conn.execute(
                     f"SET LOCAL app.current_tenant_id = '{effective_tenant_id}'"
                 )
+                if source_ids:
+                    await conn.execute(
+                        """
+                        DELETE FROM tenant_redwood_inference_prod.vector_chunks
+                        WHERE tenant_id = $1::uuid AND source_id = ANY($2::text[])
+                        """,
+                        effective_tenant_uuid,
+                        source_ids
+                    )
                 for chunk, emb in zip(chunks, embeddings):
                     emb_str = f"[{','.join(map(str, emb))}]"
                     event_id = uuid.uuid4()
-                    source_id = chunk.get("source", str(event_id))
-                    source_type = chunk.get("type", "document")
-                    channel_or_space = chunk.get("location", "local")
-                    content = chunk.get("content", "")
-                    author_id = chunk.get("author_id") or chunk.get("author") or "system"
-                    document_title = chunk.get("title") or chunk.get("section") or source_id
+                    source_id = str(chunk.get("source") or event_id).replace("\x00", "")
+                    source_type = str(chunk.get("type") or "document").replace("\x00", "")
+                    channel_or_space = str(chunk.get("location") or "local").replace("\x00", "")
+                    content = str(chunk.get("content") or "").replace("\x00", "")
+                    author_id = str(chunk.get("author_id") or chunk.get("author") or "system").replace("\x00", "")
+                    document_title = str(chunk.get("title") or chunk.get("section") or source_id).replace("\x00", "")
 
                     await conn.execute(
                         """
@@ -1995,10 +2014,15 @@ async def process_query(
                     if eid not in row_map:
                         row_map[eid] = dict(r)
                         
-                # Sort by RRF score
+                # Sort by RRF score and deduplicate by content
                 candidates = []
-                for eid, score in sorted(scores.items(), key=lambda x: x[1], reverse=True)[:20]:
+                seen_contents = set()
+                for eid, score in sorted(scores.items(), key=lambda x: x[1], reverse=True):
                     c = row_map[eid]
+                    normalized_content = c["content"].strip().lower()
+                    if normalized_content in seen_contents:
+                        continue
+                    seen_contents.add(normalized_content)
                     candidates.append({
                         "source":             c["source_id"],
                         "type":              c["source_type"],
@@ -2009,6 +2033,8 @@ async def process_query(
                         "score":             score,
                         "semantic_score":    float(c.get("semantic_score", 0)),
                     })
+                    if len(candidates) >= 20:
+                        break
 
                 experts_raw = await fetch_top_experts(conn, top_n=3)
 
