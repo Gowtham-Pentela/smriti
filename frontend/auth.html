@@ -424,10 +424,10 @@ function setLoading(btnId, loading, label) {
 }
 
 // Helper to get site URL redirect
+// OAuth redirectTo MUST be the current origin — Supabase matches it against the
+// allow-list by exact origin, and the user is always on the current origin.
 function getRedirectUrl() {
-    return (window.clientConfig && window.clientConfig.site_url)
-        ? window.clientConfig.site_url + '/app/callback.html'
-        : window.location.origin + '/app/callback.html';
+    return window.location.origin + '/app/callback.html';
 }
 
 // ── Google OAuth ──────────────────────────────────────────────────────────
