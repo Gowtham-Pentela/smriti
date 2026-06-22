@@ -493,6 +493,12 @@
         upload:     'panel-upload',
     };
 
+    // Track which tab is currently driving the side-panel state so clicking
+    // the same tab a second time closes the drawer instead of being a no-op.
+    // Exposed on window so app.js (which owns the overlay click handler) can
+    // reset it when the user dismisses the drawer by tapping outside.
+    window._activeDrawerTab = 'chat';
+
     function switchTab(tabId) {
         // Update active tab button
         document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
@@ -510,16 +516,34 @@
         if (!sidePanel) return;
 
         const overlay = document.getElementById('drawer-overlay');
+        const isMobile = window.innerWidth <= 900;
+
         if (tabId === 'chat') {
             sidePanel.classList.add('collapsed');
             sidePanel.classList.remove('open');
             if (overlay) overlay.classList.remove('active');
+            _activeDrawerTab = 'chat';
+            window._activeDrawerTab = 'chat';
+        } else if (_activeDrawerTab === tabId && isMobile) {
+            // Same drawer tab clicked again on mobile → toggle closed.
+            sidePanel.classList.remove('open');
+            if (overlay) overlay.classList.remove('active');
+            _activeDrawerTab = 'chat';
+            window._activeDrawerTab = 'chat';
         } else {
             sidePanel.classList.remove('collapsed');
-            if (window.innerWidth <= 900) {
+            if (isMobile) {
                 sidePanel.classList.add('open');
                 if (overlay) overlay.classList.add('active');
+                // Mobile: the nav-sidebar (left rail) and the side-panel drawer
+                // (right rail) are alternative views of the same nav — only one
+                // should be visible. Close the left rail so its close button
+                // isn't trapped behind the right drawer.
+                const navSidebar = document.getElementById('sidebar');
+                if (navSidebar) navSidebar.classList.remove('open');
             }
+            _activeDrawerTab = tabId;
+            window._activeDrawerTab = tabId;
         }
     }
 

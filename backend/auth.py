@@ -36,6 +36,17 @@ SUPABASE_URL  = os.getenv("SUPABASE_URL", "https://jflxoijsjdgbiarvstbp.supabase
 SUPABASE_ANON = os.getenv("SUPABASE_ANON_KEY", "")  # no default — must be set in .env
 TRUST_PROXY   = os.getenv("TRUST_PROXY_HEADERS", "false").lower() == "true"
 
+# ── Admin bypass whitelist ────────────────────────────────────────────────────
+# A comma-separated list of email addresses that bypass tier-based restrictions
+# (file size limits, storage quotas, etc.) across the workspace. Use sparingly —
+# these accounts have unrestricted access regardless of subscription state.
+# Override via env var KGF_ADMIN_BYPASS_EMAILS, e.g.:
+#   KGF_ADMIN_BYPASS_EMAILS=admin.smritione@gmail.com,founder@example.com
+_ADMIN_BYPASS_EMAILS_ENV = os.getenv("KGF_ADMIN_BYPASS_EMAILS", "admin.smritione@gmail.com")
+ADMIN_BYPASS_EMAILS: frozenset[str] = frozenset(
+    e.strip().lower() for e in _ADMIN_BYPASS_EMAILS_ENV.split(",") if e.strip()
+)
+
 # ── Startup validation ────────────────────────────────────────────────────────
 # Fail immediately if the anon key is absent so misconfigured deployments are
 # caught at boot rather than producing confusing 401s at runtime.
@@ -88,6 +99,9 @@ class UserIdentity:
     domain:    str          # e.g. "acme.com"
     user_id:   str          # Supabase user UUID
     is_admin:  bool = False # Set True by tenant provisioning for first user
+    # True when the user's email is in ADMIN_BYPASS_EMAILS. Bypasses tier-based
+    # restrictions (file size limits, quotas) regardless of subscription state.
+    is_admin_bypass: bool = False
 
 
 # ── Token validation ──────────────────────────────────────────────────────────
@@ -353,4 +367,5 @@ async def get_current_user(request: Request) -> UserIdentity:
     request.state.tenant_namespace = resolved_tenant_id
     request.state.user             = user
     user.is_admin                  = (role == "admin")
+    user.is_admin_bypass           = (user.email.lower() in ADMIN_BYPASS_EMAILS)
     return user

@@ -114,6 +114,18 @@ DB_URL = os.getenv(
 TENANT_NAMESPACE_UUID = "1b87e7de-de9c-5f96-87d6-b163402ddd4c"
 TENANT_UUID = uuid.UUID(TENANT_NAMESPACE_UUID)
 
+# ─── Subscription tier configuration ──────────────────────────────────────────
+# Two-tier model. Free tier enforces a 10MB per-file upload limit; Pro bypasses
+# it. Stripe integration is stubbed — keys/columns land tomorrow. Until then,
+# every tenant is treated as "free" and the admin whitelist in auth.py grants
+# the bypass. Do NOT enable production billing without filling the placeholders
+# below AND adding the stripe_customer_id / stripe_subscription_id columns to
+# the tenant_registry table.
+STRIPE_SECRET_KEY      = os.getenv("STRIPE_SECRET_KEY", "")        # placeholder
+STRIPE_WEBHOOK_SECRET  = os.getenv("STRIPE_WEBHOOK_SECRET", "")    # placeholder
+STRIPE_PRICE_ID_PRO    = os.getenv("STRIPE_PRICE_ID_PRO", "")      # placeholder
+FREE_TIER_MAX_BYTES    = 10 * 1024 * 1024  # 10 MB
+
 MODEL_NAME_EMBED = "nomic-embed-text"
 OLLAMA_EMBED_URL = "http://127.0.0.1:11434/api/embeddings"
 OLLAMA_CHAT_URL = "http://127.0.0.1:11434/api/chat"   # chat API, proper system/user roles
@@ -147,6 +159,29 @@ _connector_status: Dict[str, Any] = {
 # Per-tenant sync lock — prevents concurrent sync_all_tenants() for the same tenant.
 # Keys: tenant_id string. Value: True while a sync is in progress.
 _active_syncs: Dict[str, bool] = {}
+
+# Per-tenant tier cache. Key: tenant_id. Value: "free" or "pro".
+# Populated by _resolve_tenant_tier(); avoids hitting the DB on every upload.
+_tier_cache: Dict[str, str] = {}
+
+
+async def _resolve_tenant_tier(conn, tenant_id: str) -> str:
+    """
+    Resolve the subscription tier for a tenant.
+
+    Skeleton implementation: returns "free" until stripe_customer_id /
+    stripe_subscription_id columns are added to tenant_registry and a real
+    Stripe webhook populates them. The signature is stable so the caller
+    (and the future Stripe webhook route) don't need to change once the
+    columns exist.
+
+    Returns one of: "free", "pro".
+    """
+    if tenant_id in _tier_cache:
+        return _tier_cache[tenant_id]
+    tier = "free"  # placeholder — every tenant starts on free tier
+    _tier_cache[tenant_id] = tier
+    return tier
 
 # File-hash deduplication cache (key: file path, value: md5 hash). Cleared by
 # /clear and /admin/clear-my-data so a re-ingest re-embeds rather than being
@@ -823,7 +858,10 @@ async def ingest_file(
 ):
     """
     Accept a file upload from the browser and index it into the user's knowledge base.
-    Supported: PDF, TXT, MD, DOCX, CSV (up to 50 MB).
+    Supported: PDF, TXT, MD, DOCX, CSV (up to 50 MB for Pro tier; 10 MB for Free tier).
+
+    Tier gate: the admin bypass whitelist (see auth.ADMIN_BYPASS_EMAILS) and Pro
+    tier tenants are exempt from the 10MB Free Tier limit.
     """
     ext = os.path.splitext(file.filename or "")[1].lower()
     if ext not in ALLOWED_INGEST_EXTS:
@@ -832,9 +870,54 @@ async def ingest_file(
             detail=f"Unsupported file type '{ext}'. Allowed: {', '.join(sorted(ALLOWED_INGEST_EXTS))}",
         )
 
+    # ── Subscription tier check: enforce Free Tier 10MB cap ─────────────────
+    # Admin bypass whitelist always skips the gate. Pro tenants skip the gate.
+    # The size check uses Content-Length when present (cheap) and falls back to
+    # measuring the streamed bytes (works for chunked uploads where no length
+    # header is sent).
+    tier = "free"  # default — only ever changed to "pro" below
+    if not user.is_admin_bypass:
+        tenant_id = getattr(request.state, "tenant_id", None)
+        if tenant_id:
+            try:
+                async with app.state.db_pool.acquire() as conn:
+                    tier = await _resolve_tenant_tier(conn, tenant_id)
+            except Exception as e:
+                # DB hiccup → fail closed on the safe side (treat as free)
+                print(f"  ⚠ tier lookup failed, defaulting to free: {e}")
+                tier = "free"
+
+        if tier == "free":
+            declared_size = request.headers.get("content-length")
+            if declared_size is not None:
+                try:
+                    if int(declared_size) > FREE_TIER_MAX_BYTES:
+                        raise HTTPException(
+                            status_code=403,
+                            detail="File size exceeds the 10MB Free Tier threshold. Please upgrade your workspace.",
+                        )
+                except ValueError:
+                    pass  # malformed Content-Length — fall through to streamed check
+
     # Write upload to a temp file (parse_document needs a real path)
+    bytes_written = 0
     with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as tmp:
-        shutil.copyfileobj(file.file, tmp)
+        while True:
+            chunk = await file.read(1024 * 1024)
+            if not chunk:
+                break
+            bytes_written += len(chunk)
+            # Streamed size check for Free tier (when Content-Length was missing
+            # or we skipped the upfront check due to admin bypass). The check
+            # is short-circuited for admin-bypass and Pro tenants.
+            if (not user.is_admin_bypass) and tier == "free" and bytes_written > FREE_TIER_MAX_BYTES:
+                tmp.close()
+                os.unlink(tmp.name)
+                raise HTTPException(
+                    status_code=403,
+                    detail="File size exceeds the 10MB Free Tier threshold. Please upgrade your workspace.",
+                )
+            tmp.write(chunk)
         tmp_path = tmp.name
 
     try:

@@ -164,6 +164,9 @@ window.addEventListener("DOMContentLoaded", async () => {
             const sidePanel = document.getElementById('side-panel');
             if (sidePanel) sidePanel.classList.remove('open');
             drawerOverlay.classList.remove("active");
+            // Reset index.html's drawer tab tracker so a follow-up click on the
+            // same tab re-opens the drawer instead of being treated as a toggle-off.
+            window._activeDrawerTab = 'chat';
         });
     }
 
@@ -172,6 +175,7 @@ window.addEventListener("DOMContentLoaded", async () => {
         uploadDropZone.addEventListener("click", () => {
             if (sidebar) sidebar.classList.remove("open");
             if (drawerOverlay) drawerOverlay.classList.remove("active");
+            window._activeDrawerTab = 'chat';
         });
     }
 
