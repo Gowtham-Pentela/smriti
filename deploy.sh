@@ -1,251 +1,40 @@
 #!/bin/bash
-# ─────────────────────────────────────────────────────────────────────────────
-# Knowledge Guardian — One-Command GCP Deploy
-#
-# Usage:
-#   ./deploy.sh                        # Interactive: prompts for project ID
-#   ./deploy.sh --project my-gcp-id   # Non-interactive
-#   ./deploy.sh --destroy              # Tear down all resources (stop billing)
-#
-# What this does:
-#   1. Authenticates with GCP
-#   2. Enables required APIs
-#   3. Applies Terraform (VPC, Cloud SQL + pgvector, GKE cluster)
-#   4. Runs ALL DB migrations in supabase/migrations/ in sorted order (idempotent)
-#   5. Builds backend + UI Docker images via Cloud Build
-#   6. Pushes images to Artifact Registry
-#   7. Applies all Kubernetes manifests
-#   8. Prints the public URL to send to the customer
-#
-# Prerequisites:
-#   - gcloud SDK installed and on PATH
-#   - terraform installed and on PATH
-#   - kubectl installed and on PATH
-# ─────────────────────────────────────────────────────────────────────────────
-
+# Build and push the Smriti backend image to ECR, then trigger an ECS deploy.
+# Prereqs:
+#   - aws cli configured (instance role or env vars)
+#   - ECR repo already created:  aws ecr create-repository --repository-name smriti
+#   - ECS cluster + service + task definition exist (see deploy/aws/)
 set -euo pipefail
 
-# ── ANSI colours ─────────────────────────────────────────────────────────────
-GREEN='\033[0;32m'
-RED='\033[0;31m'
-YELLOW='\033[1;33m'
-CYAN='\033[0;36m'
-BOLD='\033[1m'
-NC='\033[0m'
+cd "$(dirname "$0")"
 
-REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
-TF_DIR="$REPO_ROOT/gcp_infrastructure/terraform"
-K8S_DIR="$REPO_ROOT/gcp_infrastructure/kubernetes"
-MIGRATIONS_DIR="$REPO_ROOT/supabase/migrations"
+AWS_REGION=${AWS_REGION:-us-east-1}
+ECR_REPO=${ECR_REPO:-smriti}
+IMAGE_TAG=${IMAGE_TAG:-$(git rev-parse --short HEAD 2>/dev/null || date +%Y%m%d-%H%M%S)}
 
-echo -e "${CYAN}${BOLD}"
-echo "  ██╗  ██╗ ██████╗ ███████╗"
-echo "  ██║ ██╔╝██╔════╝ ██╔════╝"
-echo "  █████╔╝ ██║  ███╗█████╗  "
-echo "  ██╔═██╗ ██║   ██║██╔══╝  "
-echo "  ██║  ██╗╚██████╔╝██║     "
-echo "  ╚═╝  ╚═╝ ╚═════╝ ╚═╝     "
-echo "  Knowledge Guardian — GCP Deploy"
-echo -e "${NC}"
+# 1. ECR login
+ECR_REGISTRY=$(aws ecr describe-repositories --repository-names "$ECR_REPO" --query 'repositories[0].repositoryUri' --output text --region "$AWS_REGION" | cut -d/ -f1)
+aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$ECR_REGISTRY"
 
-# ── Parse flags ───────────────────────────────────────────────────────────────
-PROJECT_ID=""
-DESTROY=false
+# 2. Build
+echo "→ Building image..."
+docker build -f Dockerfile.backend -t "$ECR_REGISTRY/$ECR_REPO:$IMAGE_TAG" .
+docker tag "$ECR_REGISTRY/$ECR_REPO:$IMAGE_TAG" "$ECR_REGISTRY/$ECR_REPO:latest"
 
-while [[ $# -gt 0 ]]; do
-    case "$1" in
-        --project) PROJECT_ID="$2"; shift 2 ;;
-        --destroy) DESTROY=true; shift ;;
-        *) echo -e "${RED}Unknown flag: $1${NC}"; exit 1 ;;
-    esac
-done
+# 3. Push
+echo "→ Pushing to ECR..."
+docker push "$ECR_REGISTRY/$ECR_REPO:$IMAGE_TAG"
+docker push "$ECR_REGISTRY/$ECR_REPO:latest"
 
-# ── Destroy path ──────────────────────────────────────────────────────────────
-if [ "$DESTROY" = true ]; then
-    echo -e "${RED}${BOLD}[DESTROY] Tearing down all GCP resources...${NC}"
-    cd "$TF_DIR"
-    terraform destroy -auto-approve
-    echo -e "${GREEN}All resources destroyed. Billing has stopped.${NC}"
-    exit 0
-fi
-
-# ── 1. Authenticate ───────────────────────────────────────────────────────────
-echo -e "\n${YELLOW}[1/8] Authenticating with Google Cloud...${NC}"
-if ! gcloud auth print-access-token &>/dev/null; then
-    gcloud auth login
-fi
-if ! gcloud auth application-default print-access-token &>/dev/null; then
-    gcloud auth application-default login
-fi
-echo -e "${GREEN}✓ Authentication OK${NC}"
-
-# ── 2. Select project ─────────────────────────────────────────────────────────
-echo -e "\n${YELLOW}[2/8] Configuring GCP Project...${NC}"
-if [ -z "$PROJECT_ID" ]; then
-    echo "Available projects:"
-    gcloud projects list --format="table(projectId,name)" 2>/dev/null || true
-    echo ""
-    read -rp "$(echo -e "${GREEN}Enter your GCP Project ID: ${NC}")" PROJECT_ID
-fi
-
-if [ -z "$PROJECT_ID" ]; then
-    echo -e "${RED}Error: Project ID cannot be empty.${NC}"; exit 1
-fi
-gcloud config set project "$PROJECT_ID"
-echo -e "${GREEN}✓ Project set to: $PROJECT_ID${NC}"
-
-REGION="us-central1"
-REGISTRY="gcr.io/$PROJECT_ID"
-
-# ── 3. Enable APIs ────────────────────────────────────────────────────────────
-echo -e "\n${YELLOW}[3/8] Enabling required GCP APIs...${NC}"
-gcloud services enable \
-    compute.googleapis.com \
-    container.googleapis.com \
-    sqladmin.googleapis.com \
-    servicenetworking.googleapis.com \
-    artifactregistry.googleapis.com \
-    cloudbuild.googleapis.com \
-    --quiet
-echo -e "${GREEN}✓ APIs enabled${NC}"
-
-# ── 4. Terraform ──────────────────────────────────────────────────────────────
-echo -e "\n${YELLOW}[4/8] Provisioning infrastructure with Terraform...${NC}"
-cd "$TF_DIR"
-
-# Write tfvars
-cat > terraform.tfvars <<EOF
-project_id = "$PROJECT_ID"
-region     = "$REGION"
-EOF
-
-terraform init -upgrade -reconfigure -input=false
-terraform apply -auto-approve -input=false
-
-# Capture Cloud SQL connection details for the migration step
-CLOUD_SQL_IP=$(terraform output -raw db_private_ip 2>/dev/null || echo "")
-DB_NAME=$(terraform output -raw db_name 2>/dev/null || echo "postgres")
-DB_USER=$(terraform output -raw db_user 2>/dev/null || echo "postgres")
-echo -e "${GREEN}✓ Terraform complete${NC}"
-
-# ── 5. Run all DB migrations in order ────────────────────────────────────────
-echo -e "\n${YELLOW}[5/9] Running database migrations...${NC}"
-
-if [ -z "$CLOUD_SQL_IP" ]; then
-    echo -e "${YELLOW}⚠  Could not resolve Cloud SQL IP from Terraform — skipping migrations.${NC}"
-    echo -e "   Run manually: psql \$DATABASE_URL -f <migration_file>"
+# 4. Trigger ECS rollout (no-op if ECS_STACK not set)
+if [ -n "${ECS_SERVICE:-}" ] && [ -n "${ECS_CLUSTER:-}" ]; then
+    echo "→ Forcing ECS service update..."
+    aws ecs update-service --cluster "$ECS_CLUSTER" --service "$ECS_SERVICE" \
+        --force-new-deployment --region "$AWS_REGION" >/dev/null
+    echo "✅ ECS service updated"
 else
-    # Collect all .sql files from the migrations directory, sorted by filename
-    MIGRATION_FILES=($(ls -1 "$MIGRATIONS_DIR"/*.sql 2>/dev/null | sort))
-
-    if [ ${#MIGRATION_FILES[@]} -eq 0 ]; then
-        echo -e "${YELLOW}⚠  No migration files found in $MIGRATIONS_DIR${NC}"
-    else
-        # Build the psql connection string from Terraform outputs
-        # PGPASSWORD is read from the environment or .env — never hardcoded here.
-        export PGPASSWORD="${DB_PASSWORD:-}"
-
-        for migration in "${MIGRATION_FILES[@]}"; do
-            filename=$(basename "$migration")
-            echo -e "  → Applying ${CYAN}${filename}${NC}..."
-            if PGPASSWORD="$PGPASSWORD" psql \
-                --host="$CLOUD_SQL_IP" \
-                --username="$DB_USER" \
-                --dbname="$DB_NAME" \
-                --file="$migration" \
-                --set ON_ERROR_STOP=1 \
-                --quiet; then
-                echo -e "    ${GREEN}✓ $filename applied${NC}"
-            else
-                echo -e "    ${RED}✗ $filename FAILED — aborting deploy${NC}"
-                exit 1
-            fi
-        done
-
-        echo -e "${GREEN}✓ All ${#MIGRATION_FILES[@]} migration(s) applied${NC}"
-    fi
-fi
-
-# ── 6. Configure kubectl ──────────────────────────────────────────────────────
-echo -e "\n${YELLOW}[6/9] Configuring kubectl for GKE...${NC}"
-CLUSTER_NAME=$(terraform output -raw gke_cluster_name 2>/dev/null || echo "knowledge-guardian-cluster")
-CLUSTER_ZONE=$(terraform output -raw gke_cluster_zone 2>/dev/null || echo "${REGION}-a")
-gcloud container clusters get-credentials "$CLUSTER_NAME" \
-    --zone "$CLUSTER_ZONE" \
-    --project "$PROJECT_ID"
-echo -e "${GREEN}✓ kubectl configured${NC}"
-
-# ── 7. Build and push Docker images ──────────────────────────────────────────
-echo -e "\n${YELLOW}[7/9] Building and pushing Docker images via Cloud Build...${NC}"
-cd "$REPO_ROOT"
-
-echo "  → Building backend image..."
-gcloud builds submit \
-    --tag "$REGISTRY/kgf-backend:latest" \
-    --file Dockerfile.backend \
-    --timeout=15m \
-    .
-
-echo "  → Building UI image..."
-gcloud builds submit \
-    --tag "$REGISTRY/kgf-ui:latest" \
-    --file Dockerfile.ui \
-    --timeout=10m \
-    .
-
-echo -e "${GREEN}✓ Images pushed to $REGISTRY${NC}"
-
-# ── 8. Update image tags in K8s manifests and apply ──────────────────────────
-echo -e "\n${YELLOW}[8/9] Deploying to GKE...${NC}"
-
-# Patch image references (sed in-place)
-sed -i.bak \
-    "s|gcr.io/YOUR_PROJECT_ID/kgf-backend:latest|$REGISTRY/kgf-backend:latest|g" \
-    "$K8S_DIR/backend-api.yaml"
-
-sed -i.bak \
-    "s|gcr.io/YOUR_PROJECT_ID/kgf-ui:latest|$REGISTRY/kgf-ui:latest|g" \
-    "$K8S_DIR/ui.yaml"
-
-# Apply manifests in dependency order
-kubectl apply -f "$K8S_DIR/vllm-ollama-gpu.yaml"
-kubectl apply -f "$K8S_DIR/backend-api.yaml"
-kubectl apply -f "$K8S_DIR/ui.yaml"
-
-# Wait for UI ingress to get an external IP (up to 5 minutes)
-echo "  Waiting for external IP (this takes 2-4 minutes for GCP load balancer provisioning)..."
-UI_IP=""
-for i in $(seq 1 30); do
-    UI_IP=$(kubectl get ingress kgf-ui-ingress \
-        -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
-    if [ -n "$UI_IP" ]; then
-        break
-    fi
-    sleep 10
-    echo -n "."
-done
-echo ""
-
-echo -e "${GREEN}✓ GKE deployment complete${NC}"
-
-# ── 9. Print customer URL ─────────────────────────────────────────────────────
-echo -e "\n${CYAN}${BOLD}================================================================${NC}"
-echo -e "${GREEN}${BOLD}                  DEPLOYMENT COMPLETE ✓                        ${NC}"
-echo -e "${CYAN}${BOLD}================================================================${NC}"
-
-if [ -n "$UI_IP" ]; then
-    echo -e "\n${BOLD}🔗 Customer demo URL:${NC}"
-    echo -e "   ${GREEN}http://$UI_IP${NC}"
-    echo ""
-    echo -e "   Send this URL to your customer. It opens the KGF-E assistant"
-    echo -e "   with the Slack connector panel at the bottom of the page."
-else
-    echo -e "\n${YELLOW}⚠  External IP not yet assigned. Check with:${NC}"
-    echo -e "   kubectl get ingress kgf-ui-ingress"
+    echo "(Set ECS_SERVICE + ECS_CLUSTER env vars to trigger an automatic ECS rollout.)"
 fi
 
 echo ""
-echo -e "${YELLOW}${BOLD}COST CONTROL — to stop billing when the demo is done:${NC}"
-echo -e "   ${RED}./deploy.sh --destroy${NC}"
-echo ""
-echo -e "${CYAN}================================================================${NC}"
+echo "✅ Deployed $ECR_REGISTRY/$ECR_REPO:$IMAGE_TAG"

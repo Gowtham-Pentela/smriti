@@ -5,13 +5,16 @@ import tempfile
 # We will lazily load whisper to avoid import overhead if it isn't installed yet
 whisper_model = None
 
+# Configurable via SMRITI_WHISPER_MODEL env var. tiny (39M) is the default; upgrade
+# to base/small/medium for better accuracy when you have GPU/RAM headroom.
+WHISPER_MODEL_NAME = os.getenv("SMRITI_WHISPER_MODEL", "tiny")
+
 def get_whisper_model():
     global whisper_model
     if whisper_model is None:
         try:
             import whisper
-            # Using 'tiny' or 'base' for zero-cost, local speed on CPU
-            whisper_model = whisper.load_model("tiny")
+            whisper_model = whisper.load_model(WHISPER_MODEL_NAME)
         except ImportError:
             raise ImportError("openai-whisper library is not installed. Run pip install openai-whisper.")
     return whisper_model

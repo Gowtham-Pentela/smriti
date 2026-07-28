@@ -4,20 +4,23 @@ from dotenv import load_dotenv
 load_dotenv(override=True)
 
 OLLAMA_URL = "http://localhost:11434/api/chat"
-MODEL_NAME = os.getenv("KGF_CHAT_MODEL", "llama3.2:1b")
+MODEL_NAME = os.getenv("SMRITI_CHAT_MODEL", "llama3.2:1b")
 
 
 # Canonical strip pattern — removes both [Citation: ...] and [Cite: ...] variants.
 _CITATION_STRIP_RE = re.compile(
-    r"\[Cit(?:ation)?:\s*[^\]]+\]",
+    r"\[Cit(?:ation|e)?:\s*[^\]]+\]",
     re.IGNORECASE,
 )
 
-# Extraction pattern — flexible parser that tolerates two common model outputs:
-#   [Citation: source_id, location]   ← canonical
-#   [Cite: source_id (location)]      ← common model shortcut
+# Extraction pattern — flexible parser that tolerates the delimiters the model
+# actually emits:
+#   [Citation: source_id, location]          ← canonical (comma)
+#   [Cite: source_id (location)]              ← common shortcut (paren)
+#   [Citation: source_id | Location: location] ← pipe variant (was dropped → empty citations)
+#   [Citation: source_id | location]          ← pipe without the "Location:" prefix
 _CITATION_EXTRACT_RE = re.compile(
-    r"\[Cit(?:ation)?:\s*([^\s,)]+)(?:,\s*|\s*\()([^\]]+)\)?\]",
+    r"\[Cit(?:ation|e)?:\s*([^\s,)|]+)\s*(?:,\s*|\(\s*|\|\s*(?:Location:\s*)?)([^)\]]+?)\s*\)?\]",
     re.IGNORECASE,
 )
 
@@ -309,3 +312,27 @@ def validate_response(response_text, retrieved_chunks):
     if not result:
         return "I cannot find the answer in the provided documents."
     return result
+
+
+# ponytail: self-check for the citation regex — the model emits several
+# delimiter variants and a regression here silently empties the citations
+# field on correctly-cited answers. Run: python -m backend.grounding
+def _self_check():
+    cases = [
+        ("[Citation: local://x.md, Section 2]", "local://x.md", "Section 2"),
+        ("[Cite: local://x.md (Section 2)]", "local://x.md", "Section 2"),
+        ("[Citation: local://x.md | Location: Section 2]", "local://x.md", "Section 2"),
+        ("[Citation: local://x.md | Section 2]", "local://x.md", "Section 2"),
+    ]
+    for text, exp_src, exp_loc in cases:
+        out = extract_citations(text)
+        assert out and out[0]["source"] == exp_src and out[0]["location"] == exp_loc, \
+            f"FAIL {text!r} -> {out} (want {exp_src!r}, {exp_loc!r})"
+    # multiple tokens in one answer
+    multi = extract_citations("a [Citation: s1.md, L1] b [Citation: s2.md | Location: L2] c")
+    assert len(multi) == 2 and multi[1]["source"] == "s2.md", multi
+    print("grounding citation-regex self-check: OK (4 delimiter variants + multi-token)")
+
+
+if __name__ == "__main__":
+    _self_check()

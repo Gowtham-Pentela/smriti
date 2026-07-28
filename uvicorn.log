@@ -1,129 +1,119 @@
-INFO:     Started server process [27308]
+
+[notice] A new release of pip is available: 24.0 -> 26.1.2
+[notice] To update, run: pip install --upgrade pip
+→ Checking database...
+✅ Database reachable
+→ Applying migrations...
+   - supabase/migrations/001_tenant.sql
+psql:supabase/migrations/001_tenant.sql:8: NOTICE:  extension "pgcrypto" already exists, skipping
+psql:supabase/migrations/001_tenant.sql:9: NOTICE:  extension "vector" already exists, skipping
+psql:supabase/migrations/001_tenant.sql:15: NOTICE:  relation "tenant_registry" already exists, skipping
+   - supabase/migrations/002_vector_chunks.sql
+psql:supabase/migrations/002_vector_chunks.sql:15: NOTICE:  relation "vector_chunks" already exists, skipping
+psql:supabase/migrations/002_vector_chunks.sql:20: NOTICE:  relation "idx_vector_chunks_embedding_hnsw" already exists, skipping
+psql:supabase/migrations/002_vector_chunks.sql:23: NOTICE:  relation "idx_vector_chunks_tenant_id" already exists, skipping
+psql:supabase/migrations/002_vector_chunks.sql:26: NOTICE:  relation "idx_vector_chunks_file_hash" already exists, skipping
+psql:supabase/migrations/002_vector_chunks.sql:31: NOTICE:  relation "idx_vector_chunks_content_fts" already exists, skipping
+psql:supabase/migrations/002_vector_chunks.sql:38: ERROR:  policy "tenant_isolation_vector_chunks" for table "vector_chunks" already exists
+psql:supabase/migrations/002_vector_chunks.sql:43: ERROR:  policy "tenant_insert_vector_chunks" for table "vector_chunks" already exists
+   - supabase/migrations/003_ingestion_hashes.sql
+psql:supabase/migrations/003_ingestion_hashes.sql:15: NOTICE:  relation "ingestion_hashes" already exists, skipping
+psql:supabase/migrations/003_ingestion_hashes.sql:18: NOTICE:  relation "idx_ingestion_hashes_ingested_at" already exists, skipping
+psql:supabase/migrations/003_ingestion_hashes.sql:23: ERROR:  policy "tenant_isolation_ingestion_hashes" for table "ingestion_hashes" already exists
+psql:supabase/migrations/003_ingestion_hashes.sql:27: ERROR:  policy "tenant_insert_ingestion_hashes" for table "ingestion_hashes" already exists
+   - supabase/migrations/004_categories.sql
+psql:supabase/migrations/004_categories.sql:12: NOTICE:  column "category" of relation "vector_chunks" already exists, skipping
+psql:supabase/migrations/004_categories.sql:15: NOTICE:  relation "idx_vector_chunks_category" already exists, skipping
+   - supabase/migrations/005_s3_manifest.sql
+psql:supabase/migrations/005_s3_manifest.sql:30: NOTICE:  relation "s3_manifest" already exists, skipping
+psql:supabase/migrations/005_s3_manifest.sql:33: NOTICE:  relation "idx_s3_manifest_source_url" already exists, skipping
+psql:supabase/migrations/005_s3_manifest.sql:36: NOTICE:  relation "idx_s3_manifest_last_seen" already exists, skipping
+→ Checking Ollama...
+✅ Ollama running
+
+=== STARTING SMRITI ===
+  → UI:        http://127.0.0.1:8000/app/
+  → API:       http://127.0.0.1:8000/docs
+  → S3 worker: DISABLED (set S3_QUEUE_URL in .env to enable)
+
+INFO:     Will watch for changes in these directories: ['/Users/gowtham/smriti']
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [53560] using WatchFiles
+INFO:     Started server process [53571]
 INFO:     Waiting for application startup.
-Initializing connection pool → Postgres...
-🚀 DB connection pool established.
-🔄 Sync scheduler started. Interval: 1800s (30 min)
-🔄 IMAP background poller active. Check interval: 300s
 INFO:     Application startup complete.
-INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
-🔥 Ollama model warm-up complete.
-🔥 Pre-loading ONNX Cross-Encoder Reranker...
-  [reranker] Loading cross-encoder/ms-marco-MiniLM-L6-v2 via ONNX...
-`torch_dtype` is deprecated! Use `dtype` instead!
-/Users/gowtham/local-assistant/venv/lib/python3.14/site-packages/transformers/modeling_attn_mask_utils.py:196: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
-  inverted_mask = torch.tensor(1.0, dtype=dtype) - expanded_mask
-  [reranker] Loaded ONNX model.
-[IMAP Sync] Connector not fully configured in .env. Skipping execution.
-INFO:     127.0.0.1:53747 - "GET /auth-config HTTP/1.1" 200 OK
-INFO:     127.0.0.1:53747 - "GET /status HTTP/1.1" 200 OK
-INFO:     127.0.0.1:53747 - "GET /files HTTP/1.1" 200 OK
-INFO:     127.0.0.1:53747 - "POST /clear HTTP/1.1" 200 OK
-INFO:     127.0.0.1:53747 - "GET /status HTTP/1.1" 200 OK
-Found 42 files to index in /Users/gowtham/Desktop/Projects/portfolio.
-  → Embedding & inserting 2 chunks into Postgres...
-INFO:     127.0.0.1:53747 - "POST /index-folder HTTP/1.1" 200 OK
-  → Embedding & inserting 1 chunks into Postgres...
-  → Embedding & inserting 6 chunks into Postgres...
-  → Embedding & inserting 2 chunks into Postgres...
-  → Embedding & inserting 23 chunks into Postgres...
-INFO:     127.0.0.1:53747 - "GET /indexing-progress HTTP/1.1" 200 OK
-  → Embedding & inserting 1 chunks into Postgres...
-  → Embedding & inserting 2 chunks into Postgres...
-  → Embedding & inserting 1 chunks into Postgres...
-  → Embedding & inserting 1 chunks into Postgres...
-  → Embedding & inserting 1 chunks into Postgres...
-  → Embedding & inserting 1 chunks into Postgres...
-  → Embedding & inserting 2 chunks into Postgres...
-  → Embedding & inserting 1 chunks into Postgres...
-  → Embedding & inserting 1 chunks into Postgres...
-  → Embedding & inserting 2 chunks into Postgres...
-  → Embedding & inserting 1 chunks into Postgres...
-  → Embedding & inserting 2 chunks into Postgres...
-  → Embedding & inserting 1 chunks into Postgres...
-  → Embedding & inserting 2 chunks into Postgres...
-INFO:     127.0.0.1:53747 - "GET /indexing-progress HTTP/1.1" 200 OK
-  → Embedding & inserting 2 chunks into Postgres...
-  → Embedding & inserting 2 chunks into Postgres...
-  → Embedding & inserting 1 chunks into Postgres...
-  → Embedding & inserting 1 chunks into Postgres...
-  → Embedding & inserting 2 chunks into Postgres...
-  → Embedding & inserting 18 chunks into Postgres...
-  → Embedding & inserting 26 chunks into Postgres...
-INFO:     127.0.0.1:53747 - "GET /indexing-progress HTTP/1.1" 200 OK
-  → Embedding & inserting 1 chunks into Postgres...
-  → Embedding & inserting 2 chunks into Postgres...
-Indexing completed in 11s.
-INFO:     127.0.0.1:53747 - "GET /indexing-progress HTTP/1.1" 200 OK
-INFO:     127.0.0.1:53747 - "GET /status HTTP/1.1" 200 OK
-INFO:     127.0.0.1:53747 - "GET /files HTTP/1.1" 200 OK
-INFO:     127.0.0.1:53747 - "GET /status HTTP/1.1" 200 OK
-  [query] Retrieved chunks passing to LLM:
-    [1] Source: README.md | Score: -4.922161102294922 | SemScore: 0.7148972538592944 | Content: '# Gowtham Pentela — Portfolio\n\nPersonal portfolio site for **Gowtham Pentela**, Applied AI Engineer.'
-    [2] Source: package.json | Score: -8.472000122070312 | SemScore: 0.5556245282728121 | Content: '{\n  "name": "gowtham-portfolio",\n  "version": "1.0.0",\n  "private": true,\n  "type": "module",\n  "scr'
-    [3] Source: frontend/package.json | Score: -8.512359619140625 | SemScore: 0.5555630127959015 | Content: '{\n  "name": "gowtham-portfolio-frontend",\n  "private": true,\n  "version": "1.0.0",\n  "type": "module'
-    [4] Source: src/data/content.js | Score: -8.741667747497559 | SemScore: 0.48324496657703997 | Content: "export const META = {\n  name: 'Gowtham Pentela',\n  title: 'Applied AI Engineer',\n  tagline: 'Availab"
-    [5] Source: frontend/src/components/Experience.jsx | Score: -8.807167053222656 | SemScore: 0.5232524285492159 | Content: "import styles from './Experience.module.css'\n\nconst jobs = [\n  {\n    period:  'Nov 2025 — Present',\n"
-INFO:     2a06:98c0:3600::103:0 - "GET /wp-admin/install.php?step=1 HTTP/1.1" 404 Not Found
-  [query] Raw response:
-The portfolio uses React for the frontend and FastAPI in Python as its backend. It is deployed using Vercel [Citation: README.md, Section 1; package.json (frontend), Location: Section 1].
-
-  [grounding] stripped unverified cited claim: 'It is deployed using Vercel .'
-INFO:     127.0.0.1:53747 - "POST /query HTTP/1.1" 200 OK
-  [query] Retrieved chunks passing to LLM:
-    [1] Source: docs/PROJECT_MAP.md | Score: 3.472513198852539 | SemScore: 0.6702304564795137 | Content: '- Lines: `117`\n- Local dependencies:\n  - `frontend/src/components/Projects.module.css`\n- Functions: '
-    [2] Source: docs/PROJECT_MAP.md | Score: 3.1809182167053223 | SemScore: 0.6709122101859428 | Content: '- `frontend/src/components/Nav.jsx` uses `frontend/src/components/Nav.module.css`\n- `frontend/src/co'
-    [3] Source: docs/project_map.json | Score: 2.9420628547668457 | SemScore: 0.6808728520305012 | Content: '    ],\n    [\n      "frontend/src/components/Nav.jsx",\n      "frontend/src/components/Nav.module.css"'
-    [4] Source: docs/PROJECT_MAP.md | Score: 2.765758991241455 | SemScore: 0.6734220696606839 | Content: '- Lines: `78`\n- Local dependencies:\n  - `frontend/src/components/About.module.css`\n- Functions: Abou'
-    [5] Source: docs/PROJECT_MAP.md | Score: 2.659609079360962 | SemScore: 0.6784233313868298 | Content: '  - Reads, writes, or processes JSON-like data.\n\n### `frontend/src/components/Hero.module.css`\n\n- Ro'
-  [query] Raw response:
-The following components exist on the front end:
-
-1. Projects (Projects.module.css)
-2. Stats (Stats.jsx, Stats.module.css)
-3. Nav (Nav.jsx, Nav.module.css)
-4. About (About.jsx, About.module.css) [Citation: PROJECT_MAP.md, Section 7]
-5. Contact (Contact.jsx, Contact.module.css) [Citation: PROJECT_MAP_MD, Section 11]
-
-INFO:     127.0.0.1:53747 - "POST /query HTTP/1.1" 200 OK
-  [query] Retrieved chunks passing to LLM:
-    [1] Source: docs/project_map.json | Score: -8.155989646911621 | SemScore: 0.4714941794688947 | Content: '      "size_bytes": 5492,\n      "line_count": 86,\n      "role_guess": "Frontend component",\n      "i'
-    [2] Source: frontend/src/App.jsx | Score: -8.866366386413574 | SemScore: 0.47552073483862056 | Content: "import { useEffect } from 'react'\nimport Cursor     from './components/Cursor'\nimport Loader     fro"
-    [3] Source: docs/PROJECT_MAP.md | Score: -8.907357215881348 | SemScore: 0.5115966370927426 | Content: '    N2["frontend/src/components/About.jsx"] --> N12["frontend/src/components/About.module.css"]\n    '
-    [4] Source: README.md | Score: -9.156961441040039 | SemScore: 0.5356428884468705 | Content: "\n```js\n{\n  num:   '04 / 04',\n  title: 'My New Project',\n  sub:   'Short tagline',\n  desc:  'Descript"
-    [5] Source: docs/PROJECT_MAP.md | Score: -9.399477005004883 | SemScore: 0.5079935039878123 | Content: '\n```mermaid\ngraph TD\n    N1["frontend/src/App.jsx"] --> N2["frontend/src/components/About.jsx"]\n    '
-[IMAP Sync] Connector not fully configured in .env. Skipping execution.
-  [query] Raw response:
-The "Experience" section shows a job listing with details such as title, tagline, description, tags (Python and FastAPI), GitHub link for more information or to view source code. It also includes an optional live URL where someone can see it in action [Citation: README.md, Section 5].
-
-  [grounding] stripped unverified cited claim: 'It also includes an optional live URL where someone can see it in action .'
-INFO:     127.0.0.1:53747 - "POST /query HTTP/1.1" 200 OK
-  [query] Retrieved chunks passing to LLM:
-    [1] Source: README.md | Score: -0.4979921281337738 | SemScore: 0.5276445537916801 | Content: 'pip install -r requirements.txt\ncp .env.example .env          # Fill in your SMTP credentials\nuvicor'
-    [2] Source: README.md | Score: -3.8842570781707764 | SemScore: 0.6741945254004935 | Content: '# Gowtham Pentela — Portfolio\n\nPersonal portfolio site for **Gowtham Pentela**, Applied AI Engineer.'
-    [3] Source: backend/main.py | Score: -7.975687503814697 | SemScore: 0.4648649042100733 | Content: 'def health():\n    return {"status": "ok"}\n\n# ── Contact form ───────────────────────────────────────'
-    [4] Source: frontend/package.json | Score: -8.47420883178711 | SemScore: 0.5766073127554455 | Content: '{\n  "name": "gowtham-portfolio-frontend",\n  "private": true,\n  "version": "1.0.0",\n  "type": "module'
-    [5] Source: package.json | Score: -8.643793106079102 | SemScore: 0.573615704046623 | Content: '{\n  "name": "gowtham-portfolio",\n  "version": "1.0.0",\n  "private": true,\n  "type": "module",\n  "scr'
-  [query] Raw response:
-The portfolio can be deployed using Vercel, either through the Vercel CLI (Option A) or by importing it into your GitHub repository and setting up deployment via the [vercel.com](https://vercel.com) dashboard (Option B). Both options will build both frontend and backend. The stack includes React 18 + Vite for front-end development, FastAPI in Python as a server-side language choice with an optional contact form that requires SMTP credentials to function correctly.
-
-[Citation: README.md, Section 3]
-[Citation: package.json | Location: Section 1]
-
-INFO:     127.0.0.1:53747 - "POST /query HTTP/1.1" 200 OK
-  [query] Retrieved chunks passing to LLM:
-    [1] Source: docs/PROJECT_MAP.md | Score: -7.030414581298828 | SemScore: 0.6513423807723607 | Content: '- `src/main.jsx` uses `src/index.css`\n\n## Maintenance Notes\n\nRegenerate this file whenever the proje'
-    [2] Source: tools/project_mapper.py | Score: -9.435952186584473 | SemScore: 0.6227935993074144 | Content: 'def main() -> None:\n    args = parse_args()\n    root = Path(args.root).resolve()\n    output_dir = ro'
-    [3] Source: docs/PROJECT_MAP.md | Score: -9.516338348388672 | SemScore: 0.5893887240606597 | Content: '# Project Map\n\nThis file was generated automatically by `project_mapper.py`.\nUse it to help AI codin'
-    [4] Source: tools/project_mapper.py | Score: -9.711793899536133 | SemScore: 0.5617435271276928 | Content: '    def detect_python_package_roots(self, files: List[Path]) -> Set[Path]:\n        """Find directori'
-    [5] Source: tools/project_mapper.py | Score: -9.94687557220459 | SemScore: 0.5997957973498507 | Content: '#!/usr/bin/env python3\n"""\nProject Mapper\n\nScans a local project folder and generates AI-friendly pr'
-  [query] Raw response:
-The root or entry point for this project's codebase appears to be `/Users/gowtham/Desktop/portfolio` [Citation: docs/PROJECT_MAP.md, Section 1].
-
-INFO:     127.0.0.1:53747 - "POST /query HTTP/1.1" 200 OK
-INFO:     127.0.0.1:53747 - "GET /me HTTP/1.1" 200 OK
-INFO:     127.0.0.1:53747 - "GET /connections HTTP/1.1" 200 OK
-INFO:     127.0.0.1:53747 - "POST /clear HTTP/1.1" 200 OK
-INFO:     127.0.0.1:53747 - "GET /status HTTP/1.1" 200 OK
-INFO:     185.130.227.201:0 - "GET / HTTP/1.1" 307 Temporary Redirect
-INFO:     185.130.227.201:0 - "GET /app/landing.html HTTP/1.1" 200 OK
-[IMAP Sync] Connector not fully configured in .env. Skipping execution.
+Initialising Postgres pool...
+  → pool ready
+[s3] S3_BUCKET or S3_QUEUE_URL not set — S3 worker disabled.
+[s3.sync] S3_BUCKET not set — sync loop disabled.
+INFO:     127.0.0.1:55441 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55442 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55443 - "GET /me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55444 - "GET /me HTTP/1.1" 200 OK
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+  → Ollama warmup done
+Loading weights:   0%|          | 0/105 [00:00<?, ?it/s]Loading weights: 100%|██████████| 105/105 [00:00<00:00, 6757.64it/s]
+[reranker] loaded cross-encoder/ms-marco-MiniLM-L6-v2
+INFO:     127.0.0.1:55446 - "GET /files HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:55447 - "GET /status HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:55448 - "GET /activity HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:55449 - "GET /agent/tools HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:55450 - "POST /clear HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:55451 - "GET /me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55467 - "POST /query HTTP/1.1" 503 Service Unavailable
+INFO:     127.0.0.1:55963 - "POST /query HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56203 - "GET /activity?limit=20 HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:56210 - "GET /s3/status HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:56211 - "GET /activity?limit=20 HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:56213 - "GET /activity?limit=20 HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:56214 - "GET /s3/status HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:56221 - "GET /activity?limit=20 HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:56222 - "GET /s3/status HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:56231 - "GET /activity?limit=20 HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:56232 - "GET /s3/status HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:56237 - "GET /activity?limit=20 HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:56238 - "GET /s3/status HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:56245 - "GET /activity?limit=20 HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:56246 - "GET /s3/status HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:56251 - "GET /activity?limit=20 HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:56251 - "GET /s3/status HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:56252 - "GET /activity?limit=20 HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:56253 - "GET /s3/status HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:56263 - "GET /activity?limit=20 HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:56264 - "GET /s3/status HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:56270 - "GET /activity?limit=20 HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:56271 - "GET /s3/status HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:56272 - "GET /activity?limit=20 HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:56273 - "GET /s3/status HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:56275 - "GET /activity?limit=20 HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:56275 - "GET /s3/status HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:56278 - "GET /activity?limit=20 HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:56278 - "GET /s3/status HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:56279 - "GET /me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56280 - "GET /files HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:56281 - "GET /status HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:56282 - "GET /activity HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:56283 - "GET /agent/tools HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:56284 - "POST /clear HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:56285 - "GET /s3/status HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:56287 - "GET /me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56288 - "GET /agent/tools HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:56291 - "POST /ingest HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:56292 - "POST /s3/resync?folder=demo_data HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:56320 - "GET /activity?limit=20 HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:56293 - "POST /query HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56469 - "POST /query HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56509 - "GET /activity HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:56510 - "GET /activity HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56511 - "GET /s3/status HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:56512 - "GET /activity?limit=20 HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:56512 - "GET /activity?limit=20 HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:56512 - "GET /app/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56511 - "GET /app/app.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56512 - "GET /app/style.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56514 - "GET /app/images/smriti_logo.png HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56514 - "GET /me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56514 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:56516 - "POST /agent HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56733 - "POST /query HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56899 - "POST /query HTTP/1.1" 200 OK

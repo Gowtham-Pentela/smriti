@@ -1,13 +1,13 @@
 ---
 name: smriti-workspace
-description: Smriti workspace skills and automation for the KGF knowledge assistant project
+description: Smriti workspace skills and automation for the Smriti knowledge assistant project
 metadata:
   version: 1.0.0
 ---
 
 # smriti-workspace
 
-Smriti workspace skills and automation for the KGF knowledge assistant project
+Smriti workspace skills and automation for the Smriti knowledge assistant project
 
 ## Instructions
 

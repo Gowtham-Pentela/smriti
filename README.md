@@ -1,415 +1,161 @@
 # Smriti
 
-**Your organization's institutional knowledge, permanently queryable.**
+**Your company's private ChatGPT. Drop files in S3, ask questions, get cited answers.**
 
-Smriti is a private, on-premise AI knowledge assistant that indexes your Slack workspace, Google Drive, Confluence pages, and PDF documents. Every engineer on your team can ask natural language questions and get cited, grounded answers in seconds — with no data leaving your infrastructure.
+Smriti is a single-tenant, on-premise AI knowledge assistant for companies that don't want their internal documents leaving their own infrastructure. Users drop PDFs, Word docs, images, audio, and video into an S3 bucket; Smriti parses, embeds, and indexes them automatically. Anyone on the team can then ask natural-language questions and get back grounded answers with numbered source citations.
 
-Live demo: [smriti.one](https://smriti.one)
-
----
-
-## The Problem
-
-Every growing engineering team hits the same invisible wall:
-
-**Knowledge Silos.** The answer exists somewhere — buried in a Slack thread from eight months ago, a Confluence page that was never updated, and the head of an engineer who left last quarter. Nobody can find it.
-
-**Onboarding Friction.** A new engineer spends their first three weeks asking questions that were already answered somewhere. Every senior teammate loses hours explaining context that already exists in writing.
-
-**Brain Drain.** When a senior engineer leaves, they take years of architectural decisions, deployment gotchas, and process knowledge with them. No documentation process fixes this retroactively.
-
-Smriti solves all three by indexing what already exists and making it instantly queryable — privately, on your own hardware.
-
----
-
-## How It Works
+No OpenAI. No Anthropic. No Google AI. No SaaS. Everything — embeddings, generation, reranking, image understanding, speech-to-text — runs locally on your hardware via Ollama and open-source models.
 
 ```
-Slack / Google Drive / Confluence / PDFs
-          |
-          v
-  [Ingestion Pipeline]
-  Chunking + Embedding (nomic-embed-text, local)
-          |
-          v
-  [Supabase + pgvector]
-  768-dim vectors stored per-tenant
-          |
-          v
-  User asks a question
-          |
-          v
-  [Hybrid Retrieval]
-  Cosine similarity + keyword matching
-          |
-          v
-  [phi4-mini · Q4_K_M quantization]
-  Synthesizes answer from retrieved chunks
-          |
-          v
-  [Grounding Firewall]
-  Every sentence verified against source chunks
-  Hallucinated sentences stripped before response
-          |
-          v
-  Cited answer with numbered source links
+            S3 bucket (your AWS account)
+                     │  ObjectCreated → SQS
+                     ▼
+            ┌──────────────────────┐
+            │  Smriti worker       │  parse → chunk → embed (nomic-embed-text)
+            │  (FastAPI + Ollama)  │  → store in Postgres + pgvector
+            └──────────┬───────────┘
+                       │
+            ┌──────────▼───────────┐
+            │  Hybrid retrieval    │  pgvector cosine ∥ Postgres FTS
+            │  + RRF + rerank      │  → RRF → ONNX cross-encoder → top 8
+            └──────────┬───────────┘
+                       │
+            ┌──────────▼───────────┐
+            │  Generation          │  phi4-mini (Ollama) + grounding firewall
+            └──────────┬───────────┘
+                       │
+            ┌──────────▼───────────┐
+            │  Cited answer        │  every sentence is verified against sources
+            └──────────────────────┘
 ```
 
----
+## Quick start (local)
 
-## Architecture
+```bash
+# 1. Clone + install
+git clone https://github.com/Gowtham-Pentela/smriti
+cd smriti
+python3 -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
 
-### Stack
+# 2. Pull Ollama models
+ollama pull nomic-embed-text   # 274 MB — embeddings
+ollama pull phi4-mini          # ~2.5 GB — generation (Q4_K_M)
 
-| Layer | Technology | Notes |
+# 3. Configure
+cp .env.example .env
+# (defaults work for local dev)
+
+# 4. Start Postgres + pgvector (any of these works)
+docker run -d --name smriti-db -p 54322:5432 \
+    -e POSTGRES_PASSWORD=postgres pgvector/pgvector:pg16
+# or: supabase start
+# or: use a managed RDS instance
+
+# 5. Run
+bash start_local.sh
+# → http://127.0.0.1:8000/app/
+```
+
+## Deploy to AWS
+
+```bash
+# 1. Provision the bucket, queue, EventBridge rule, IAM role
+cd deploy/aws
+terraform init
+terraform apply -var "bucket_name=acme-internal-docs"
+
+# 2. Build and push the backend image
+cd ../..
+./deploy.sh
+# (set ECS_SERVICE and ECS_CLUSTER env vars to trigger an automatic rollout)
+
+# 3. Set the env vars from the Terraform outputs on your ECS task:
+#      S3_BUCKET, S3_QUEUE_URL
+```
+
+See `deploy/aws/README.md` for hardening notes.
+
+## API
+
+| Method | Path | Purpose |
 |---|---|---|
-| API | FastAPI (Python) | Async, clean OpenAPI docs |
-| Database | Supabase + pgvector | Managed Postgres with native vector search |
-| Embeddings | nomic-embed-text | MTEB 62.4, beats OpenAI ada-002, fully offline |
-| Generation | **phi4-mini · Q4_K_M** | 3.8B params, ~3.2GB RAM, 95–98% quality vs FP16 |
-| Encryption | Fernet (AES-256) | OAuth token storage at rest |
-| Tunnel | Cloudflare Tunnel | Zero-trust HTTPS, no exposed ports |
-| Frontend | Vanilla HTML / CSS / JS | No framework dependency, split-workspace UI |
-| Auth | Supabase + Google OAuth | JWT tokens, PKCE flow |
+| GET  | `/health` | Liveness probe |
+| GET  | `/status` | Chunk count + S3 worker status |
+| GET  | `/me` | Current user identity |
+| GET  | `/files` | List indexed sources |
+| POST | `/ingest` | File upload fallback (PDF, image, audio, video, text, code) |
+| POST | `/clear` | Wipe the company index |
+| POST | `/query` | **Main endpoint** — ask a question, get a cited answer |
+| GET  | `/s3/status` | S3 worker state + recent ingestions |
+| POST | `/s3/resync?folder=…` | Local-folder ingest (testing) |
 
-### Why phi4-mini (Q4_K_M)
+## What Smriti indexes
 
-Smriti runs on hardware engineering teams actually have. The constraint is RAM.
+Anything in the S3 bucket (or uploaded through the UI) that Smriti can parse:
 
-| Model | RAM Usage | Outcome on 8 GB system |
+- **Documents** — PDF, DOCX, TXT, MD, CSV, JSON, YAML, SQL
+- **Code** — Python, JS/TS, Go, Java, C/C++, Rust, Shell
+- **Images** — PNG, JPG, JPEG, WEBP, GIF (described via llava:7b or moondream)
+- **Audio** — MP3, WAV, M4A, FLAC, OGG (transcribed via local Whisper)
+- **Video** — MP4, MOV, MKV, WEBM (audio extracted via ffmpeg → Whisper)
+
+## What you can ask
+
+Anything you'd ask a colleague who's read everything. Smriti:
+
+- Pulls relevant chunks from pgvector + Postgres full-text search
+- Combines them with Reciprocal Rank Fusion
+- Reranks with an ONNX cross-encoder (`ms-marco-MiniLM-L6-v2`)
+- Generates an answer with `phi4-mini`
+- Runs every sentence through a **grounding firewall** that strips anything not supported by the retrieved sources
+- Returns numbered citations to the original files
+
+If the answer isn't in the documents, Smriti says so — it does not hallucinate.
+
+## Configuration
+
+All settings are environment variables. See `.env.example` for the full list. The most important:
+
+| Var | Default | What it does |
 |---|---|---|
-| mistral:7b | ~4.1 GB | OOM crash alongside Docker + FastAPI |
-| qwen2.5-coder:3b | ~1.9 GB | OOM under concurrent load |
-| tinyllama:1.1b | ~638 MB | Too weak for multi-step reasoning |
-| **phi4-mini Q4_K_M** | **~3.2 GB** | ✅ Selected: fits with headroom, strong reasoning |
-
-Q4_K_M quantization retains 95–98% of full-precision quality while reducing memory by ~60%. The model is confirmed via `ollama show phi4-mini:latest` — Ollama ships this model in Q4_K_M by default.
-
-phi4-mini's reasoning capability is compensated by the grounding firewall: the model's only job is to synthesize and paraphrase retrieved chunks. Factual accuracy is enforced by the grounding layer, not the model weights.
-
-### Multi-Tenant & Org-Level Isolation
-
-To isolate data across organizations and users, Smriti partitions all indexed files and vector chunks using a tenant UUID:
-1. **Shared Partitioned Table**: All vector chunks are stored in `tenant_redwood_inference_prod.vector_chunks`, secured with `tenant_id` partitioning.
-2. **Access Control**: Queries enforce membership permissions by matching the user's email or domain against the workspace's registry (`public.user_org_membership`).
-3. **Session Context**: Database operations utilize `SET LOCAL app.current_tenant_id` inside scoped transactions to prevent cross-tenant data leakage.
-
-### Retrieval Pipeline
-
-Hybrid search: semantic cosine similarity from pgvector + PostgreSQL full-text search. The ranking is computed using Reciprocal Rank Fusion (RRF, k=60), which fuses rank positions rather than relying on brittle linear score blends.
-
-The top-20 unique document candidates from RRF are then passed through a local cross-encoder (`cross-encoder/ms-marco-MiniLM-L6-v2`) to rerank the candidates and generate the final top-10 context window for the LLM.
-
-### Grounding Firewall
-
-`backend/grounding.py` is the hallucination prevention layer between LLM output and the API response.
-
-For every generated sentence:
-1. Citations are extracted (`[Citation: source, location]` format)
-2. Cited source is cross-referenced against retrieved chunks
-3. Word overlap (stopwords excluded) is computed between sentence and source
-4. If overlap ≥ 60% → sentence passes, returned with verified citation
-5. If overlap < 60% → sentence is stripped
-6. If all sentences are stripped → fallback: "I cannot find the answer in the provided documents"
-
-A second LLM verification call was considered and rejected: it added 20–90 seconds of latency and blocked the asyncio event loop.
-
-### Answer Quality & Fallback Handling
-
-Smriti implements a multi-stage answer quality filter to prevent hallucination and ensure helpful answers:
-1. **Question Type Detection**: The pipeline analyzes the user query to distinguish between **Factual** (direct questions) and **Exploratory** (summaries, tutorials, comparisons) queries.
-2. **Dynamic Prompt & Parameter Tuning**:
-   - *Factual*: Uses a highly precise system prompt and sets `temperature = 0.0` to enforce strict accuracy.
-   - *Exploratory*: Encourages synthesis and structuring, setting `temperature = 0.3` for detailed explanations.
-3. **Similarity Score Guard**: Queries with a top vector similarity score below `0.51` are rejected immediately to screen out completely unrelated topics.
-4. **Admin Fallback Admission**: If the database contains no relevant documents, or if the grounding verification fails, the response is overridden with: `"I don't have that information from the indexed documents, please contact <admin_email>"`, dynamically resolving the email of the active workspace admin.
-
----
-
-## Benchmark Results
-
-Retrieval pipeline evaluated against [EnterpriseRAG-Bench](https://github.com/microsoft/EnterpriseRAG-Bench) (500 enterprise knowledge questions).
-
-### Retrieval Performance (v2)
-
-| Connector | R@10 | P@10 | MRR | NDCG@10 | Hit@3 |
-|---|---|---|---|---|---|
-| Slack | 70.10% | 8.86% | 0.763 | 0.663 | 78.48% |
-| Confluence | 64.87% | 16.58% | 0.758 | 0.630 | 80.70% |
-| Google Drive | 78.66% | 10.17% | 0.903 | 0.777 | 95.00% |
-| **Combined** | **77.08%** | **13.75%** | **0.755** | **0.706** | **79.02%** |
-
-**Latency (Combined p50/p95):** Embed 38.6/57ms | HNSW 465/673ms | Reranker 434/928ms | **Total 939/1568ms**
-
-The RRF + cross-encoder architecture significantly boosts relevance across all connectors. Note the exceptional Google Drive Hit@3 at 95%, and robust MRR metrics universally above 0.75.
-
----
-
-## Connectors
-
-### Google Drive OAuth
-
-Smriti reads Google Drive files using two OAuth scopes:
-
-| Scope | Use |
-|---|---|
-| `drive.readonly` | List, download, and export files (PDFs, Docs, Sheets, Slides) |
-| `drive.metadata.readonly` | Detect new/modified files during incremental sync |
-
-**OAuth flow:**
-1. User clicks "Google Drive" pill in the UI
-2. Backend redirects to Google's consent screen (PKCE + HMAC-signed CSRF state, 10-min TTL)
-3. User authorizes read-only access
-4. Google redirects to `/gdrive/oauth/callback`
-5. Backend verifies state, exchanges code for token
-6. Access + refresh token encrypted with AES-256 (Fernet) before storage
-7. UI shows green connected dot; auto-sync runs every 30 minutes
-
-File content is chunked, embedded locally with nomic-embed-text, and stored in pgvector. Raw bytes are not persisted. Drive access can be revoked from the Smriti UI or from [myaccount.google.com/permissions](https://myaccount.google.com/permissions).
-
-> **Verification status:** `drive.readonly` is a restricted scope. During the verification review period, add pilot users as [Test Users](https://console.cloud.google.com/apis/credentials/consent) in Google Cloud Console (up to 100). See `google_drive_verification_guide.md` for the full submission steps.
-
-### Slack OAuth
-
-Required bot token scopes: `channels:history`, `channels:read`, `users:read`, `channels:join`
-
-**OAuth flow:** HMAC-signed CSRF state → Slack authorization → bot token Fernet-encrypted at rest → 30-minute auto-sync
-
-### Sutra Meeting Bot & Reconciler
-
-Sutra is Smriti's automated meeting assistant designed to join team meetings, transcribe discussions, extract decisions, and identify semantic conflicts against your central database.
-
-* **Live Caption Crawler (`sutra_bot.js`):** Powered by Playwright, the bot automatically joins scheduled Google Meet or MS Teams links, bypasses lobbies, disables its camera/microphone, enables live closed-captions, and streams speaker turns via WebSockets directly to the backend.
-* **Decision Extraction & pgvector Similarity Search:** After the meeting closes, the backend prompts local `phi4-mini` to extract structured decisions in JSON format. For each decision, we generate a 768-dimensional embedding using `nomic-embed-text` and perform a pgvector similarity search against historical decisions.
-* **Retrieval Optimization (v3 Architecture):** Search utilizes a dual-pass retrieval system. It combines HNSW vector similarity with exact keyword matching using **Reciprocal Rank Fusion (RRF)**. The top 50 candidates are then semantically reranked using an **ONNX-quantized Cross-Encoder (`ms-marco-MiniLM-L6-v2`)** on the CPU, achieving a 77%+ Recall@10.
-* **Quality Assurance:** RAG generation quality is continuously monitored and evaluated out-of-band by an **LLM-as-a-judge** metric pipeline testing against multi-hop and adversarial inputs.
-* **Semantic Conflict Resolution:** Related historical decisions are evaluated using `phi4-mini` to classify relationships: `contradicts`, `depends_on`, or `supersedes`. Contradicting decisions are flagged instantly.
-* **Automated Post-Meeting Action Plans:** Compiles a markdown Action Plan containing executive summaries, action item tables, and conflict alert checklists. This report is wrapped in a responsive, styled email and distributed to attendees.
-
----
+| `COMPANY_TENANT_ID` | `00000000-…-0001` | The single company tenant UUID. |
+| `DATABASE_URL` | `postgresql://…54322/postgres` | Postgres + pgvector. |
+| `SMRITI_CHAT_MODEL` | `phi4-mini:latest` | Ollama model for generation. |
+| `SMRITI_EMBED_MODEL` | `nomic-embed-text` | Ollama model for embeddings. |
+| `SMRITI_WHISPER_MODEL` | `tiny` | tiny / base / small / medium / large. |
+| `SMRITI_DEV_MODE` | `true` | Skips Supabase JWT validation. **Local dev only.** |
+| `SMRITI_ENV` | `local` | `local` / `dev` / `production`. |
+| `S3_BUCKET` | empty | Bucket the worker reads from. |
+| `S3_QUEUE_URL` | empty | SQS queue (fed by EventBridge). |
+| `AWS_REGION` | `us-east-1` | For boto3. |
+| `CORS_ORIGINS` | `*` | Comma-separated allowed origins. `*` is forbidden in production. |
 
 ## Privacy
 
-Smriti is built for organizations that cannot send internal data to third-party AI APIs.
+- **No data egress.** All inference runs on your hardware (Ollama). No calls to OpenAI, Anthropic, Google, or any third-party AI API.
+- **Local embeddings.** `nomic-embed-text` runs on your machine.
+- **Encrypted at rest.** Tokens are AES-encrypted with Fernet. (Note: S3 ingestion does not require tokens.)
+- **Tenant isolation.** Every chunk is RLS-gated to your company's tenant UUID.
+- **No telemetry.** The audit log (`data/audit_log.json`) is local NDJSON. Delete it any time.
 
-- **No OpenAI / Anthropic / Gemini API calls.** Inference runs on your machine via Ollama.
-- **No cloud embedding services.** nomic-embed-text runs locally.
-- **No data egress.** Messages, documents, embeddings never leave your infrastructure.
-- **Encrypted credentials.** All OAuth tokens are AES-256 encrypted at rest.
-- **Tenant isolation.** Each user's data is schema-isolated with a unique UUID namespace.
-- **HTTPS everywhere.** Cloudflare Tunnel provides TLS without exposing ports.
+## Local resources
 
-Full policy: [smriti.one/app/privacy.html](https://smriti.one/app/privacy.html)
+The active stack fits in ~3.5 GB RAM:
 
----
-
-## Prerequisites
-
-- macOS or Linux
-- Python 3.11+
-- [Ollama](https://ollama.ai) installed
-- [Supabase CLI](https://supabase.com/docs/guides/cli) (for local development)
-
----
-
-## Local Setup
-
-### 1. Clone and install
-
-```bash
-git clone https://github.com/Gowtham-Pentela/smriti.git
-cd smriti
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-```
-
-### 2. Pull Ollama models
-
-```bash
-ollama pull nomic-embed-text   # 274 MB — embeddings
-ollama pull phi4-mini          # ~2.5 GB — generation (Q4_K_M by default)
-```
-
-### 3. Configure environment
-
-```bash
-cp .env.example .env
-```
-
-Generate secrets:
-
-```bash
-# Fernet encryption key (for OAuth token storage)
-python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-
-# CSRF state signing secret
-python -c "import secrets; print(secrets.token_hex(32))"
-```
-
-For Slack OAuth: create an app at [api.slack.com/apps](https://api.slack.com/apps) with scopes `channels:history`, `channels:read`, `users:read`, `channels:join`. Set redirect URL to `http://localhost:8000/slack/oauth/callback`.
-
-For Google Drive OAuth: create an OAuth 2.0 Client ID at [console.cloud.google.com/apis/credentials](https://console.cloud.google.com/apis/credentials). Set redirect URI to `http://localhost:8000/gdrive/oauth/callback`.
-
-### 4. Start Supabase
-
-```bash
-supabase start
-```
-
-### 5. Start the backend
-
-```bash
-source venv/bin/activate
-uvicorn backend.main:app --host 0.0.0.0 --port 8000 --log-level info
-```
-
-### 6. Verify
-
-```bash
-curl -s http://localhost:8000/status | python3 -m json.tool
-```
-
-Expected:
-```json
-{ "status": "ok", "indexed_chunks_count": 0 }
-```
-
----
-
-## Startup Commands (after system restart)
-
-```bash
-# 1. Start backend (Supabase not needed if using hosted Postgres)
-cd /path/to/smriti
-source venv/bin/activate
-nohup uvicorn backend.main:app --host 0.0.0.0 --port 8000 > uvicorn.log 2>&1 &
-
-# 2. (Optional) Cloudflare Tunnel for public HTTPS
-cloudflared tunnel run your-tunnel-name &
-
-# 3. Verify
-sleep 4 && curl -s http://localhost:8000/status
-```
-
----
-
-## API Reference
-
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/status` | Health check + indexed chunk count |
-| POST | `/query` | Ask a question, get cited answer |
-| POST | `/ingest` | Ingest a document (PDF, text) |
-| GET | `/slack/oauth/start` | Begin Slack OAuth flow |
-| GET | `/slack/oauth/callback` | Slack OAuth callback |
-| DELETE | `/slack/disconnect` | Revoke Slack credentials |
-| GET | `/gdrive/oauth/start` | Begin Google Drive OAuth flow |
-| GET | `/gdrive/oauth/callback` | Google Drive OAuth callback |
-| GET | `/gdrive/status` | Check Drive connection status |
-| POST | `/gdrive/sync` | Trigger manual Drive re-sync |
-| DELETE | `/gdrive/disconnect` | Revoke Drive credentials |
-| GET | `/connections` | List all active connector connections |
-| GET | `/auth-config` | Return Supabase auth config for frontend |
-
----
-
-## Environment Variables
-
-| Variable | Description |
+| Component | RAM |
 |---|---|
-| `DATABASE_URL` | Postgres connection string |
-| `SMRITI_ENCRYPTION_KEY` | Fernet key for token encryption |
-| `SUPABASE_URL` | Supabase project URL |
-| `SUPABASE_ANON_KEY` | Supabase public anon key |
-| `SLACK_CLIENT_ID` | Slack OAuth app client ID |
-| `SLACK_CLIENT_SECRET` | Slack OAuth app client secret |
-| `SLACK_OAUTH_STATE_SECRET` | HMAC CSRF signing secret (64-char hex) |
-| `GOOGLE_CLIENT_ID` | Google OAuth 2.0 client ID |
-| `GOOGLE_CLIENT_SECRET` | Google OAuth 2.0 client secret |
-| `GOOGLE_OAUTH_STATE_SECRET` | HMAC CSRF signing secret for Drive OAuth |
-| `GDRIVE_REDIRECT_URI` | Full redirect URI for Drive OAuth callback |
+| phi4-mini (Q4_K_M) | ~3.2 GB |
+| nomic-embed-text | ~300 MB |
+| Postgres + FastAPI | ~500 MB |
+| **Total** | **~4 GB** |
 
-See `.env.example` for the complete reference.
-
----
-
-## Project Structure
-
-```
-smriti/
-├── backend/
-│   ├── main.py              # FastAPI app, query pipeline, API routes
-│   ├── grounding.py         # Hallucination firewall + citation verification
-│   ├── ingestion.py         # Document and Slack ingestion pipeline
-│   ├── slack_connector.py   # Slack API client for message fetching
-│   ├── slack_oauth.py       # Slack OAuth 2.0 flow
-│   ├── gdrive_oauth.py      # Google Drive OAuth 2.0 flow
-│   ├── gdrive_connector.py  # Drive file listing, download, and export
-│   ├── vector_store.py      # pgvector hybrid search
-│   ├── auth.py              # JWT identity extraction (Supabase)
-│   ├── crypto.py            # Fernet encryption utilities
-│   ├── db.py                # Connection pool + credential store
-│   ├── tenant.py            # Tenant UUID resolution
-│   ├── parser.py            # Document parsing (PDF, text, Markdown)
-│   ├── graph_analytics.py   # Expert routing from interaction graph
-│   ├── sync_scheduler.py    # Background re-sync scheduler (30-min interval)
-│   └── eval_harness.py      # Retrieval accuracy evaluation
-├── frontend/
-│   ├── index.html           # AI assistant split-workspace UI
-│   ├── app.js               # Query logic, OAuth flows, UI state
-│   ├── style.css            # Dark/light theme styles
-│   ├── auth.html            # Google sign-in page
-│   ├── callback.html        # OAuth callback handler
-│   ├── landing.html         # Public marketing landing page
-│   ├── privacy.html         # Privacy policy (GDPR + Google API compliance)
-│   ├── terms.html           # Terms of service
-│   └── images/              # Logo and section illustrations
-├── supabase/
-│   └── migrations/          # SQL schema migrations (pgvector, indexes, RLS)
-├── tests/
-│   ├── integration_test.py   # E2E integration test suite
-│   ├── test_org_workspace.py # Organization workspace unit tests
-│   └── test_answer_quality.py # Answer quality unit tests
-├── requirements.txt          # Python dependencies (all pinned)
-├── .env.example             # Environment variable reference
-└── README.md
-```
-
----
-
-## Known Limitations
-
-- **phi4-mini response variance.** Like all small models, phi4-mini can generate vague answers for highly ambiguous queries. The grounding firewall catches these and returns a "cannot find" fallback rather than a wrong answer. Swapping to a larger model (Llama 3 8B, Mistral 7B) on a GPU instance is a one-line config change.
-
-- **Indexing latency on first run.** CPU-only embedding generation takes ~0.3s per chunk. A 90-day Slack history with 50,000 messages takes 15–30 minutes on initial index. Subsequent syncs are incremental.
-
-- **Drive scope verification.** `drive.readonly` is a Google-restricted scope. Until verification completes, only manually added test users (up to 100) can connect Drive. See the Drive OAuth section above.
-
-- **Single-threaded generation.** phi4-mini runs on a single CPU thread. Concurrent queries are queued. Production deployments should use a GPU instance with vLLM or Ollama in server mode.
-
----
-
-## Scaling Path
-
-| Layer | Current (dev) | At 10k users |
-|---|---|---|
-| Generation | phi4-mini, 1 CPU thread | vLLM on L4 GPU, batched inference |
-| Embeddings | nomic-embed-text, sequential | Batched async, 5 concurrent workers |
-| Vector index | HNSW cosine, pgvector | Same index — HNSW scales to 100M vectors at sub-200ms p95 |
-| Database | Single Supabase instance | Read replicas + PgBouncer connection pooling |
-| API | 1 uvicorn worker | Horizontal autoscaling on Cloud Run |
-
----
-
-## License
-
-MIT License. See `LICENSE` for details.
-
----
+Production (with GPU): swap phi4-mini for a 7B/8B model and run with vLLM for batched inference.
 
 ## Author
 
 Built by [Gowtham Pentela](https://github.com/Gowtham-Pentela).
 
-Live at [smriti.one](https://smriti.one) · Privacy: [smriti.one/app/privacy.html](https://smriti.one/app/privacy.html)
+## License
+
+MIT.

@@ -416,6 +416,16 @@ def parse_image_via_vision(
         )
         if response.status_code == 200:
             description = response.json().get("response", "").strip()
+            if not description:
+                # ponytail: vision model returned nothing — don't drop the file,
+                # index a marker chunk so the user knows the image was received
+                # but the vision pipeline couldn't read it.
+                return [{
+                    "source":   filename,
+                    "type":     "image",
+                    "location": "Image Analysis",
+                    "content":  f"[{filename}]: moondream returned no description for this image. The image was indexed but no visual content was extracted.",
+                }]
             return [{
                 "source":   filename,
                 "type":     "image",
@@ -440,8 +450,47 @@ def parse_document(
     if ext == ".pdf":
         return parse_pdf(file_path, source_name)
 
-    elif ext in (".png", ".jpg", ".jpeg", ".webp"):
+    elif ext in (".png", ".jpg", ".jpeg", ".webp", ".gif"):
         return parse_image_via_vision(file_path, source_name)
+
+    elif ext in (".mp4", ".mov", ".mkv", ".webm", ".avi"):
+        # ponytail: video → ffmpeg → whisper-tiny via transcribe_video.
+        # The function already returns chunks in parse_document's shape.
+        try:
+            from backend.transcription import transcribe_video
+        except ImportError:
+            return []
+        return transcribe_video(file_path, source_name)
+
+    elif ext in (".wav", ".mp3", ".m4a", ".flac", ".ogg"):
+        # ponytail: audio-only — whisper the file directly, no ffmpeg demux needed.
+        try:
+            from backend.transcription import get_whisper_model
+        except ImportError:
+            return []
+        try:
+            model = get_whisper_model()
+            result = model.transcribe(file_path, beam_size=1)
+        except Exception as e:
+            print(f"  ✗ Error transcribing audio {file_path}: {e}")
+            return []
+        filename = source_name or os.path.basename(file_path)
+        chunks = []
+        for segment in result.get("segments", []):
+            text = segment.get("text", "").strip()
+            if not text:
+                continue
+            start = int(segment.get("start", 0))
+            end   = int(segment.get("end", 0))
+            mm, ss = divmod(start, 60)
+            em, es = divmod(end, 60)
+            chunks.append({
+                "source":   filename,
+                "type":     "audio",
+                "location": f"Timestamp {mm:02d}:{ss:02d} - {em:02d}:{es:02d}",
+                "content":  text,
+            })
+        return chunks
 
     elif ext in (".py", ".js", ".ts", ".tsx", ".jsx", ".java",
                  ".go", ".cpp", ".c", ".h", ".rs", ".sh"):
@@ -454,7 +503,7 @@ def parse_document(
             print(f"  ✗ Error parsing code file {file_path}: {e}")
             return []
 
-    elif ext in (".txt", ".md", ".markdown", ".json", ".yaml", ".yml", ".sql"):
+    elif ext in (".txt", ".md", ".markdown", ".json", ".yaml", ".yml", ".sql", ".csv"):
         return parse_text_file(file_path, source_name)
 
     return []

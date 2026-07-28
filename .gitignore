@@ -14,7 +14,9 @@ backend/node_modules/
 data/sutra_emails/
 
 # --- Security & Artifact Cleanups ---
-.env
+# All env files are secrets (.env, .envprod, .env.local, ...). Keep .env.example tracked.
+.env*
+!.env.example
 *.log
 .DS_Store
 frontend/.DS_Store

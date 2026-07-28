@@ -41,7 +41,7 @@ class TestAnswerQuality(unittest.TestCase):
 
     def test_detect_question_type_factual(self):
         factual_queries = [
-            "What is KGF?",
+            "What is Smriti?",
             "Who is the admin of the workspace?",
             "How many files are indexed?",
             "When did the last sync run?",
@@ -124,16 +124,12 @@ class TestAnswerQuality(unittest.TestCase):
         self.conn.fetchrow.return_value = {"email": "superadmin@smriti.one"}
 
         # Run process_query
-        from fastapi.responses import JSONResponse
         res = asyncio.run(process_query(req, self.request, self.mock_user))
-        
-        # res is a JSONResponse object in successful generation
-        self.assertIsInstance(res, JSONResponse)
-        import json
-        payload = json.loads(res.body.decode("utf-8"))
 
-        self.assertEqual(payload["response"], "I don't have that information from the indexed documents, please contact superadmin@smriti.one")
-        self.assertEqual(payload["citations"], [])
+        # res is a plain dict in the new (slim) main.py
+        self.assertIsInstance(res, dict)
+        self.assertEqual(res["response"], "I don't have that information from the indexed documents, please contact superadmin@smriti.one")
+        self.assertEqual(res["citations"], [])
 
     @patch("backend.main.get_async_ollama_embedding", new_callable=AsyncMock)
     @patch("httpx.AsyncClient.post", new_callable=AsyncMock)
@@ -174,13 +170,10 @@ class TestAnswerQuality(unittest.TestCase):
         # Mock admin email query
         self.conn.fetchrow.return_value = {"email": "gowthampentela2000@gmail.com"}
 
-        from fastapi.responses import JSONResponse
         res = asyncio.run(process_query(req, self.request, self.mock_user))
-        self.assertIsInstance(res, JSONResponse)
-        
-        import json
-        payload = json.loads(res.body.decode("utf-8"))
-        self.assertEqual(payload["response"], "I don't have that information from the indexed documents, please contact gowthampentela2000@gmail.com")
+        self.assertIsInstance(res, dict)
+
+        self.assertEqual(res["response"], "I don't have that information from the indexed documents, please contact gowthampentela2000@gmail.com")
 
 if __name__ == "__main__":
     unittest.main()

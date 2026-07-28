@@ -13,7 +13,7 @@ Model stack (local only — no external API calls):
   - OCR primary:   pytesseract (Tesseract 5)
   - OCR fallback:  EasyOCR (better for stylized / non-Latin text)
   - Vision:        Moondream 1.8B via Ollama (already installed, fits in 8 GB RAM)
-                   To upgrade later on a machine with 16+ GB: set KGF_VISION_MODEL=llava:7b
+                   To upgrade later on a machine with 16+ GB: set SMRITI_VISION_MODEL=llava:7b
 
 Routing heuristic:
   - pytesseract quick scan → "text density" = (text char area / image area)
@@ -50,8 +50,8 @@ from backend.parser import sanitize_secrets_and_pii
 
 OLLAMA_GEN_URL    = os.getenv("OLLAMA_GEN_URL", "http://localhost:11434/api/generate")
 # Default to Moondream (1.8B, 1.7 GB) — fits in 8 GB RAM alongside nomic-embed-text.
-# On machines with 16+ GB, override with: KGF_VISION_MODEL=llava:7b
-VISION_MODEL      = os.getenv("KGF_VISION_MODEL", "moondream")
+# On machines with 16+ GB, override with: SMRITI_VISION_MODEL=llava:7b
+VISION_MODEL      = os.getenv("SMRITI_VISION_MODEL", "moondream")
 VISION_FALLBACK   = "moondream"  # same model; fallback path is a no-op safety net
 
 # Minimum meaningful words in a vision description before we discard the chunk.
@@ -130,6 +130,18 @@ def process_image(
                 source_filename, location, vision_text,
                 "image_vision", page_num, img_idx, VISION_MODEL,
             ))
+
+    # ponytail: if every pipeline produced nothing, still index a marker chunk
+    # so the upload doesn't 422 with a vague "no text" error. The user sees
+    # the image was received but the vision/OCR stack couldn't read it.
+    if not chunks:
+        chunks.append(_make_chunk(
+            source_filename, location,
+            f"[{source_filename}]: no text could be extracted — neither OCR nor "
+            f"the vision model ({VISION_MODEL}) returned content for this image. "
+            f"The image was indexed as a placeholder.",
+            "image_empty", page_num, img_idx, "none",
+        ))
 
     return chunks
 

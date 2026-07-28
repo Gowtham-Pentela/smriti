@@ -1,46 +1,49 @@
-# ── Backend API Dockerfile ────────────────────────────────────────────────────
-# Multi-stage build: keeps the final image lean by separating build deps.
-# The backend image does NOT contain Streamlit or the UI app.
-
 FROM python:3.12-slim AS builder
 
 WORKDIR /build
 COPY requirements.txt .
 
-# Install build tools for packages that compile native extensions (e.g. asyncpg)
+# gcc + libpq-dev for asyncpg. ffmpeg is in the runtime image only.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         gcc \
         libpq-dev \
     && pip install --no-cache-dir --prefix=/install -r requirements.txt \
     && apt-get purge -y gcc libpq-dev \
+    && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/*
 
-# ── Runtime image ─────────────────────────────────────────────────────────────
+# ── Runtime ──────────────────────────────────────────────────────────────────
 FROM python:3.12-slim
 
-# ffmpeg is required by backend/transcription.py (Whisper audio extraction)
-RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg \
+# ffmpeg is required by backend/transcription.py (Whisper audio extraction from
+# video files). The S3 worker hits it on every .mp4/.mov/.mkv/.webm ingest.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ffmpeg \
+        libpq5 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Copy installed packages from builder stage
 COPY --from=builder /install /usr/local
-
-# Copy application source
 COPY backend/ ./backend/
 COPY data/    ./data/
 
 # Required so Python treats backend/ as a package
 RUN touch backend/__init__.py 2>/dev/null || true
 
-# Environment defaults (overridden at runtime via K8s env vars or .env mount)
-ENV DATABASE_URL="postgresql://postgres:postgres@localhost:54322/postgres" \
+# Defaults — override via env in the orchestrator
+ENV DATABASE_URL="" \
+    COMPANY_TENANT_ID="00000000-0000-0000-0000-000000000001" \
+    S3_BUCKET="" \
+    S3_QUEUE_URL="" \
+    AWS_REGION="us-east-1" \
+    SMRITI_DEV_MODE="false" \
+    SMRITI_ENV="production" \
     OLLAMA_EMBED_URL="http://localhost:11434/api/embeddings" \
-    OLLAMA_GEN_URL="http://localhost:11434/api/generate" \
-    KGF_ENCRYPTION_KEY=""
+    OLLAMA_CHAT_URL="http://localhost:11434/api/chat"
 
 EXPOSE 8000
 
-# Use exec form so signals (SIGTERM) are delivered directly to uvicorn
-CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
+# Single worker — Ollama doesn't parallelise generation well on CPU.
+# For production, switch to a GPU instance and bump --workers to (vCPUs - 1).
+CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

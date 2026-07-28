@@ -1,0 +1,1101 @@
+[
+  {
+    "q": {
+      "category": "HIT",
+      "q": "Which MITRE technique does the 'abusing dpapi for credential access' skill address?",
+      "expected_source": "abusing-dpapi-for-credential-access",
+      "expected_token": "T1003",
+      "tokens": [
+        "T1003",
+        "T1555.003",
+        "T1555.004"
+      ]
+    },
+    "ok": true,
+    "retrieval_hit": true,
+    "reason": "cited expected source \u2713",
+    "response": "The \"Abusing DPAPI for Credential Access\" skill addresses MITRE ATT&CK Technique ID T1555.004, which is named Credentials from Password Stores: Windows Credential Manager  [Citation: local://abusing-dpapi-for-credential-access.md, Section 6].",
+    "citations": [
+      "local://abusing-dpapi-for-credential-access.md"
+    ]
+  },
+  {
+    "q": {
+      "category": "HIT",
+      "q": "Which MITRE technique does the 'abusing shadow credentials for privesc' skill address?",
+      "expected_source": "abusing-shadow-credentials-for-privesc",
+      "expected_token": "T1098.005",
+      "tokens": [
+        "T1098.005"
+      ]
+    },
+    "ok": true,
+    "retrieval_hit": false,
+    "reason": "cited wrong source (retrieval miss, not fabrication): ['local://hunting-for-t1098-account-manipulation.md', 'local://hunting-for-t1098-account-manipulation.md']",
+    "response": "The \"Abusing Shadow Credentials for Privilege Escalation\" skill addresses **MITRE ATT&CK T1098** [Citation: local://hunting-for-t1098-account-manipulation.md, Section 1]. This is mentioned in [2] Source: local://hunting-for-t1098-account-manipulation.md | Location: Section 1, where it states that MITRE ATT&CK T1098 (Account Manipulation) covers adversary actions to maintain or expand access to compromised accounts and includes techniques such as adding credentials [Citation: local://hunting-for-t1098-account-manipulation.md, Section 1].",
+    "citations": [
+      "local://hunting-for-t1098-account-manipulation.md",
+      "local://hunting-for-t1098-account-manipulation.md"
+    ]
+  },
+  {
+    "q": {
+      "category": "HIT",
+      "q": "Which MITRE technique does the 'achieving cmmc level 2 compliance' skill address?",
+      "expected_source": "achieving-cmmc-level-2-compliance",
+      "expected_token": "T1041",
+      "tokens": [
+        "T1041",
+        "T1048",
+        "T1078",
+        "T1190",
+        "T1567"
+      ]
+    },
+    "ok": true,
+    "retrieval_hit": false,
+    "reason": "refused (retrieval missed chunk \u2014 no fabrication)",
+    "response": "The provided context contains no explicit mention of a specific MITRE ATT&CK technique related to achieving CMMC Level 2 Compliance. Therefore, it cannot be determined which MITRE technique is addressed by this particular skill based on the given information [Citation: local://hunting-for-dcom-lateral-movement.md, Section 2]. [Citation: local://achieving-cmmc-level-2-compliance.md | Section 1]",
+    "citations": [
+      "local://hunting-for-dcom-lateral-movement.md"
+    ]
+  },
+  {
+    "q": {
+      "category": "HIT",
+      "q": "Which MITRE technique does the 'acquiring disk image with dd and dcfldd' skill address?",
+      "expected_source": "acquiring-disk-image-with-dd-and-dcfldd",
+      "expected_token": "T1005",
+      "tokens": [
+        "T1005",
+        "T1006",
+        "T1025",
+        "T1074.001"
+      ]
+    },
+    "ok": true,
+    "retrieval_hit": true,
+    "reason": "cited expected source \u2713",
+    "response": "The provided context contains no direct reference to a specific MITRE ATT&CK technique related to acquiring disk images. The \"Acquiring Disk Image with dd and dcfldd\" section is focused on forensic procedures for creating bit-for-bit copies of storage devices, which may indirectly relate to several techniques under the categories like Initial Access (T1050), Execution (T1049-T1062), or Persistence (T1071) depending on how it fits into a broader investigation [Citation: local://acquiring-disk-image-with-dd-and-dcfldd.md, Section 1]. However, without explicit mention in the context provided, we cannot accurately determine if there is an associated MITRE technique for this skill alone [Citation: local://mapping-mitre-attack-techniques.md, Section 1].",
+    "citations": [
+      "local://acquiring-disk-image-with-dd-and-dcfldd.md",
+      "local://mapping-mitre-attack-techniques.md"
+    ]
+  },
+  {
+    "q": {
+      "category": "HIT",
+      "q": "Which MITRE technique does the 'analyzing active directory acl abuse' skill address?",
+      "expected_source": "analyzing-active-directory-acl-abuse",
+      "expected_token": "T1078.002",
+      "tokens": [
+        "T1078.002",
+        "T1098",
+        "T1098.007",
+        "T1222.001",
+        "T1484.001"
+      ]
+    },
+    "ok": false,
+    "retrieval_hit": false,
+    "reason": "cited wrong source (retrieval miss, not fabrication): []",
+    "response": "The \"Analyzing Active Directory ACL Abuse\" skill addresses MITRE ATT&CK techniques T1021.001 (Privilege Escalation) and possibly others related to access control list misconfigurations, although a specific mapping is not provided in this context. [Citation: local://analyzing-active-directory-acl-abuse.md | Location: Section 2]",
+    "citations": []
+  },
+  {
+    "q": {
+      "category": "HIT",
+      "q": "Which MITRE technique does the 'analyzing android malware with apktool' skill address?",
+      "expected_source": "analyzing-android-malware-with-apktool",
+      "expected_token": "T1406",
+      "tokens": [
+        "T1406",
+        "T1407",
+        "T1521.001",
+        "T1626.001",
+        "T1655.001"
+      ]
+    },
+    "ok": true,
+    "retrieval_hit": true,
+    "reason": "cited expected source \u2713",
+    "response": "The \"Analyzing Android Malware with Apktool\" skill addresses MITRE ATT&CK Technique T1497, which is related to Sandbox Evasion [Citation: local://analyzing-android-malware-with-apktool.md, Section 1]. However, this specific skill focuses on analyzing APK files for malicious behavior rather than evading sandboxes directly [Citation: local://detecting-mobile-malware-behavior.md, Section 1]. Citation: [2] Source: local://analyzing-malware-sandbox-evasion-techniques.md | Location: Section 1 [Citation: local://analyzing-android-malware-with-apktool.md, Section 1].",
+    "citations": [
+      "local://analyzing-android-malware-with-apktool.md",
+      "local://detecting-mobile-malware-behavior.md",
+      "local://analyzing-android-malware-with-apktool.md"
+    ]
+  },
+  {
+    "q": {
+      "category": "HIT",
+      "q": "Which MITRE technique does the 'analyzing api gateway access logs' skill address?",
+      "expected_source": "analyzing-api-gateway-access-logs",
+      "expected_token": "T1078.004",
+      "tokens": [
+        "T1078.004",
+        "T1110.004",
+        "T1119",
+        "T1190"
+      ]
+    },
+    "ok": true,
+    "retrieval_hit": true,
+    "reason": "cited expected source \u2713",
+    "response": "The provided context mentions \"MITRE ATT&CK T1090.004\" in relation to Domain Fronting C2 Traffic, but it is not directly linked with analyzing API Gateway Access Logs as a specific MITRE technique within this particular section of text. Therefore, based on the given information and without additional details linking 'analyzing api gateway access logs' specifically to any mentioned MITRE ATT&CK techniques in Section 1 (Analyzing API Gateway Access Logs), it cannot be conclusively stated which exact MITRE technique is addressed by that skill [Citation: local://hunting-for-domain-fronting-c2-traffic.md, Section 1]. More context would need to provide a direct connection between the analysis of API Gateway Access Logs and an identified MITRE technique [Citation: local://hunting-for-domain-fronting-c2-traffic.md, Section 1]. [Citation: local://analyzing-api-gateway-access-logs.md, Section 1]",
+    "citations": [
+      "local://hunting-for-domain-fronting-c2-traffic.md",
+      "local://hunting-for-domain-fronting-c2-traffic.md",
+      "local://analyzing-api-gateway-access-logs.md"
+    ]
+  },
+  {
+    "q": {
+      "category": "HIT",
+      "q": "Which MITRE technique does the 'analyzing apt group with mitre navigator' skill address?",
+      "expected_source": "analyzing-apt-group-with-mitre-navigator",
+      "expected_token": "T1003.001",
+      "tokens": [
+        "T1003.001",
+        "T1027",
+        "T1053",
+        "T1053.005",
+        "T1059",
+        "T1059.001",
+        "T1071",
+        "T1071.001",
+        "T1078",
+        "T1486",
+        "T1547",
+        "T1547.001",
+        "T1566",
+        "T1566.001"
+      ]
+    },
+    "ok": true,
+    "retrieval_hit": false,
+    "reason": "refused (retrieval missed chunk \u2014 no fabrication)",
+    "response": "The provided context contains no specific mention of a particular MITRE ATT&CK technique that is addressed by the 'Analyzing APT Group with MITRE Navigator' skill. The references to techniques are found in other sections, but not directly linked within this section's description [Citation: local://profiling-threat-actor-groups.md, Section 4].",
+    "citations": [
+      "local://profiling-threat-actor-groups.md"
+    ]
+  },
+  {
+    "q": {
+      "category": "HIT",
+      "q": "Which MITRE technique does the 'analyzing azure activity logs for threats' skill address?",
+      "expected_source": "analyzing-azure-activity-logs-for-threats",
+      "expected_token": "T1078.004",
+      "tokens": [
+        "T1078.004",
+        "T1098.003",
+        "T1538",
+        "T1556.009",
+        "T1580"
+      ]
+    },
+    "ok": true,
+    "retrieval_hit": true,
+    "reason": "cited expected source \u2713",
+    "response": "The provided context mentions Microsoft Threat Intelligence as part of building cloud SIEM with Sentinel. However, it doesn't explicitly state which specific MITRE ATT&CK techniques are addressed by analyzing Azure Activity Logs for threats [Citation: local://analyzing-azure-activity-logs-for-threats.md, Section 1]. Therefore, based on the given information alone: [Citation: local://detecting-insider-threat-with-ueba.md, Section 1].",
+    "citations": [
+      "local://analyzing-azure-activity-logs-for-threats.md",
+      "local://detecting-insider-threat-with-ueba.md"
+    ]
+  },
+  {
+    "q": {
+      "category": "HIT",
+      "q": "Which MITRE technique does the 'analyzing bootkit and rootkit samples' skill address?",
+      "expected_source": "analyzing-bootkit-and-rootkit-samples",
+      "expected_token": "T1014",
+      "tokens": [
+        "T1014",
+        "T1542.001",
+        "T1542.002",
+        "T1542.003",
+        "T1547.006"
+      ]
+    },
+    "ok": true,
+    "retrieval_hit": true,
+    "reason": "cited expected source \u2713",
+    "response": "The provided context mentions that this skill is used when investigating nation-state level threats such as APT28, APT41, or Equation Group. However, it doesn't explicitly link to a specific MITRE ATT&CK technique ID within the given excerpts [Citation: local://analyzing-threat-actor-ttps-with-mitre-attack.md, Section 1]. [Answer: The 'analyzing bootkit and rootkit samples' skill addresses techniques related to persistent compromise that survive OS reinstallation (T1078 - Persistence) as part of nation-state level threats like APT28, APT41, or Equation Group [Citation: local://analyzing-bootkit-and-rootkit-samples.md, Section 1]. However, a specific MITRE technique ID is not provided in the given context.]",
+    "citations": [
+      "local://analyzing-threat-actor-ttps-with-mitre-attack.md",
+      "local://analyzing-bootkit-and-rootkit-samples.md"
+    ]
+  },
+  {
+    "q": {
+      "category": "HIT",
+      "q": "Which MITRE technique does the 'analyzing browser forensics with hindsight' skill address?",
+      "expected_source": "analyzing-browser-forensics-with-hindsight",
+      "expected_token": "T1185",
+      "tokens": [
+        "T1185",
+        "T1217",
+        "T1539",
+        "T1555.003"
+      ]
+    },
+    "ok": true,
+    "retrieval_hit": false,
+    "reason": "cited wrong source (retrieval miss, not fabrication): ['local://analyzing-threat-actor-ttps-with-mitre-attack.md']",
+    "response": "The provided context contains no direct reference to a specific MITRE ATT&CK technique that is addressed by \"Analyzing Browser Forensics with Hindsight.\" The tool mentioned, Hindsight, focuses on parsing artifacts from browsers like Google Chrome and Chromium-based ones (Microsoft Edge, Brave, Opera, Vivaldi) for forensic analysis. Therefore, there isn't enough information to link it directly to a specific MITRE technique in the given context [Citation: local://analyzing-threat-actor-ttps-with-mitre-attack.md, Section 1]. [Citation: local://analyzing-browser-forensics-with-hindsight.md | Section 1]",
+    "citations": [
+      "local://analyzing-threat-actor-ttps-with-mitre-attack.md"
+    ]
+  },
+  {
+    "q": {
+      "category": "HIT",
+      "q": "Which MITRE technique does the 'analyzing campaign attribution evidence' skill address?",
+      "expected_source": "analyzing-campaign-attribution-evidence",
+      "expected_token": "T1071.001",
+      "tokens": [
+        "T1071.001",
+        "T1583.001",
+        "T1587.001",
+        "T1588.002"
+      ]
+    },
+    "ok": true,
+    "retrieval_hit": true,
+    "reason": "cited expected source \u2713",
+    "response": "The \"Analyzing Campaign Attribution Evidence\" skill addresses multiple techniques from the MITRE ATT&CK framework, including: [Citation: local://analyzing-campaign-attribution-evidence.md, Section 1]. | ID | Tactic       | Official Name                | [Citation: local://orchestrating-llm-attacks-with-pyrit.md, Section 6]. |----|--------------|-------------------------------| | AML.T0051  | ML Attack Staging / Impact   | LLM Prompt Injection               | [Citation: local://orchestrating-llm-attacks-with-pyrit.md, Section 6]. [9] Source: local://analyzing-campaign-attribution-evidence.md | Location: Section 2 [Citation: local://analyzing-campaign-attribution-evidence.md, Section 1].",
+    "citations": [
+      "local://analyzing-campaign-attribution-evidence.md",
+      "local://orchestrating-llm-attacks-with-pyrit.md",
+      "local://orchestrating-llm-attacks-with-pyrit.md",
+      "local://analyzing-campaign-attribution-evidence.md"
+    ]
+  },
+  {
+    "q": {
+      "category": "HIT",
+      "q": "Which MITRE technique does the 'analyzing certificate transparency for phishing' skill address?",
+      "expected_source": "analyzing-certificate-transparency-for-phishing",
+      "expected_token": "AML.T0052",
+      "tokens": [
+        "AML.T0052",
+        "T1566.002",
+        "T1583.001",
+        "T1583.004",
+        "T1593",
+        "T1596.003",
+        "T1598",
+        "T1608.005",
+        "T1660"
+      ]
+    },
+    "ok": true,
+    "retrieval_hit": false,
+    "reason": "cited wrong source (retrieval miss, not fabrication): ['local://attacking-oauth-with-device-code-phishing.md']",
+    "response": "The \"Analyzing Certificate Transparency for Phishing\" skill addresses MITRE ATT&CK Technique T1098.003, which is related to Account Manipulation and specifically focuses on Additional Cloud Roles through consent grant persistence  [Citation: local://attacking-oauth-with-device-code-phishing.md, Section 7].",
+    "citations": [
+      "local://attacking-oauth-with-device-code-phishing.md"
+    ]
+  },
+  {
+    "q": {
+      "category": "HIT",
+      "q": "Which MITRE technique does the 'analyzing cloud storage access patterns' skill address?",
+      "expected_source": "analyzing-cloud-storage-access-patterns",
+      "expected_token": "AML.T0024",
+      "tokens": [
+        "AML.T0024",
+        "AML.T0056",
+        "T1048",
+        "T1078.004",
+        "T1530",
+        "T1567.002",
+        "T1619"
+      ]
+    },
+    "ok": false,
+    "retrieval_hit": false,
+    "reason": "cited wrong source (retrieval miss, not fabrication): []",
+    "response": "T1606.002 [Citation: local://analyzing-cloud-storage-access-patterns.md | Location: Section 1]",
+    "citations": []
+  },
+  {
+    "q": {
+      "category": "HIT",
+      "q": "Which MITRE technique does the 'analyzing cobalt strike beacon configuration' skill address?",
+      "expected_source": "analyzing-cobalt-strike-beacon-configuration",
+      "expected_token": "T1027",
+      "tokens": [
+        "T1027",
+        "T1071.001",
+        "T1090.004",
+        "T1105",
+        "T1573.001"
+      ]
+    },
+    "ok": true,
+    "retrieval_hit": true,
+    "reason": "cited expected source \u2713",
+    "response": "The provided context mentions that \"When building detection rules or threat hunting queries for this domain,\" which implies addressing techniques related to detecting Cobalt Strike's command-and-control (C2) communications. However, there is no direct mention of a specific MITRE technique in the given excerpts [Citation: local://hunting-for-cobalt-strike-beacons.md, Section 1]. Therefore, based on the available information: The 'analyzing cobalt strike beacon configuration' skill addresses detection and threat hunting queries for identifying malicious communication patterns associated with Cobalt Strike but does not explicitly state which particular MITRE technique it corresponds to [Citation: local://analyzing-cobalt-strike-beacon-configuration.md, Section 1]. [Citation: local://analyzing-cobalt-strike-beacon-configuration.md, Section 2]",
+    "citations": [
+      "local://hunting-for-cobalt-strike-beacons.md",
+      "local://analyzing-cobalt-strike-beacon-configuration.md",
+      "local://analyzing-cobalt-strike-beacon-configuration.md"
+    ]
+  },
+  {
+    "q": {
+      "category": "HIT",
+      "q": "Which MITRE technique does the 'analyzing cobaltstrike malleable c2 profiles' skill address?",
+      "expected_source": "analyzing-cobaltstrike-malleable-c2-profiles",
+      "expected_token": "T1001.003",
+      "tokens": [
+        "T1001.003",
+        "T1071.001",
+        "T1090.004",
+        "T1102",
+        "T1573.002"
+      ]
+    },
+    "ok": true,
+    "retrieval_hit": false,
+    "reason": "cited wrong source (retrieval miss, not fabrication): ['local://hunting-for-domain-fronting-c2-traffic.md']",
+    "response": "The \"Analyzing CobaltStrike Malleable C2 Profiles\" skill addresses MITRE ATT&CK Technique T1090.004, which is Domain Fronting  [Citation: local://hunting-for-domain-fronting-c2-traffic.md, Section 1].",
+    "citations": [
+      "local://hunting-for-domain-fronting-c2-traffic.md"
+    ]
+  },
+  {
+    "q": {
+      "category": "HIT",
+      "q": "Which MITRE technique does the 'analyzing command and control communication' skill address?",
+      "expected_source": "analyzing-command-and-control-communication",
+      "expected_token": "T1008",
+      "tokens": [
+        "T1008",
+        "T1071.001",
+        "T1095",
+        "T1571",
+        "T1573"
+      ]
+    },
+    "ok": true,
+    "retrieval_hit": false,
+    "reason": "cited wrong source (retrieval miss, not fabrication): ['local://hunting-for-domain-fronting-c2-traffic.md', 'local://detecting-command-and-control-over-dns.md', 'local://detecting-command-and-control-over-dns.md', 'local://analyzing-cyber-kill-chain.md', 'local://hunting-for-domain-fronting-c2-traffic.md']",
+    "response": "The provided context mentions that this \"skill\" addresses detecting Command and Control (C2) over Domain Name System (DNS), which corresponds to a specific adversary tactic in the MITRE ATT&CK framework. However, there is no direct reference number given for an exact technique within the text; instead, it discusses various aspects of C2 communication detection related to DNS [Citation: local://hunting-for-domain-fronting-c2-traffic.md, Section 1]. The closest match from the context provided would be \"Detecting Command and Control Over DNS,\" which aligns with adversary tactics such as Iodine (T1078), dnscat2 (T1079), dns2tcp (T1080), or others that use DNS for C2 communication [Citation: local://detecting-command-and-control-over-dns.md, Section 1]. These are listed under when to Use in the context of detecting command-and-control over DNS [Citation: local://detecting-command-and-control-over-dns.md, Section 1]. However, since there is no direct citation with a specific technique number provided within this particular skill's description from MITRE ATT&CK T1078 through T1081 (the range given), we cannot provide an exact reference as requested [Citation: local://analyzing-cyber-kill-chain.md, Section 1]. The closest related techniques would be those mentioned under the \"When to Use\" section for detecting command-and-control over DNS, but without additional context or a direct citation link provided in this skill's description [Citation: local://hunting-for-domain-fronting-c2-traffic.md, Section 1]. [Citation: local://detecting-command-and-control-over-dns.md | Location: Section 1]",
+    "citations": [
+      "local://hunting-for-domain-fronting-c2-traffic.md",
+      "local://detecting-command-and-control-over-dns.md",
+      "local://detecting-command-and-control-over-dns.md",
+      "local://analyzing-cyber-kill-chain.md",
+      "local://hunting-for-domain-fronting-c2-traffic.md"
+    ]
+  },
+  {
+    "q": {
+      "category": "HIT",
+      "q": "Which MITRE technique does the 'analyzing cyber kill chain' skill address?",
+      "expected_source": "analyzing-cyber-kill-chain",
+      "expected_token": "T1071.001",
+      "tokens": [
+        "T1071.001",
+        "T1190",
+        "T1486",
+        "T1547.001",
+        "T1566.001"
+      ]
+    },
+    "ok": true,
+    "retrieval_hit": true,
+    "reason": "cited expected source \u2713",
+    "response": "The \"Analyzing Cyber Kill Chain\" skill addresses MITRE ATT&CK for Enterprise [Citation: local://analyzing-cyber-kill-chain.md, Section 1]. [Citation: local://analyzing-cyber-kill-chain.md, Section 1]",
+    "citations": [
+      "local://analyzing-cyber-kill-chain.md",
+      "local://analyzing-cyber-kill-chain.md"
+    ]
+  },
+  {
+    "q": {
+      "category": "HIT",
+      "q": "Which MITRE technique does the 'analyzing disk image with autopsy' skill address?",
+      "expected_source": "analyzing-disk-image-with-autopsy",
+      "expected_token": "T1005",
+      "tokens": [
+        "T1005",
+        "T1070.004",
+        "T1074.001",
+        "T1083"
+      ]
+    },
+    "ok": true,
+    "retrieval_hit": false,
+    "reason": "refused (retrieval missed chunk \u2014 no fabrication)",
+    "response": "The provided context contains no explicit mention of a corresponding MITRE technique that directly relates to \"Analyzing Disk Image with Autopsy.\" Therefore, it cannot be determined which specific MITRE ATT&CK technique this forensic analysis task addresses based on the given information. [Citation: local://analyzing-disk-image-with-autopsy.md | Section 1]",
+    "citations": []
+  },
+  {
+    "q": {
+      "category": "HIT",
+      "q": "Which MITRE technique does the 'analyzing dns logs for exfiltration' skill address?",
+      "expected_source": "analyzing-dns-logs-for-exfiltration",
+      "expected_token": "AML.T0024",
+      "tokens": [
+        "AML.T0024",
+        "AML.T0056",
+        "AML.T0086",
+        "T1048.003",
+        "T1071.004",
+        "T1567"
+      ]
+    },
+    "ok": true,
+    "retrieval_hit": true,
+    "reason": "cited expected source \u2713",
+    "response": "The \"Analyzing DNS Logs for Exfiltration\" skill addresses MITRE ATT&CK T1074, which is related to Data Staging [Citation: local://hunting-for-data-staging-before-exfiltration.md, Section 1]. However, it also indirectly relates to other techniques such as Command and Control (T1049) if the analysis reveals C2 channels through DNS tunneling [Citation: local://analyzing-dns-logs-for-exfiltration.md, Section 1]. Citation: local://analyzing-dns-logs-for-exfiltration.md [Section 1]",
+    "citations": [
+      "local://hunting-for-data-staging-before-exfiltration.md",
+      "local://analyzing-dns-logs-for-exfiltration.md"
+    ]
+  },
+  {
+    "q": {
+      "category": "HIT",
+      "q": "Which MITRE technique does the 'analyzing docker container forensics' skill address?",
+      "expected_source": "analyzing-docker-container-forensics",
+      "expected_token": "T1610",
+      "tokens": [
+        "T1610",
+        "T1611",
+        "T1612",
+        "T1613"
+      ]
+    },
+    "ok": true,
+    "retrieval_hit": true,
+    "reason": "cited expected source \u2713",
+    "response": "The provided context mentions that \"Analyzing Docker Container Forensics\" addresses several scenarios, including investigating a compromised Docker container or host. However, it also states to check if containers ran privileged or with dangerous capabilities and examines various aspects of both the container itself (like image analysis) as well as its interaction with the host system [Citation: local://analyzing-docker-container-forensics.md, Section 15]. The MITRE technique directly related in this context is not explicitly mentioned for \"Analyzing Docker Container Forensics.\" The closest reference within the provided text would be to scenarios involving compromised containers, which could relate broadly to techniques like T1110 - Initial Access or other relevant ATT&CK tactics depending on specific details of a breach [Citation: local://analyzing-docker-container-forensics.md, Section 1]. However, without an explicit mention in this context's output format section for MITRE technique numbers related specifically to \"Analyzing Docker Container Forensics,\" we cannot definitively state the exact MITRE technique addressed by that skill [Citation: local://escaping-containers-to-host.md, Section 1]. [Citation: local://analyzing-docker-container-forensics.md | Location: Section 15]",
+    "citations": [
+      "local://analyzing-docker-container-forensics.md",
+      "local://analyzing-docker-container-forensics.md",
+      "local://escaping-containers-to-host.md"
+    ]
+  },
+  {
+    "q": {
+      "category": "HIT",
+      "q": "Which MITRE technique does the 'analyzing email headers for phishing investigation' skill address?",
+      "expected_source": "analyzing-email-headers-for-phishing-investigation",
+      "expected_token": "AML.T0052",
+      "tokens": [
+        "AML.T0052",
+        "T1566.001",
+        "T1566.002",
+        "T1583.001",
+        "T1598",
+        "T1598.003",
+        "T1660",
+        "T1672"
+      ]
+    },
+    "ok": true,
+    "retrieval_hit": true,
+    "reason": "cited expected source \u2713",
+    "response": "The \"Analyzing Email Headers for Phishing Investigation\" skill addresses MITRE ATT&CK T1497 - Sandboxed File Analysis [Citation: local://implementing-soar-playbook-for-phishing.md, Section 1]. [Citation: local://analyzing-email-headers-for-phishing-investigation.md, Section 1]",
+    "citations": [
+      "local://implementing-soar-playbook-for-phishing.md",
+      "local://analyzing-email-headers-for-phishing-investigation.md"
+    ]
+  },
+  {
+    "q": {
+      "category": "HIT",
+      "q": "Which MITRE technique does the 'analyzing ethereum smart contract vulnerabilities' skill address?",
+      "expected_source": "analyzing-ethereum-smart-contract-vulnerabilities",
+      "expected_token": "T1059",
+      "tokens": [
+        "T1059",
+        "T1190"
+      ]
+    },
+    "ok": true,
+    "retrieval_hit": false,
+    "reason": "cited wrong source (retrieval miss, not fabrication): ['local://analyzing-threat-actor-ttps-with-mitre-attack.md', 'local://generating-and-analyzing-sboms.md']",
+    "response": "The provided context mentions that Slither performs static analysis to detect over 90 vulnerability patterns in seconds. However, it doesn't directly link this specific skill with a particular MITRE ATT&CK technique ID from the given excerpts [Citation: local://analyzing-threat-actor-ttps-with-mitre-attack.md, Section 1]. Therefore, based on the information available within the specified sections of the source material , there is no direct mention or mapping to an official MITRE ATT&CK technique for this skill [Citation: local://generating-and-analyzing-sboms.md, Section 4].",
+    "citations": [
+      "local://analyzing-threat-actor-ttps-with-mitre-attack.md",
+      "local://generating-and-analyzing-sboms.md"
+    ]
+  },
+  {
+    "q": {
+      "category": "HIT",
+      "q": "Which MITRE technique does the 'analyzing golang malware with ghidra' skill address?",
+      "expected_source": "analyzing-golang-malware-with-ghidra",
+      "expected_token": "T1027",
+      "tokens": [
+        "T1027",
+        "T1059",
+        "T1140",
+        "T1620"
+      ]
+    },
+    "ok": true,
+    "retrieval_hit": true,
+    "reason": "cited expected source \u2713",
+    "response": "The provided context mentions that Go (Golang) has become a popular language for malware authors due to its cross-compilation capabilities, static linking producing self-contained binaries, and complexity it introduces for reverse engineering. Ghidra struggles specifically with Go-specific string formats like non-null-terminated strings [Citation: local://analyzing-golang-malware-with-ghidra.md, Section 1]. However, the MITRE technique directly addressed by this skill is not explicitly mentioned in the provided context; therefore, I cannot accurately state which specific MITRE ATT&CK Tactic or Technique (T1497 Sandbox Evasion) it addresses [Citation: local://analyzing-malware-sandbox-evasion-techniques.md, Section 1]. The closest related concept from the given text would be \"Sandbox evasion,\" but without a direct link to an exact technique number [Citation: local://analyzing-malware-sandbox-evasion-techniques.md, Section 1].",
+    "citations": [
+      "local://analyzing-golang-malware-with-ghidra.md",
+      "local://analyzing-malware-sandbox-evasion-techniques.md",
+      "local://analyzing-malware-sandbox-evasion-techniques.md"
+    ]
+  },
+  {
+    "q": {
+      "category": "HIT",
+      "q": "Which MITRE technique does the 'analyzing heap spray exploitation' skill address?",
+      "expected_source": "analyzing-heap-spray-exploitation",
+      "expected_token": "T1059.007",
+      "tokens": [
+        "T1059.007",
+        "T1106",
+        "T1203"
+      ]
+    },
+    "ok": true,
+    "retrieval_hit": true,
+    "reason": "cited expected source \u2713",
+    "response": "The \"Analyzing Heap Spray Exploitation\" skill addresses MITRE ATT&CK Technique T1050, which is related to Code Injection [Citation: local://analyzing-heap-spray-exploitation.md, Section 1]. However, this specific technique (T1050) was not mentioned in the provided context; instead, it focuses on detecting and analyzing artifacts of heap spray exploitation techniques such as NOP sleds followed by shellcode within a process's memory. [Citation: local://analyzing-heap-spray-exploitation.md | Location: Section 1]",
+    "citations": [
+      "local://analyzing-heap-spray-exploitation.md"
+    ]
+  },
+  {
+    "q": {
+      "category": "HIT",
+      "q": "Which MITRE technique does the 'analyzing indicators of compromise' skill address?",
+      "expected_source": "analyzing-indicators-of-compromise",
+      "expected_token": "AML.T0052",
+      "tokens": [
+        "AML.T0052",
+        "T1041",
+        "T1071",
+        "T1105",
+        "T1567",
+        "T1583.001",
+        "T1598",
+        "T1660"
+      ]
+    },
+    "ok": true,
+    "retrieval_hit": false,
+    "reason": "cited wrong source (retrieval miss, not fabrication): ['local://analyzing-office365-audit-logs-for-compromise.md', 'local://analyzing-malware-sandbox-evasion-techniques.md']",
+    "response": "The \"Analyzing Indicators of Compromise\" skill addresses multiple techniques from different categories [Citation: local://analyzing-office365-audit-logs-for-compromise.md, Section 1]. MITRE ATT&CK T1191 (Indicators and Observables Collection) [Citation: local://analyzing-malware-sandbox-evasion-techniques.md, Section 1].",
+    "citations": [
+      "local://analyzing-office365-audit-logs-for-compromise.md",
+      "local://analyzing-malware-sandbox-evasion-techniques.md"
+    ]
+  },
+  {
+    "q": {
+      "category": "HIT",
+      "q": "Which MITRE technique does the 'analyzing ios app security with objection' skill address?",
+      "expected_source": "analyzing-ios-app-security-with-objection",
+      "expected_token": "AML.T0054",
+      "tokens": [
+        "AML.T0054",
+        "T1409",
+        "T1414",
+        "T1417.001",
+        "T1635"
+      ]
+    },
+    "ok": true,
+    "retrieval_hit": true,
+    "reason": "cited expected source \u2713",
+    "response": "The provided context for \"Analyzing iOS App Security with Objection\" mentions using this skill when performing runtime security assessment of iOS applications during authorized penetration tests. However, it explicitly states not to use this on production devices without explicit authorization and does not directly link the technique used by Objection (a dynamic instrumentation tool) to a specific MITRE ATT&CK technique ID [Citation: local://analyzing-ios-app-security-with-objection.md, Section 1]. Therefore, based solely on the provided context [6], there is no direct mention of which exact MITRE technique \"Analyzing iOS App Security with Objection\" addresses [Citation: local://mapping-mitre-attack-techniques.md, Section 1].",
+    "citations": [
+      "local://analyzing-ios-app-security-with-objection.md",
+      "local://mapping-mitre-attack-techniques.md"
+    ]
+  },
+  {
+    "q": {
+      "category": "HIT",
+      "q": "Which MITRE technique does the 'analyzing kubernetes audit logs' skill address?",
+      "expected_source": "analyzing-kubernetes-audit-logs",
+      "expected_token": "T1078",
+      "tokens": [
+        "T1078",
+        "T1552.007",
+        "T1610",
+        "T1613"
+      ]
+    },
+    "ok": true,
+    "retrieval_hit": false,
+    "reason": "cited wrong source (retrieval miss, not fabrication): ['local://analyzing-office365-audit-logs-for-compromise.md', 'local://detecting-evasion-techniques-in-endpoint-logs.md']",
+    "response": "The \"Analyzing Kubernetes Audit Logs\" skill addresses security incidents that require analyzing Kubernetes audit logs [Citation: local://analyzing-office365-audit-logs-for-compromise.md, Section 1]. However, there is no specific mention of a corresponding MITRE ATT&CK technique in the provided context for this particular skill [Citation: local://detecting-evasion-techniques-in-endpoint-logs.md, Section 1]. [Citation: local://analyzing-kubernetes-audit-logs.md | Section 1]",
+    "citations": [
+      "local://analyzing-office365-audit-logs-for-compromise.md",
+      "local://detecting-evasion-techniques-in-endpoint-logs.md"
+    ]
+  },
+  {
+    "q": {
+      "category": "HIT",
+      "q": "Which MITRE technique does the 'analyzing linux audit logs for intrusion' skill address?",
+      "expected_source": "analyzing-linux-audit-logs-for-intrusion",
+      "expected_token": "T1059.004",
+      "tokens": [
+        "T1059.004",
+        "T1070",
+        "T1543.002",
+        "T1548.003"
+      ]
+    },
+    "ok": true,
+    "retrieval_hit": true,
+    "reason": "cited expected source \u2713",
+    "response": "The \"Analyzing Linux Audit Logs for Intrusion\" skill addresses MITRE ATT&CK Technique TA0001 (Initial Access) [Citation: local://detecting-evasion-techniques-in-endpoint-logs.md, Section 1]. [Citation: local://analyzing-linux-audit-logs-for-intrusion.md, Section 1]",
+    "citations": [
+      "local://detecting-evasion-techniques-in-endpoint-logs.md",
+      "local://analyzing-linux-audit-logs-for-intrusion.md"
+    ]
+  },
+  {
+    "q": {
+      "category": "HIT",
+      "q": "Which MITRE technique does the 'analyzing linux elf malware' skill address?",
+      "expected_source": "analyzing-linux-elf-malware",
+      "expected_token": "T1027",
+      "tokens": [
+        "T1027",
+        "T1059.004",
+        "T1219",
+        "T1555",
+        "T1574.006",
+        "T1620"
+      ]
+    },
+    "ok": true,
+    "retrieval_hit": false,
+    "reason": "refused (retrieval missed chunk \u2014 no fabrication)",
+    "response": "The provided context contains no information about a \"linux elf malware\" analysis skill or its corresponding MITRE technique. Therefore, it is not possible to determine which MITRE technique this hypothetical skill would address based on the given text [Citation: local://analyzing-cyber-kill-chain.md, Section 1]. [Citation: local://analyzing-malware-sandbox-evasion-techniques.md | Section 1]",
+    "citations": [
+      "local://analyzing-cyber-kill-chain.md"
+    ]
+  },
+  {
+    "q": {
+      "category": "REFUSE",
+      "q": "What is Apple's market capitalization today?"
+    },
+    "ok": true,
+    "reason": "refused but emitted spurious citation footer: ['local://conducting-social-engineering-pretext-call.md']",
+    "response": "The provided context does not contain information about today's Apple stock price or its current market capitalization; therefore, I cannot provide an answer to this question. For the most recent financial data on companies like Apple Inc., you would need access to a real-time financial news service or database such as Bloomberg, Reuters, Yahoo Finance, Google Finance, etc [Citation: local://conducting-social-engineering-pretext-call.md, Section 6].",
+    "citations": [
+      "local://conducting-social-engineering-pretext-call.md"
+    ]
+  },
+  {
+    "q": {
+      "category": "REFUSE",
+      "q": "What is the revenue of Google?"
+    },
+    "ok": true,
+    "reason": "refused but emitted spurious citation footer: ['local://configuring-identity-aware-proxy-with-google-iap.md']",
+    "response": "The provided context does not contain information about Google's annual revenues. Therefore, I cannot provide an answer to this question based on the given text [Citation: local://configuring-identity-aware-proxy-with-google-iap.md, Section 1]. [Citation: local://analyzing-indicators-of-compromise.md | Location: Section 5] [Citation: local://conducting-external-reconnaissance-with-osint.md | Location: Section 7] [Citation: local://analyzing-malicious-url-with-urlscan.md | Location: Section 4]",
+    "citations": [
+      "local://configuring-identity-aware-proxy-with-google-iap.md"
+    ]
+  },
+  {
+    "q": {
+      "category": "REFUSE",
+      "q": "How many employees does Wipro have in 2025?"
+    },
+    "ok": true,
+    "reason": "refused but emitted spurious citation footer: ['local://track-the-nprm-proposed-changes-not-yet-final.md']",
+    "response": "The provided context contains no information regarding the number of employees at Wipro for the year 2025. Therefore, it is not possible to answer this question based on the given data. [Citation: local://executing-phishing-simulation-campaign.md | Section 13] [Citation: local://performing-insider-threat-investigation.md | Section 7] [Citation: local://conducting-social-engineering-penetration-test.md | Section 6] [Citation: local://analyzing-windows-shellbag-artifacts.md | Section 9] [Citation: local://implementing-network-segmentation-with-firewall-zones.md | Section 17] [Citation: local://performing-api-inventory-and-discovery.md | Section 20] [Citation: local://implementing-hipaa-security-rule-safeguards.md | Section 5] [Citation: local://track-the-nprm-proposed-changes-not-yet-final.md (not provided)]",
+    "citations": [
+      "local://track-the-nprm-proposed-changes-not-yet-final.md"
+    ]
+  },
+  {
+    "q": {
+      "category": "REFUSE",
+      "q": "What is the current price of Bitcoin in USD?"
+    },
+    "ok": true,
+    "reason": "refused but emitted spurious citation footer: ['local://performing-ransomware-tabletop-exercise.md']",
+    "response": "The provided context does not contain information about the current price of Bitcoin in USD. Therefore, I cannot provide an answer to this question based on the given sources  [Citation: local://performing-ransomware-tabletop-exercise.md, Section 2].",
+    "citations": [
+      "local://performing-ransomware-tabletop-exercise.md"
+    ]
+  },
+  {
+    "q": {
+      "category": "REFUSE",
+      "q": "Who won the 2024 FIFA World Cup?"
+    },
+    "ok": true,
+    "reason": "clean refusal (no citations)",
+    "response": "The provided context does not contain information about who won the 2024 FIFA World Cup. [Citation: None]",
+    "citations": []
+  },
+  {
+    "q": {
+      "category": "REFUSE",
+      "q": "What is the CVSS base score of CVE-2025-99999?"
+    },
+    "ok": true,
+    "reason": "clean refusal (no citations)",
+    "response": "The provided context does not contain information about a vulnerability with ID \"CVE-2025-99999.\" Therefore, it cannot be determined what its CVSS base score would be. [Citation: None]",
+    "citations": []
+  },
+  {
+    "q": {
+      "category": "REFUSE",
+      "q": "What is the temperature in Mumbai right now?"
+    },
+    "ok": true,
+    "reason": "clean refusal (no citations)",
+    "response": "The context provided does not contain any information about current weather conditions or temperatures, including those for Mumbai. [Citation: None]",
+    "citations": []
+  },
+  {
+    "q": {
+      "category": "REFUSE",
+      "q": "What is SpaceX's launch schedule for next month?"
+    },
+    "ok": true,
+    "reason": "clean refusal (no citations)",
+    "response": "The provided context does not contain information about SpaceX's future launch schedules. [Citation: None]",
+    "citations": []
+  },
+  {
+    "q": {
+      "category": "REFUSE",
+      "q": "How much revenue did Palo Alto Networks report last quarter?"
+    },
+    "ok": true,
+    "reason": "clean refusal (no citations)",
+    "response": "The provided context does not contain information about the reported revenues of Palo Alto Networks.",
+    "citations": []
+  },
+  {
+    "q": {
+      "category": "REFUSE",
+      "q": "What is the population of Bangalore in 2025?"
+    },
+    "ok": true,
+    "reason": "clean refusal (no citations)",
+    "response": "The provided context does not contain information about the population of Bangalore in 2025. Therefore, I cannot provide an answer based on this data.",
+    "citations": []
+  },
+  {
+    "q": {
+      "category": "REFUSE",
+      "q": "What did the Sensex close at yesterday?"
+    },
+    "ok": true,
+    "reason": "clean refusal (no citations)",
+    "response": "The provided context does not contain information about today's closing value of the Sensex. [Citation: None]",
+    "citations": []
+  },
+  {
+    "q": {
+      "category": "REFUSE",
+      "q": "Who is the current CEO of Cloudflare and what is their salary?"
+    },
+    "ok": true,
+    "reason": "refused but emitted spurious citation footer: ['local://implementing-zero-trust-network-access.md']",
+    "response": "The context provided does not contain information about who the current CEO of Cloudflare is or details regarding their salary. Therefore, I cannot provide an answer to this question based on the given text  [Citation: local://implementing-zero-trust-network-access.md, Section 13].",
+    "citations": [
+      "local://implementing-zero-trust-network-access.md"
+    ]
+  },
+  {
+    "q": {
+      "category": "REFUSE",
+      "q": "What is the latest version of Kubernetes and when was it released?"
+    },
+    "ok": true,
+    "reason": "refused but emitted spurious citation footer: ['local://benchmarking-kubernetes-with-kube-bench.md']",
+    "response": "The provided context does not contain information about the release date or any specific details regarding a \"latest\" version of Kubernetes. [Answer: The source material did not specify which version is considered 'the latest' nor its release date.] [Citation: local://benchmarking-kubernetes-with-kube-bench.md, Section 4].",
+    "citations": [
+      "local://benchmarking-kubernetes-with-kube-bench.md"
+    ]
+  },
+  {
+    "q": {
+      "category": "REFUSE",
+      "q": "What is the mileage of a Toyota Corolla?"
+    },
+    "ok": true,
+    "reason": "refused but emitted spurious citation footer: ['local://abusing-dpapi-for-credential-access.md']",
+    "response": "The provided context does not contain information about the mileage of any vehicle, including a Toyota Corolla. Therefore, I cannot provide that specific detail from this source material  [Citation: local://abusing-dpapi-for-credential-access.md, Section 2].",
+    "citations": [
+      "local://abusing-dpapi-for-credential-access.md"
+    ]
+  },
+  {
+    "q": {
+      "category": "REFUSE",
+      "q": "What is the cure for type-2 diabetes?"
+    },
+    "ok": true,
+    "reason": "clean refusal (no citations)",
+    "response": "The context provided does not contain information about a \"cure\" for Type 2 Diabetes.",
+    "citations": []
+  },
+  {
+    "q": {
+      "category": "REFUSE",
+      "q": "What is the release date of GTA 6?"
+    },
+    "ok": true,
+    "reason": "clean refusal (no citations)",
+    "response": "The provided context does not contain information about a game called \"GTA 6\" or its release date. If you have any other questions related to cybersecurity practices mentioned in the text above, feel free to ask!",
+    "citations": []
+  },
+  {
+    "q": {
+      "category": "REFUSE",
+      "q": "How many stars are in the Milky Way?"
+    },
+    "ok": true,
+    "reason": "refused but emitted spurious citation footer: ['local://performing-cloud-penetration-testing-with-pacu.md']",
+    "response": "The provided context does not contain information about how many stars there are in the Milky Way. [Answer: The given sources do not include data regarding the number of stars in the Milky Way.] [Citation: local://performing-cloud-penetration-testing-with-pacu.md, Section 11].",
+    "citations": [
+      "local://performing-cloud-penetration-testing-with-pacu.md"
+    ]
+  },
+  {
+    "q": {
+      "category": "REFUSE",
+      "q": "What is the legal drinking age in Goa?"
+    },
+    "ok": true,
+    "reason": "refused but emitted spurious citation footer: ['local://designing-adversary-engagement-with-mitre-engage.md']",
+    "response": "The provided context does not contain information about the legal drinking age in Goa. Therefore, I cannot provide an answer based solely on this text [Citation: local://designing-adversary-engagement-with-mitre-engage.md, Section 11]. [Citation: None]",
+    "citations": [
+      "local://designing-adversary-engagement-with-mitre-engage.md"
+    ]
+  },
+  {
+    "q": {
+      "category": "REFUSE",
+      "q": "What is the salary of a SOC analyst at JPMorgan in Bangalore?"
+    },
+    "ok": true,
+    "reason": "refused but emitted spurious citation footer: ['local://analyzing-windows-event-logs-in-splunk.md', 'local://correlating-security-events-in-qradar.md']",
+    "response": "The provided context does not contain information about the salary of a Security Operations Center (SOC) Analyst at J.P. Morgan Bank, Bangalore or any other specific company salaries; it only discusses various skills and scenarios related to security incident response within different platforms like Splunk [Citation: local://analyzing-windows-event-logs-in-splunk.md, Section 1]. Therefore, I cannot provide an answer regarding this question based on the given context [Citation: local://correlating-security-events-in-qradar.md, Section 1]. [Citation: local://building-incident-response-dashboard.md | Location: Section 12]",
+    "citations": [
+      "local://analyzing-windows-event-logs-in-splunk.md",
+      "local://correlating-security-events-in-qradar.md"
+    ]
+  },
+  {
+    "q": {
+      "category": "TRAP",
+      "q": "What is the default listening port number used by the Cobalt Strike beacon in the analyzing-cobalt-strike-beacon-configuration skill?"
+    },
+    "ok": true,
+    "reason": "refused (correct \u2014 spec absent)",
+    "response": "The provided context does not contain information about a specific \"default listening port\" that would be associated with any particular version of Cobalt Strike. The details given pertain to various aspects such as configuration markers, strings for YARA rule detection (e.g., $config_v4 and $config_v3), features like jitter or malleable C2 profiles [Citation: local://analyzing-cobalt-strike-beacon-configuration.md, Section 11]. Therefore, based on the provided context alone: There is no factual statement regarding a default listening port number used by any version of Cobalt Strike [Citation: local://hunting-for-cobalt-strike-beacons.md, Section 1].",
+    "citations": [
+      "local://analyzing-cobalt-strike-beacon-configuration.md",
+      "local://hunting-for-cobalt-strike-beacons.md"
+    ]
+  },
+  {
+    "q": {
+      "category": "TRAP",
+      "q": "What is the exact API key used by the OpenCTI instance in the building-threat-intelligence-platform skill?"
+    },
+    "ok": true,
+    "reason": "refused (correct \u2014 spec absent)",
+    "response": "The provided context does not contain any information about an actual API key for a specific OpenCTI instance. Therefore, it cannot be determined what the \"exact\" API key would be as no such detail has been mentioned or implied within this text  [Citation: local://analyzing-threat-intelligence-feeds.md, Section 1].",
+    "citations": [
+      "local://analyzing-threat-intelligence-feeds.md"
+    ]
+  },
+  {
+    "q": {
+      "category": "TRAP",
+      "q": "What is the numeric risk-score threshold that triggers an alert in the detecting-kerberoasting-attacks skill?"
+    },
+    "ok": true,
+    "reason": "answered with only supported claims",
+    "response": "The provided context does not contain a specific numerical value or statement regarding \"the numeric risk-score threshold\" for triggering alerts within any of the mentioned skills. Therefore, it cannot be determined from this information alone what such a threshold might be [Citation: local://implementing-alert-fatigue-reduction.md, Section 5]. [Answer: The source material did not provide an explicit numeric risk-score threshold that triggers an alert in detecting-kerberoasting-attacks.] [Citation: local://detecting-kerberoasting-attacks.md, Section 1].",
+    "citations": [
+      "local://implementing-alert-fatigue-reduction.md",
+      "local://detecting-kerberoasting-attacks.md"
+    ]
+  },
+  {
+    "q": {
+      "category": "TRAP",
+      "q": "What is the license key required to run Splunk in the analyzing-security-logs-with-splunk skill?"
+    },
+    "ok": true,
+    "reason": "refused (correct \u2014 spec absent)",
+    "response": "The provided context does not contain information about a specific \"license key\" for running Splunk related to an \"analyzing-security-logs-with-splunk\" skill. The closest relevant section discusses prerequisites and scenarios where using this particular analysis technique is appropriate, but it mentions no license keys or costs associated with the skills themselves [Citation: local://hunting-for-registry-run-key-persistence.md, Section 2]. [Answer: No such information about a specific 'license key' for running Splunk in relation to an \"analyzing-security-logs-with-splunk\" skill was provided.] [Citation: local://analyzing-windows-event-logs-in-splunk.md, Section 1].",
+    "citations": [
+      "local://hunting-for-registry-run-key-persistence.md",
+      "local://analyzing-windows-event-logs-in-splunk.md"
+    ]
+  },
+  {
+    "q": {
+      "category": "TRAP",
+      "q": "What is the default password for the Volatility profile in the analyzing-memory-dumps-with-volatility skill?"
+    },
+    "ok": true,
+    "reason": "refused (correct \u2014 spec absent)",
+    "response": "The provided context does not contain information about a \"Volatility profile\" or its associated details such as passwords. Therefore, I cannot provide an answer to what the default password for it might be based on this specific source material [Citation: local://extracting-credentials-from-memory-dump.md, Section 1]. [Citation: local://analyzing-memory-dumps-with-volatility.md | Location: Section 1]",
+    "citations": [
+      "local://extracting-credentials-from-memory-dump.md"
+    ]
+  },
+  {
+    "q": {
+      "category": "TRAP",
+      "q": "How many seconds does the performing-ransomware-response skill recommend waiting between isolation steps?"
+    },
+    "ok": true,
+    "reason": "refused (correct \u2014 spec absent)",
+    "response": "The provided context contains no information about how long one should wait between isolation steps in response to ransomware. Therefore, I cannot provide an answer based on this specific recommendation from a \"performing-ransomware-response\" skill as it is not mentioned or defined within the given excerpts [Citation: local://performing-soc-tabletop-exercise.md, Section 12].",
+    "citations": [
+      "local://performing-soc-tabletop-exercise.md"
+    ]
+  },
+  {
+    "q": {
+      "category": "TRAP",
+      "q": "What is the exact dollar cost of a CrowdStrike Falcon EDR license per the deploying-edr-agent-with-crowdstrike skill?"
+    },
+    "ok": true,
+    "reason": "refused (correct \u2014 spec absent)",
+    "response": "The provided context does not contain information about the specific pricing or costs associated with a CrowdStrike Falcon EDR license. [Citation: local://deploying-edr-agent-with-crowdstrike.md | Location: Section 1]",
+    "citations": []
+  },
+  {
+    "q": {
+      "category": "TRAP",
+      "q": "What is the IP address of the C2 server in the analyzing-command-and-control-communication skill?"
+    },
+    "ok": true,
+    "reason": "refused (correct \u2014 spec absent)",
+    "response": "The provided context does not contain any specific information about an IP address for a C2 server.",
+    "citations": []
+  },
+  {
+    "q": {
+      "category": "TRAP",
+      "q": "What is the specific CVSS score assigned in the prioritizing-vulnerabilities-with-cvss-scoring skill for Log4Shell?"
+    },
+    "ok": true,
+    "reason": "refused (correct \u2014 spec absent)",
+    "response": "The provided context does not contain information about a specific CVSS score assignment for \"Log4Shell\" within any of the mentioned skills or sources. Therefore, I cannot provide an answer to this question based on the given text [Citation: local://prioritizing-vulnerabilities-with-cvss-scoring.md, Section 1]. [Answer: The source material did not specify a particular CVSS score assigned in prioritizing-vulnerabilities-with-cvss-scoring skill for Log4Shell.] [Citation: local://prioritizing-vulnerabilities-with-cvss-scoring.md, Section 1].",
+    "citations": [
+      "local://prioritizing-vulnerabilities-with-cvss-scoring.md",
+      "local://prioritizing-vulnerabilities-with-cvss-scoring.md"
+    ]
+  },
+  {
+    "q": {
+      "category": "TRAP",
+      "q": "What is the phone number of the incident-response on-call in the building-incident-response-playbook skill?"
+    },
+    "ok": true,
+    "reason": "refused (correct \u2014 spec absent)",
+    "response": "The provided context does not contain any information regarding an incident-response on-call contact or a specific phone number for such purposes. Therefore, it cannot be determined from this text what that particular detail might be [Citation: local://implementing-soar-playbook-for-phishing.md, Section 1]. [Citation: local://building-incident-response-playbook.md | Location: Section 1]",
+    "citations": [
+      "local://implementing-soar-playbook-for-phishing.md"
+    ]
+  },
+  {
+    "q": {
+      "category": "TRAP",
+      "q": "What is the exact retention period in days for audit logs per the implementing-aws-security-hub-compliance skill?"
+    },
+    "ok": true,
+    "reason": "answered with only supported claims",
+    "response": "The exact retention period in days for audit logs as specified by \"implementing-cloud-trail-log-analysis.md\" (Section 1) and referenced again later with a different context (\"local://auditing-cloud-with-cis-benchmarks.md\", Section 12), is not explicitly stated [Citation: local://implementing-cloud-trail-log-analysis.md, Section 14]. However, it mentions CloudTrail Lake's built-in SQL query capabilities for managed event data lake retention of \"7 years\" [Citation: local://implementing-cloud-trail-log-analysis.md, Section 14]. No specific days are mentioned in the provided contexts regarding audit log retention periods [Citation: local://implementing-cloud-trail-log-analysis.md, Section 14]. [9] Source: local://implementing-cloud-trail-log-analysis.md | Location: Section 1 [Citation: local://implementing-cloud-trail-log-analysis.md, Section 1]. - Managed event data lake with built-in SQL query capabilities and 7-year retention [Citation: local://implementing-cloud-trail-log-analysis.md, Section 14]. No exact number is given for a shorter period like \"90 days\" or any other specific duration within the provided contexts [Citation: local://implementing-cloud-trail-log-analysis.md, Section 14].",
+    "citations": [
+      "local://implementing-cloud-trail-log-analysis.md",
+      "local://implementing-cloud-trail-log-analysis.md",
+      "local://implementing-cloud-trail-log-analysis.md",
+      "local://implementing-cloud-trail-log-analysis.md",
+      "local://implementing-cloud-trail-log-analysis.md",
+      "local://implementing-cloud-trail-log-analysis.md"
+    ]
+  },
+  {
+    "q": {
+      "category": "TRAP",
+      "q": "What is the recommended heap-size in MB for the Yara scan in the performing-threat-hunting-with-yara-rules skill?"
+    },
+    "ok": true,
+    "reason": "refused (correct \u2014 spec absent)",
+    "response": "The provided context does not contain information about the \"recommended heap-size\" for conducting a Yara scan. [Citation: local://performing-threat-hunting-with-yara-rules.md | Location: Section 1]",
+    "citations": []
+  },
+  {
+    "q": {
+      "category": "MERGE",
+      "q": "How do 'detecting-kerberoasting-attacks' and 'performing-kerberoasting-attack' differ? One detects, one executes \u2014 summarize each and cite both.",
+      "expected_sources": [
+        "detecting-kerberoasting-attacks",
+        "performing-kerberoasting-attack"
+      ]
+    },
+    "ok": true,
+    "reason": "cited 2/2: ['detecting-kerberoasting-attacks', 'performing-kerberoasting-attack']",
+    "response": "The document titled \"Detecting Kerberoasting Attacks\" [1] focuses on identifying indicators of kerberoasting attacks within an environment as part of proactive security measures or incident response activities such as scope compounding related to these techniques [Citation: local://detecting-kerberoasting-attacks.md, Section 1]. On the other hand, a section from another context called \"Performing Kerberoasting Attack\" [4], describes executing a real-world simulation where one performs a kerberoasting attack [Citation: local://detecting-pass-the-ticket-attacks.md, Section 1]. This involves requesting TGS tickets for accounts with Service Principal Names (SPNs) using tools like Impacket's `GetUserSPNs` command [Citation: local://executing-active-directory-attack-simulation.md, Section 5]. In summary, the first document is about detecting signs of an ongoing or attempted kerberoasting activity to understand and mitigate potential security breaches [1]. The second one details how a simulated attack could be carried out in order to test defenses against such techniques by actually attempting to obtain Kerberos tickets through exploitation methods like impersonation using SPNs [Citation: local://performing-kerberoasting-attack.md, Section 2]. Both aim at understanding the threat landscape from different angles: detection versus execution of kerberoasting attacks [Citation: local://detecting-pass-the-ticket-attacks.md, Section 1].",
+    "citations": [
+      "local://detecting-kerberoasting-attacks.md",
+      "local://detecting-pass-the-ticket-attacks.md",
+      "local://executing-active-directory-attack-simulation.md",
+      "local://performing-kerberoasting-attack.md",
+      "local://detecting-pass-the-ticket-attacks.md"
+    ]
+  },
+  {
+    "q": {
+      "category": "MERGE",
+      "q": "Compare 'exploiting-zerologon-vulnerability-cve-2020-1472' and 'detecting-ntlm-relay-with-event-correlation' \u2014 what CVE or technique does each address? Cite both.",
+      "expected_sources": [
+        "exploiting-zerologon-vulnerability-cve-2020-1472",
+        "detecting-ntlm-relay-with-event-correlation"
+      ]
+    },
+    "ok": true,
+    "reason": "cited 2/2: ['exploiting-zerologon-vulnerability-cve-2020-1472', 'detecting-ntlm-relay-with-event-correlation']",
+    "response": "The context provided discusses two different security vulnerabilities, one addressed by Microsoft in a patch (CVE-2020-1472) related to Zerologon vulnerability: \"Exploiting Zerologon Vulnerability (CVE-2020-1472)\" [Citation: local://exploiting-zerologon-vulnerability-cve-2020-1472.md, Section 1]. The other context discusses a technique for detecting NTLM relay attacks using security events and correlation techniques but does not specifically mention CVE numbers in relation to this detection method [Citation: local://detecting-ntlm-relay-with-event-correlation.md, Section 1]. Additionally, there is a mention in another section related to detecting and hunting for an NTLM relay attack (CVE-T1557.001) but not directly linked as the context provided does not contain this specific CVE reference [Citation: local://detecting-ntlm-relay-with-event-correlation.md, Section 3].",
+    "citations": [
+      "local://exploiting-zerologon-vulnerability-cve-2020-1472.md",
+      "local://detecting-ntlm-relay-with-event-correlation.md",
+      "local://detecting-ntlm-relay-with-event-correlation.md"
+    ]
+  },
+  {
+    "q": {
+      "category": "MERGE",
+      "q": "How do 'building-soc-playbook-for-ransomware' and 'performing-ransomware-response' complement each other? Cite both skills.",
+      "expected_sources": [
+        "building-soc-playbook-for-ransomware",
+        "performing-ransomware-response"
+      ]
+    },
+    "ok": false,
+    "reason": "cited 1/2: ['building-soc-playbook-for-ransomware']",
+    "response": "The skill of building a SOC playbook for ransomware (Source 1) complements the performing ransomware response by providing structured guidelines that can be followed during an active incident, ensuring consistent actions across Tier 1-3 analysts within the organization [Citation: local://building-soc-playbook-for-ransomware.md, Section 1]. On the other hand, 'performing-ransomware-response' focuses on executing these predefined procedures in real-time when a ransomware attack is detected (Source 7), allowing for immediate and coordinated action based on previously established playbooks [Citation: local://implementing-ot-incident-response-playbook.md, Section 1].",
+    "citations": [
+      "local://building-soc-playbook-for-ransomware.md",
+      "local://implementing-ot-incident-response-playbook.md"
+    ]
+  }
+]
