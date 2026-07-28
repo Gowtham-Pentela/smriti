@@ -24,8 +24,11 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # Simulated Build/Test Step (Defensive Programming Layer 7)
-      - name: Install dependencies & run test suite
+      # Build + unit test gate. Run only the mocked unit test here; the live
+      # e2e test (tests/test_agent_accuracy.py) needs a running backend + an
+      # ingested corpus + Ollama, so it is a manual/integration check, not a
+      # deploy gate.
+      - name: Install dependencies & run unit tests
         run: |
           python3 -m venv venv
           source venv/bin/activate
@@ -33,8 +36,8 @@ jobs:
           pip install -r requirements.txt
           # Copy .env from parent project directory to workspace for tests
           cp /home/ubuntu/smriti/.env . || echo "⚠️ .env file not found in /home/ubuntu/smriti/.env"
-          # Run tests to check for regressions before deploying (Layer 7 & 13)
-          python -m unittest discover -s tests
+          # Unit test only (mocked DB/backend). Live e2e is run manually, not in CI.
+          python -m unittest tests.test_answer_quality
 
       # Run all DB migrations in sorted order before restarting the server
       - name: Run database migrations
@@ -69,7 +72,8 @@ jobs:
           sleep 5
           
           # 3. Perform automated health check to verify the new process started successfully
-          if ! curl -s -I http://127.0.0.1:8000/auth-config; then
+          #    Use /health (exists) with --fail so a 4xx/5xx actually fails the deploy.
+          if ! curl -sf http://127.0.0.1:8000/health; then
             echo "❌ Health check failed! Printing server logs (uvicorn.log):"
             cat uvicorn.log
             exit 1

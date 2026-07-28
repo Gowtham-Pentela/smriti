@@ -5,6 +5,9 @@ python-multipart>=0.0.9
 python-dotenv>=1.0.1
 pydantic>=2.6.0
 
+# ── Auth: OIDC/JWKS RS256 token verification (backend/auth.py) ───────────────
+cryptography>=41.0.0
+
 # ── Database ────────────────────────────────────────────────────────────────
 asyncpg>=0.29.0
 
