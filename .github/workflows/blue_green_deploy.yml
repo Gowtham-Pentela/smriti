@@ -96,8 +96,12 @@ jobs:
             sudo apt-get update
             sudo apt-get install -y caddy
           fi
+          # The *.caddyinclude glob is silently skipped when no include file
+          # exists, so an operator-placed auth gate (e.g. /etc/caddy/basicauth.caddyinclude)
+          # persists across deploys without its credential ever entering git.
           sudo tee /etc/caddy/Caddyfile >/dev/null <<'CADDYFILE'
           smriti.one {
+              import /etc/caddy/*.caddyinclude
               reverse_proxy 127.0.0.1:8000
           }
           CADDYFILE
